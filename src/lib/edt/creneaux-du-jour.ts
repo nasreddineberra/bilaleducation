@@ -45,13 +45,13 @@ export interface ExceptionSource {
   schedule_slot_id: string
   exception_date: string
   exception_type: string
-  override_teacher_id: string | null
 }
 
 export interface CreneauDuJour {
   slotId: string
   classId: string
-  /** Enseignant qui l'assure REELLEMENT ce jour-la : le remplacant s'il y en a un. */
+  /** Enseignant qui l'assure ce jour-la : le titulaire (les remplacements sont des
+   *  decisions d'absence, lues ailleurs). */
   teacherId: string
   /** Titulaire du creneau, independamment d'un remplacement en cours. */
   titulaireId: string
@@ -59,8 +59,6 @@ export interface CreneauDuJour {
   endTime: string
   /** `cours` | `activite` — sert a choisir le type de la saisie de remplacement. */
   slotType: string
-  /** Un remplacant est deja designe pour ce jour (`override_teacher_id`). */
-  remplacantId: string | null
 }
 
 /** Le jour de la semaine de `date`, au format de `day_of_week` (0 = dimanche). */
@@ -73,8 +71,7 @@ function jourSemaine(date: string): number {
  * Creneaux assures par `titulaireId` a la date donnee.
  *
  * `titulaireId` est un `teachers.id` — pas un `profile_id`. C'est ce que
- * portent `schedule_slots.teacher_id` et `schedule_exceptions.override_teacher_id`,
- * et confondre les deux est le piege paye le 10 juillet, ou le filtre « par
+ * porte `class_teachers.teacher_id`, et confondre les deux est le piege paye le 10 juillet, ou le filtre « par
  * enseignant » de l'EDT comparait un id de profil a un id d'enseignant et ne
  * matchait jamais.
  */
@@ -112,16 +109,14 @@ export function creneauxDuJour(
       return ex?.exception_type !== 'cancelled'
     })
     .map(s => {
-      const ex = exceptions.find(e => e.schedule_slot_id === s.id && e.exception_date === date)
       return {
         slotId: s.id,
         classId: s.class_id,
         titulaireId,
-        teacherId: ex?.override_teacher_id ?? titulaireId,
+        teacherId: titulaireId,
         startTime: s.start_time.slice(0, 5),
         endTime: s.end_time.slice(0, 5),
         slotType: s.slot_type,
-        remplacantId: ex?.override_teacher_id ?? null,
       }
     })
     .sort((a, b) => a.startTime.localeCompare(b.startTime))

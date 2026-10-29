@@ -49,7 +49,7 @@ export async function chargerAbsencesFenetre(
     estAbsent: (teacherId: string | null, date: string, debut: string, fin: string) =>
       !!absenceDeSeance(absences, teacherId, date, debut, fin),
     /** Exceptions de l'EDT, decisions d'absence fondues (`profileId -> teachers.id`). */
-    fusionner: <E extends { schedule_slot_id: string; exception_date: string; exception_type: string; override_teacher_id: string | null }>(
+    fusionner: <E extends { schedule_slot_id: string; exception_date: string; exception_type: string; remplacant_teacher_id?: string | null }>(
       exceptions: E[],
       enseignantDuProfil: (profileId: string) => string | null,
     ) => fusionnerDecisions(exceptions, decisions, enseignantDuProfil),
@@ -89,13 +89,13 @@ export async function chargerAlerteAbsences(
   const [decRes, exRes] = await Promise.all([
     supabase.from('absences_enseignants_seances').select('schedule_slot_id, seance_date').in('absence_id', absences.map(a => a.id)),
     slotIds.length
-      ? supabase.from('schedule_exceptions').select('schedule_slot_id, exception_date, exception_type, override_teacher_id')
+      ? supabase.from('schedule_exceptions').select('schedule_slot_id, exception_date, exception_type')
           .in('schedule_slot_id', slotIds).eq('exception_type', 'cancelled').gte('exception_date', du).lte('exception_date', au)
       : Promise.resolve({ data: [] }),
   ])
   const decidees = new Set(((decRes.data ?? []) as { schedule_slot_id: string; seance_date: string }[])
     .map(d => `${d.schedule_slot_id}|${String(d.seance_date).slice(0, 10)}`))
-  const exceptions = (exRes.data ?? []) as { schedule_slot_id: string; exception_date: string; exception_type: string; override_teacher_id: string | null }[]
+  const exceptions = (exRes.data ?? []) as { schedule_slot_id: string; exception_date: string; exception_type: string; remplacant_teacher_id?: string | null }[]
 
   let nbADecider = 0
   for (const a of absences) {

@@ -236,7 +236,7 @@ export async function setTeacherActive(
 // Absences et remplacements (lot 3) : BLOQUANTS aussi, la base les garde (RESTRICT)
 // pour l'historique des seances.
 type DepsEnseignant = {
-  classes: number; historique: number; edt: number; evaluations: number
+  classes: number; historique: number; evaluations: number
   grades: number; seances: number; devoirs: number; absences: number; remplacements: number
 }
 
@@ -247,7 +247,7 @@ function aujourdhuiLocal(): string {
 
 async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof createClient>>, teacherId: string): Promise<DepsEnseignant | null> {
   const today = aujourdhuiLocal()
-  const compte = (table: 'class_teachers' | 'schedule_slots' | 'schedule_exceptions' | 'evaluations' | 'grades' | 'class_journal' | 'homework' | 'absences_enseignants', col: string) =>
+  const compte = (table: 'class_teachers' | 'evaluations' | 'grades' | 'class_journal' | 'homework' | 'absences_enseignants', col: string) =>
     supabase.from(table).select('id', { count: 'exact', head: true }).eq(col, teacherId)
   // Remplacements assures : ils portent le COMPTE de l'enseignant, pas sa fiche.
   const { data: fiche } = await supabase.from('teachers').select('user_id').eq('id', teacherId).maybeSingle()
@@ -255,8 +255,6 @@ async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof 
     // « en cours ou a venir » : sans date de fin, ou fin >= aujourd'hui (fin INCLUSE)
     compte('class_teachers', 'teacher_id').or(`effective_until.is.null,effective_until.gte.${today}`),
     compte('class_teachers', 'teacher_id').lt('effective_until', today),
-    compte('schedule_slots', 'teacher_id'),
-    compte('schedule_exceptions', 'override_teacher_id'),
     compte('evaluations', 'teacher_id'),
     compte('grades', 'graded_by'),
     compte('class_journal', 'teacher_id'),
@@ -269,12 +267,12 @@ async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof 
   // Un comptage `head` impossible rend `count: null` SANS erreur : on refuse de
   // conclure plutot que de prendre une panne pour « aucune donnee ».
   if (r.some(x => x.count === null)) return null
-  const [classes, historique, slots, exceptions, evaluations, grades, seances, devoirs, absences, remplacements] = r.map(x => x.count as number)
-  return { classes, historique, edt: slots + exceptions, evaluations, grades, seances, devoirs, absences, remplacements }
+  const [classes, historique, evaluations, grades, seances, devoirs, absences, remplacements] = r.map(x => x.count as number)
+  return { classes, historique, evaluations, grades, seances, devoirs, absences, remplacements }
 }
 
 const dependancesBloquantes = (d: DepsEnseignant) =>
-  d.classes + d.edt + d.evaluations + d.grades + d.seances + d.devoirs + d.absences + d.remplacements
+  d.classes + d.evaluations + d.grades + d.seances + d.devoirs + d.absences + d.remplacements
 
 // Pour la modale de la liste.
 export async function getTeacherDeleteDeps(teacherId: string): Promise<{ error?: string; deps?: DepsEnseignant }> {

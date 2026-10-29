@@ -1299,7 +1299,6 @@ export type Database = {
           max_students: number | null
           name: string
           room_id: string | null
-          room_number: string | null
           schedule_notes: string | null
           start_time: string | null
           teaching_mode: "single" | "multi"
@@ -1319,7 +1318,6 @@ export type Database = {
           max_students?: number | null
           name: string
           room_id?: string | null
-          room_number?: string | null
           schedule_notes?: string | null
           start_time?: string | null
           teaching_mode?: "single" | "multi"
@@ -1339,7 +1337,6 @@ export type Database = {
           max_students?: number | null
           name?: string
           room_id?: string | null
-          room_number?: string | null
           schedule_notes?: string | null
           start_time?: string | null
           teaching_mode?: "single" | "multi"
@@ -3546,10 +3543,7 @@ export type Database = {
           exception_date: string
           exception_type: "cancelled" | "modified"
           id: string
-          override_end_time: string | null
           override_room_id: string | null
-          override_start_time: string | null
-          override_teacher_id: string | null
           schedule_slot_id: string
         }
         Insert: {
@@ -3558,10 +3552,7 @@ export type Database = {
           exception_date: string
           exception_type: "cancelled" | "modified"
           id?: string
-          override_end_time?: string | null
           override_room_id?: string | null
-          override_start_time?: string | null
-          override_teacher_id?: string | null
           schedule_slot_id: string
         }
         Update: {
@@ -3570,10 +3561,7 @@ export type Database = {
           exception_date?: string
           exception_type?: "cancelled" | "modified"
           id?: string
-          override_end_time?: string | null
           override_room_id?: string | null
-          override_start_time?: string | null
-          override_teacher_id?: string | null
           schedule_slot_id?: string
         }
         Relationships: [
@@ -3589,13 +3577,6 @@ export type Database = {
             columns: ["override_room_id"]
             isOneToOne: false
             referencedRelation: "rooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "schedule_exceptions_override_teacher_id_fkey"
-            columns: ["override_teacher_id"]
-            isOneToOne: false
-            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
           {
@@ -3627,7 +3608,6 @@ export type Database = {
           slot_date: string | null
           slot_type: "cours" | "activite"
           start_time: string
-          teacher_id: string | null
           unite_enseignement_id: string | null
           updated_at: string
         }
@@ -3650,7 +3630,6 @@ export type Database = {
           slot_date?: string | null
           slot_type?: "cours" | "activite"
           start_time: string
-          teacher_id?: string | null
           unite_enseignement_id?: string | null
           updated_at?: string
         }
@@ -3673,7 +3652,6 @@ export type Database = {
           slot_date?: string | null
           slot_type?: "cours" | "activite"
           start_time?: string
-          teacher_id?: string | null
           unite_enseignement_id?: string | null
           updated_at?: string
         }
@@ -3711,13 +3689,6 @@ export type Database = {
             columns: ["school_year_id"]
             isOneToOne: false
             referencedRelation: "school_years"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "schedule_slots_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
           {

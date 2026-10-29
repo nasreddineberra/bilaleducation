@@ -17,7 +17,7 @@ const slot = (o: Partial<SlotSource>): SlotSource => ({
 })
 const ex = (o: Partial<ExceptionSource>): ExceptionSource => ({
   schedule_slot_id: 'a', exception_date: SAMEDI, exception_type: 'modified',
-  override_start_time: null, override_end_time: null, override_teacher_id: null, override_room_id: null, ...o,
+  remplacant_teacher_id: null, override_room_id: null, ...o,
 })
 const ids = (l: { id: string }[]) => l.map(r => r.id)
 

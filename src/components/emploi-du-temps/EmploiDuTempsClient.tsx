@@ -97,14 +97,12 @@ export interface ExceptionData {
   schedule_slot_id: string
   exception_date: string
   exception_type: 'cancelled' | 'modified'
-  override_start_time: string | null
-  override_end_time: string | null
-  override_teacher_id: string | null
+  remplacant_teacher_id?: string | null
   override_room_id: string | null
 }
 
 /** Exception telle que la lit la resolution : decisions d'absence fondues (`fusionnerDecisions`). */
-type ExceptionVue = ExceptionData & { override_profile_id?: string | null; par_absence?: boolean; absence_id?: string }
+type ExceptionVue = ExceptionData & { remplacant_profil_id?: string | null; par_absence?: boolean; absence_id?: string }
 
 /** L'exception qui decide de l'enseignant : une seance annulee garde, a l'affichage, son enseignant. */
 const exceptionActive = (e: ExceptionVue | undefined): ExceptionVue | null =>
@@ -408,9 +406,6 @@ export default function EmploiDuTempsClient({
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingSlot, setEditingSlot] = useState<SlotData | null>(null)
-  const [editMode, setEditMode] = useState<'all' | 'this_only' | null>(null)
-  const [editDate, setEditDate] = useState<string | null>(null)
   const [prefillDay, setPrefillDay] = useState<number | null>(null)
   const [prefillTime, setPrefillTime] = useState<string | null>(null)
   const [prefillDate, setPrefillDate] = useState<string | null>(null)
@@ -624,7 +619,7 @@ export default function EmploiDuTempsClient({
   // « a decider » quand le titulaire est absent et que rien n'est decide.
   const infosAbsence = useCallback((slot: SlotData, date: string, debut: string, fin: string, exception: ExceptionVue | null | undefined) => {
     if (exception?.par_absence) {
-      const p = exception.override_profile_id ?? null
+      const p = exception.remplacant_profil_id ?? null
       return {
         parAbsence: true,
         absenceId: exception.absence_id ?? null,
@@ -673,8 +668,8 @@ export default function EmploiDuTempsClient({
           teacher_id: enseignantAffiche(quiAssure(slot, date, exception)),
           cours_id: slot.cours_id,
           room_id: salleDe(slot, exception),
-          start_time: exception.override_start_time ?? slot.start_time,
-          end_time: exception.override_end_time ?? slot.end_time,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
           slot_type: slot.slot_type,
           ...infosAbsence(slot, date, slot.start_time, slot.end_time, exception),
           color: slot.color,
@@ -812,8 +807,8 @@ export default function EmploiDuTempsClient({
             teacher_id: enseignantAffiche(quiAssure(slot, date, exception)),
             cours_id: slot.cours_id,
             room_id: salleDe(slot, exception),
-            start_time: exception.override_start_time ?? slot.start_time,
-            end_time: exception.override_end_time ?? slot.end_time,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
             slot_type: slot.slot_type,
             ...infosAbsence(slot, date, slot.start_time, slot.end_time, exception),
             color: slot.color,
@@ -1115,7 +1110,7 @@ export default function EmploiDuTempsClient({
       try {
         const { error } = await supabase.from('schedule_slots').insert({
           class_id: selectedClassId,
-          teacher_id: subject.teacherId || null,
+          // Enseignant deduit du titulaire (lot 5) : jamais recopie sur le creneau.
           school_year_id: schoolYearId,
           is_recurring: true,
           day_of_week: dayOfWeek,
@@ -1184,250 +1179,47 @@ export default function EmploiDuTempsClient({
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
-  // Date effective : aujourd'hui si en cours d'année, sinon date de rentrée
-  const getEffectiveDate = useCallback(() => {
-    const today = formatDate(new Date())
-    if (schoolYearStartDate && schoolYearEndDate && today >= schoolYearStartDate && today <= schoolYearEndDate) {
-      return today
-    }
-    return schoolYearStartDate ?? today
-  }, [schoolYearStartDate, schoolYearEndDate])
-
+  // Nouvelle SEANCE PONCTUELLE, seul enregistrement de la modale (lot 5, 29/10 :
+  // l'edition d'une serie, d'un horaire ou d'un enseignant est retiree de l'EDT).
+  // L'enseignant n'est pas ecrit : il se deduit du titulaire a la date.
   const handleSaveSlot = useCallback(async (data: {
-    id?: string
     class_id: string
-    teacher_id: string | null
-    cours_id: string | null
     unite_enseignement_id: string | null
     libelle: string | null
     room_id: string | null
-    day_of_week: number | null
-    slot_date: string | null
-    is_recurring: boolean
+    slot_date: string
     start_time: string
     end_time: string
     slot_type: string
-    editAll?: boolean
-    pivotDate?: string // date du créneau cliqué (EDT) — si absent, on utilise aujourd'hui/rentrée
   }) => {
-    // Date pivot : celle du créneau (EDT) ou aujourd'hui/rentrée (ClassForm)
-    const pivotDate = data.pivotDate ?? getEffectiveDate()
-    const isInSchoolYear = schoolYearStartDate && schoolYearEndDate
-      && pivotDate >= schoolYearStartDate && pivotDate <= schoolYearEndDate
-
-    const basePayload = {
+    const { error } = await supabase.from('schedule_slots').insert({
       school_year_id: schoolYearId,
       class_id: data.class_id,
-      teacher_id: data.teacher_id,
-      cours_id: data.cours_id || null,
       // Chacun sa place (CHECK en base) : matiere d'un cours, nom d'une activite.
       unite_enseignement_id: data.slot_type === 'cours' ? (data.unite_enseignement_id || null) : null,
       libelle: data.slot_type === 'activite' ? (data.libelle?.trim() || null) : null,
       room_id: data.room_id || null,
-      is_recurring: data.is_recurring,
-      day_of_week: data.is_recurring ? data.day_of_week : null,
-      slot_date: data.is_recurring ? null : data.slot_date,
+      is_recurring: false,
+      day_of_week: null,
+      slot_date: data.slot_date,
       start_time: data.start_time,
       end_time: data.end_time,
       slot_type: data.slot_type,
-    }
+      effective_from: null,
+      effective_until: null,
+    })
+    if (error) { toastError('Erreur : ' + error.message); return }
 
-    if (data.id && data.editAll && data.is_recurring) {
-      // ── Modifier tous les créneaux (récurrent) ──
-      const oldSlot = slots.find(s => s.id === data.id)
-
-      if (isInSchoolYear && oldSlot) {
-        // En cours d'année : clôturer l'ancien (veille du pivot) + créer un nouveau (à partir du pivot)
-        const pivotD = new Date(pivotDate + 'T00:00:00')
-        pivotD.setDate(pivotD.getDate() - 1)
-        const dayBefore = formatDate(pivotD)
-
-        // Ancien créneau : clôturer la veille s'il a des jours AVANT le pivot (conserve
-        // l'historique) ; sinon (il commence au pivot ou après) le supprimer entièrement,
-        // sinon on créerait une plage inversée « from > until » (cascade : exceptions/validations).
-        const echecAncien = !oldSlot.effective_from || oldSlot.effective_from < pivotDate
-          ? erreurEcriture(
-              await supabase
-                .from('schedule_slots')
-                .update({ effective_until: dayBefore })
-                .eq('id', data.id)
-                .select('id'),
-              'La cloture du creneau precedent',
-            )
-          : erreurEcriture(
-              await supabase.from('schedule_slots').delete().eq('id', data.id).select('id'),
-              'Le creneau precedent',
-            )
-        // On n'INSERE PAS le nouveau creneau si l'ancien n'a pas cede sa place :
-        // les deux se chevaucheraient, et la contrainte d'exclusion repondrait par
-        // un « duplicate key » qui ne dit rien de la vraie cause.
-        if (echecAncien) { toastError(echecAncien); return }
-
-        // Créer le nouveau créneau avec effective_from = pivotDate
-        const { error } = await supabase.from('schedule_slots').insert({
-          ...basePayload,
-          effective_from: pivotDate,
-          effective_until: null,
-        })
-        if (error) { toastError('Erreur : ' + error.message); return }
-      } else {
-        // Hors année scolaire : simple mise à jour + effective_from = rentrée
-        const effectiveFrom = schoolYearStartDate ?? pivotDate
-        const echec = erreurEcriture(
-          await supabase.from('schedule_slots').update({
-            ...basePayload,
-            effective_from: effectiveFrom,
-          }).eq('id', data.id).select('id'),
-          'Ce creneau',
-        )
-        if (echec) { toastError(echec); return }
-      }
-
-      // Mettre à jour la fiche classe
-      if (data.day_of_week !== null) {
-        const dayName = DAY_LABELS[data.day_of_week] ?? ''
-        const echecClasse = erreurEcriture(
-          await supabase
-            .from('classes')
-            .update({ day_of_week: dayName, start_time: data.start_time, end_time: data.end_time })
-            .eq('id', data.class_id)
-            .select('id'),
-          'Le planning de la fiche classe',
-        )
-        if (echecClasse) { toastError(echecClasse); return }
-      }
-
-      // Supprimer les exceptions à partir du pivot (liées à l'ancien créneau)
-      const echecLot0 = erreurEcritureLot(
-        await supabase
-          .from('schedule_exceptions')
-          .delete()
-          .eq('schedule_slot_id', data.id)
-          .gte('exception_date', pivotDate),
-        'Les exceptions du creneau',
-      )
-      if (echecLot0) { toastError(echecLot0); return }
-
-      // Log détaillé
-      const cls = classesRef.current.find(c => c.id === data.class_id)
-      const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
-      logAudit(supabase, {
-        action: 'UPDATE',
-        entityType: 'schedule_slots',
-        entityId: data.id,
-        description: `Modification créneau EDT pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}-${data.end_time}, à partir du ${new Date(pivotDate + 'T00:00:00').toLocaleDateString('fr-FR')}`,
-      })
-
-    } else if (data.id) {
-      // ── Modifier un créneau existant (ponctuel ou this_only via exception) ──
-      const echec = erreurEcriture(
-        await supabase.from('schedule_slots').update(basePayload).eq('id', data.id).select('id'),
-        'Ce creneau',
-      )
-      if (echec) { toastError(echec); return }
-
-      const cls = classesRef.current.find(c => c.id === data.class_id)
-      const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
-      const dateInfo = data.slot_date ? ` le ${new Date(data.slot_date + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
-      logAudit(supabase, {
-        action: 'UPDATE',
-        entityType: 'schedule_slots',
-        entityId: data.id,
-        description: `Modification créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}-${data.end_time}${dateInfo}`,
-      })
-
-    } else {
-      // ── Nouveau créneau ──
-      const effectiveFrom = data.is_recurring ? getEffectiveDate() : null
-      const { error } = await supabase.from('schedule_slots').insert({
-        ...basePayload,
-        effective_from: effectiveFrom,
-        effective_until: null,
-      })
-      if (error) { toastError('Erreur : ' + error.message); return }
-
-      const cls = classesRef.current.find(c => c.id === data.class_id)
-      const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
-      const dateInfo = data.slot_date ? ` le ${new Date(data.slot_date + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
-      const fromInfo = effectiveFrom ? `, à partir du ${new Date(effectiveFrom + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
-      logAudit(supabase, {
-        action: 'INSERT',
-        entityType: 'schedule_slots',
-        description: `Nouveau créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}-${data.end_time}${dateInfo}${fromInfo}`,
-      })
-    }
-
-    await refreshData()
-    setModalOpen(false)
-    setEditingSlot(null)
-    setEditMode(null)
-    setEditDate(null)
-  }, [supabase, schoolYearId, slots, schoolYearStartDate, schoolYearEndDate, getEffectiveDate, refreshData, toastError])
-
-  /** Save a "this day only" modification as an exception */
-  const handleSaveException = useCallback(async (data: {
-    schedule_slot_id: string
-    exception_date: string
-    start_time: string
-    end_time: string
-    teacher_id: string | null
-    room_id: string | null
-  }) => {
-    const slot = slots.find(s => s.id === data.schedule_slot_id)
-    if (!slot) return
-
-    const needsOverride =
-      data.start_time !== slot.start_time.slice(0, 5) ||
-      data.end_time !== slot.end_time.slice(0, 5) ||
-      (data.teacher_id ?? null) !== titulaireDe(slot.class_id, data.exception_date) ||
-      (data.room_id ?? null) !== salleDe(slot, null)
-
-    if (!needsOverride) {
-      setModalOpen(false)
-      return
-    }
-
-    // Check if exception already exists
-    const existing = exceptions.find(
-      ex => ex.schedule_slot_id === data.schedule_slot_id && ex.exception_date === data.exception_date
-    )
-
-    const payload = {
-      schedule_slot_id: data.schedule_slot_id,
-      exception_date: data.exception_date,
-      exception_type: 'modified' as const,
-      override_start_time: data.start_time !== slot.start_time.slice(0, 5) ? data.start_time : null,
-      override_end_time: data.end_time !== slot.end_time.slice(0, 5) ? data.end_time : null,
-      override_teacher_id: (data.teacher_id ?? null) !== titulaireDe(slot.class_id, data.exception_date) ? data.teacher_id : null,
-      override_room_id: (data.room_id ?? null) !== salleDe(slot, null) ? data.room_id : null,
-    }
-
-    if (existing) {
-      const echec = erreurEcriture(
-        await supabase.from('schedule_exceptions').update(payload).eq('id', existing.id).select('id'),
-        'Cette modification ponctuelle',
-      )
-      if (echec) { toastError(echec); return }
-    } else {
-      const { error } = await supabase.from('schedule_exceptions').insert(payload)
-      if (error) { toastError('Erreur : ' + error.message); return }
-    }
-
-    // Log détaillé
-    const cls = classesRef.current.find(c => c.id === slot.class_id)
-    const dateStr = new Date(data.exception_date + 'T00:00:00').toLocaleDateString('fr-FR')
+    const cls = classesRef.current.find(c => c.id === data.class_id)
     logAudit(supabase, {
-      action: existing ? 'UPDATE' : 'INSERT',
-      entityType: 'schedule_exceptions',
-      description: `Modification ponctuelle créneau ${cls?.name ?? 'classe'} du ${dateStr} : ${data.start_time}-${data.end_time}`,
+      action: 'INSERT',
+      entityType: 'schedule_slots',
+      description: `Nouveau créneau ponctuel pour ${cls?.name ?? 'classe'} : ${data.start_time}-${data.end_time} le ${new Date(data.slot_date + 'T00:00:00').toLocaleDateString('fr-FR')}`,
     })
 
     await refreshData()
     setModalOpen(false)
-    setEditingSlot(null)
-    setEditMode(null)
-    setEditDate(null)
-  }, [supabase, slots, exceptions, refreshData, toastError, titulaireDe, salleDe])
+  }, [supabase, schoolYearId, refreshData, toastError])
 
   const libelleSeance = useCallback((slotId: string, date: string) => {
     const slot = slots.find(s => s.id === slotId)
@@ -1521,8 +1313,8 @@ export default function EmploiDuTempsClient({
     if (!existing || existing.exception_type !== 'cancelled') return
     // Une salle changee avant l'annulation est rendue a la seance ; sinon la
     // ligne d'exception n'a plus de raison d'etre.
-    const resteModifiee = !!(existing.override_room_id || existing.override_start_time
-      || existing.override_end_time || existing.override_teacher_id)
+    // Une seance « modifiee » ne porte plus qu'une salle changee (lot 5).
+    const resteModifiee = !!existing.override_room_id
     const echec = erreurEcriture(
       resteModifiee
         ? await supabase.from('schedule_exceptions').update({ exception_type: 'modified' }).eq('id', existing.id).select('id')
@@ -1567,7 +1359,7 @@ export default function EmploiDuTempsClient({
       // Salle de la seance sans changement ponctuel : celle de la classe ou du creneau.
       const override = nouvelle === salleDe(slot, null) ? null : nouvelle
       if (existing) {
-        const vide = !override && !existing.override_start_time && !existing.override_end_time && !existing.override_teacher_id
+        const vide = !override
         echec = erreurEcriture(
           vide && existing.exception_type === 'modified'
             ? await supabase.from('schedule_exceptions').delete().eq('id', existing.id).select('id')
@@ -1654,9 +1446,6 @@ export default function EmploiDuTempsClient({
   // ─── Open modal helpers ───────────────────────────────────────────────────
 
   const openNewSlot = (day?: number, time?: string, date?: string) => {
-    setEditingSlot(null)
-    setEditMode(null)
-    setEditDate(null)
     setPrefillDay(day ?? null)
     setPrefillTime(time ?? null)
     setPrefillDate(date ?? null)
@@ -2201,25 +1990,19 @@ export default function EmploiDuTempsClient({
 
       {modalOpen && (
         <SlotFormModal
-          key={`${editingSlot?.id ?? 'new'}-${prefillDate}-${prefillDay}-${prefillTime}`}
-          slot={editingSlot}
-          editMode={editMode}
-          editDate={editDate}
+          key={`new-${prefillDate}-${prefillDay}-${prefillTime}`}
           prefillDay={prefillDay ?? selectedDay}
           prefillTime={prefillTime}
           prefillDate={prefillDate}
           prefillClassId={selectedClassId}
-          prefillTeacherId={viewMode === 'teacher' && teachers.some(t => t.id === selectedTeacherId) ? selectedTeacherId : ''}
           weekDayDates={weekDayDates}
           classes={classes}
-          teachers={teachers}
           sallesPour={sallesPour}
           matieres={ueList}
           existingSlots={slots}
           vacations={vacations}
           onSave={handleSaveSlot}
-          onSaveException={handleSaveException}
-          onClose={() => { setModalOpen(false); setEditingSlot(null); setEditMode(null); setEditDate(null) }}
+          onClose={() => setModalOpen(false)}
         />
       )}
 

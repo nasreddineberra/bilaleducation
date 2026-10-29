@@ -21,7 +21,6 @@ interface TeachersTableProps {
 interface DeleteDeps {
   classes:     number
   historique:  number
-  edt:         number
   evaluations: number
   grades:      number
   seances:     number
@@ -76,7 +75,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
     router.refresh()
   }
 
-  const hasBlocking = !!deps && (deps.classes + deps.edt + deps.evaluations + deps.grades + deps.seances + deps.devoirs
+  const hasBlocking = !!deps && (deps.classes + deps.evaluations + deps.grades + deps.seances + deps.devoirs
     + deps.absences + deps.remplacements) > 0
 
   if (teachers.length === 0) {
@@ -256,9 +255,6 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
               <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
                 {deps.classes > 0 && (
                   <li><strong>{deps.classes}</strong> affectation{deps.classes > 1 ? 's' : ''} à des classes en cours</li>
-                )}
-                {deps.edt > 0 && (
-                  <li><strong>{deps.edt}</strong> élément{deps.edt > 1 ? 's' : ''} d&apos;emploi du temps</li>
                 )}
                 {deps.evaluations > 0 && (
                   <li><strong>{deps.evaluations}</strong> évaluation{deps.evaluations > 1 ? 's' : ''}</li>

@@ -32,7 +32,7 @@ export async function chargerContexteSeances(supabase: SupabaseClient<Database>)
   const { data: exceptions } = slots?.length
     ? await supabase
         .from('schedule_exceptions')
-        .select('schedule_slot_id, exception_date, exception_type, override_teacher_id')
+        .select('schedule_slot_id, exception_date, exception_type')
         .in('schedule_slot_id', slots.map(s => s.id))
     : { data: [] }
 

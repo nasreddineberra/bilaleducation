@@ -106,7 +106,6 @@ type TeachingMode = 'single' | 'multi'
 type FormData = {
   name:               string
   level:              string
-  room_number:        string
   room_id:            string
   max_students:       string
   description:        string
@@ -206,7 +205,6 @@ export default function ClassForm({
   const [form, setForm] = useState<FormData>({
     name:               cls?.name               ?? '',
     level:              cls?.level              ?? '',
-    room_number:        cls?.room_number        ?? '',
     room_id:            cls?.room_id            ?? '',
     max_students:       String(cls?.max_students ?? 30),
     description:        cls?.description        ?? '',
@@ -321,27 +319,9 @@ export default function ClassForm({
     const a = assignments[idx]
     setPendingConfirm({
       title: 'Supprimer l\'affectation',
-      message: `Supprimer "${a.teacher_name}" (${a.is_main_teacher ? 'ancien titulaire' : 'remplaçant'}) ? Cette affectation sera définitivement retirée.`,
+      message: `Supprimer "${a.teacher_name}" (ancien titulaire) ? Cette affectation sera définitivement retirée.`,
       variant: 'danger',
       onConfirm: () => removeAssignmentAt(idx),
-    })
-  }
-
-  // ── Remplaçants ─────────────────────────────────────────────────────────────
-  // Ils ne se DECLARENT plus ici (lot 3b-2c, 28/10) : la page « Absences
-  // enseignants » est le seul chemin des remplacements. Les remplacants deja
-  // enregistres dans `class_teachers` restent affiches (terminer, corriger,
-  // retirer) jusqu'au nettoyage du lot 5.
-  // Terminer un remplacement (retour de l'enseignant) : pose effective_until,
-  // conserve la ligne → bascule en historique. Réutilise la modale de clôture.
-  const openEndSub = (realIdx: number) => {
-    const a = assignments[realIdx]
-    setPendingAssignAction({
-      type: 'delete', idx: realIdx, effectiveDate: todayISO(),
-      applyFn: (date: string) => {
-        setAssignments(prev => prev.map((x, i) => i === realIdx ? { ...x, effective_until: date } : x))
-      },
-      message: `Indiquez le dernier jour de remplacement de "${a.teacher_name}" (inclus). Il passera en historique le lendemain.`,
     })
   }
 
@@ -480,8 +460,6 @@ export default function ClassForm({
         level:         form.level.trim(),
         teaching_mode: form.teaching_mode,
         academic_year: currentYear?.label ?? null,
-        // `room_number` (copie du nom) n'est plus ecrit : on lit la salle rattachee.
-        room_number:   null,
         room_id:       salleUnique ? (form.room_id || null) : null,
         max_students:  parseInt(form.max_students, 10) || 30,
         description:   form.description.trim() || null,
@@ -530,66 +508,17 @@ export default function ClassForm({
         }
       }
 
-      // Cloturer les slots EDT des affectations cloturees en cours d'annee
-      if (currentSchoolYear?.id) {
-        // Un titulaire retire SANS successeur ne clot pas ses creneaux : ils passent
-        // sans enseignant (voir plus bas) et reprendront un titulaire a l'affectation suivante.
-        const mainActif = assignments.some(a => !a.effective_until && a.is_main_teacher)
-        const closedAssignments = assignments.filter(a => a.effective_until && a.teacher_id && !(a.is_main_teacher && !mainActif))
-        for (const ca of closedAssignments) {
-          verifierEcritureLot(
-            await supabase
-              .from('schedule_slots')
-              .update({ effective_until: ca.effective_until })
-              .eq('class_id', classId)
-              .eq('teacher_id', ca.teacher_id)
-              .eq('school_year_id', currentSchoolYear.id)
-              .eq('is_recurring', true)
-              .is('effective_until', null),
-            'La cloture des creneaux',
-          )
-        }
-      }
-
-      // ── Cascade enseignant principal → slots EDT ─────────────────────
-      // Si le prof principal actif a changé, on réaffecte tous les créneaux.
+      // ── Le titulaire n'est plus recopie sur les creneaux (lot 5, 29/10) ──
+      // Qui assure une seance se DEDUIT a la date (`lib/edt/seance.ts`) : un
+      // changement de titulaire ne touche pas le planning, et la fin d'une
+      // affectation ne clot aucun creneau (ils appartiennent a la classe).
       if (isEditing) {
         const newMain = assignments.find(a => !a.effective_until && a.is_main_teacher)
         const oldMain = initialAssignments.find(a => !a.effective_until && a.is_main_teacher)
-        if (!newMain && oldMain?.teacher_id) {
-          verifierEcritureLot(
-            await supabase
-              .from('schedule_slots')
-              .update({ teacher_id: null })
-              .eq('class_id', classId)
-              .eq('is_active', true)
-              .eq('teacher_id', oldMain.teacher_id),
-            'Le retrait du titulaire sur le planning',
-          )
-          logAudit(supabase, {
-            action: 'UPDATE',
-            entityType: 'schedule_slots',
-            description: `Titulaire retiré : les créneaux de ${form.name.trim()} passent sans enseignant`,
-          })
-        }
         if (newMain && newMain.teacher_id !== oldMain?.teacher_id) {
-          verifierEcritureLot(
-            await supabase
-              .from('schedule_slots')
-              .update({ teacher_id: newMain.teacher_id })
-              .eq('class_id', classId)
-              .eq('is_active', true),
-            'La cascade vers le planning',
-          )
-          logAudit(supabase, {
-            action: 'UPDATE',
-            entityType: 'schedule_slots',
-            description: `Cascade : tous les créneaux de ${form.name.trim()} affectés à ${newMain.teacher_name}`,
-          })
-
           // Le cahier de texte de la classe suit le titulaire : séances et devoirs
           // rédigés par les ANCIENS TITULAIRES de cette classe passent au nouveau.
-          // Les remplaçants ne sont pas concernés, et seule cette classe l'est. Le
+          // Seule cette classe est concernée. Le
           // droit d'écriture est celui de la base (admin, direction, resp. pédago) ;
           // pour un autre rôle la mise à jour touche zéro ligne, sans erreur.
           const anciens = [...new Set(assignments
@@ -620,7 +549,6 @@ export default function ClassForm({
       }
 
       // Réconciliation slots EDT
-      const mainTeacher = assignments.find(a => !a.effective_until && a.is_main_teacher)
 
       // 1. Supprimer les slots retirés
       for (const slotId of deletedSlotIds) {
@@ -669,7 +597,6 @@ export default function ClassForm({
         for (const slot of slots.filter(s => !s.id)) {
           const { error: slotErr } = await supabase.from('schedule_slots').insert({
             class_id:        classId,
-            teacher_id:      mainTeacher?.teacher_id || null,
             school_year_id:  currentSchoolYear.id,
             is_recurring:    true,
             day_of_week:     dayNameToNum(slot.day_of_week),
@@ -804,15 +731,10 @@ export default function ClassForm({
           </h2>
 
           {(() => {
-            const today = todayISO()
             const byEndDesc = (x: AssignmentData, y: AssignmentData) => (y.effective_until ?? '').localeCompare(x.effective_until ?? '')
             const titulaires = assignments.filter(a => a.is_main_teacher)
             const activeTit  = titulaires.find(a => !a.effective_until)
             const formerTits = titulaires.filter(a => a.effective_until).sort(byEndDesc)
-            const subs       = assignments.filter(a => !a.is_main_teacher)
-            // Convention « inclus » : effective_until = dernier jour de remplacement.
-            const currentSub = subs.find(a => !a.effective_until || a.effective_until >= today)
-            const pastSubs   = subs.filter(a => a.effective_until && a.effective_until < today).sort(byEndDesc)
 
             return <>
               {/* ── Titulaire ── */}
@@ -900,35 +822,7 @@ export default function ClassForm({
               <div className="space-y-1.5 pt-3 border-t border-warm-100">
                 <h3 className="section-title">Remplacements{currentYear ? ` · ${currentYear.label}` : ''}</h3>
 
-                {currentSub ? (() => {
-                  const realIdx = assignments.indexOf(currentSub)
-                  const started = !currentSub.effective_from || currentSub.effective_from <= today
-                  const endLabel = currentSub.effective_until ? fmtDate(currentSub.effective_until) : (started ? 'en cours' : 'à venir')
-                  return (
-                    <div className="border border-warm-100 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
-                      <span className="font-medium text-secondary-800 whitespace-nowrap">{currentSub.teacher_name}</span>
-                      <span className="flex items-center gap-2 whitespace-nowrap">
-                        <span className="text-[10px] text-warm-700">
-                          {currentSub.effective_from ? fmtDate(currentSub.effective_from) : 'Début'} → {endLabel}
-                        </span>
-                        {started && (
-                          <Tooltip content="Terminer le remplacement">
-                            <button type="button" onClick={() => openEndSub(realIdx)} aria-label={`Terminer le remplacement de ${currentSub.teacher_name}`}
-                              className="text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] px-2 py-0.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
-                              Terminer
-                            </button>
-                          </Tooltip>
-                        )}
-                        <Tooltip content="Retirer (erreur de saisie)">
-                          <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Retirer ${currentSub.teacher_name}`}
-                            className="p-1 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50">
-                            <Trash2 size={13} />
-                          </button>
-                        </Tooltip>
-                      </span>
-                    </div>
-                  )
-                })() : seancesRemplacees.length > 0 ? (
+                {seancesRemplacees.length > 0 ? (
                   // Seances remplacees ou annulees pour une absence du titulaire,
                   // du jour et a venir (lot 4) : EN LECTURE, la ligne ouvre la
                   // fiche de l'absence, seul ecran qui les decide.
@@ -964,47 +858,6 @@ export default function ClassForm({
                 )}
               </div>
 
-              {/* ── Historique des remplacements ── */}
-              {pastSubs.length > 0 && (
-                <div className="pt-3 border-t border-warm-100 space-y-1.5">
-                  <h3 className="section-title">
-                    Historique des remplacements ({pastSubs.length})
-                  </h3>
-                  <div className="border border-warm-100 rounded-xl overflow-hidden">
-                    <table className="liste w-full text-sm" aria-label="Historique des remplacements">
-                      <tbody className="divide-y divide-warm-50">
-                        {pastSubs.map(a => {
-                          const realIdx = assignments.indexOf(a)
-                          return (
-                            <tr key={`pastsub-${realIdx}`}>
-                              <td className="px-3 py-1.5 text-secondary-700 text-xs whitespace-nowrap">{a.teacher_name}</td>
-                              <td className="px-3 py-1.5 text-[10px] text-warm-700 whitespace-nowrap text-right">
-                                {a.effective_from ? `du ${fmtDate(a.effective_from)}` : 'depuis le début'}{a.effective_until ? ` au ${fmtDate(a.effective_until)}` : ''}
-                              </td>
-                              <td className="px-2 py-1.5 w-12">
-                                <div className="flex items-center gap-1 justify-end">
-                                  <Tooltip content="Corriger les dates">
-                                    <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                      className="p-1 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
-                                      <Pencil size={12} />
-                                    </button>
-                                  </Tooltip>
-                                  <Tooltip content="Supprimer">
-                                    <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                      className="p-1 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </Tooltip>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
             </>
           })()}
         </div>

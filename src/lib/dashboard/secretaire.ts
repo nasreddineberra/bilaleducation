@@ -84,7 +84,7 @@ export async function chargerDonneesSecretaire(
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
-          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr)')
+          .select('id, class_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr)')
           .eq('school_year_id', annee.id).eq('is_active', true)
       : Promise.resolve({ data: [] }),
     supabase.from('teachers').select('id, user_id, is_active, civilite, first_name, last_name'),
@@ -128,7 +128,7 @@ export async function chargerDonneesSecretaire(
   // ── Vague 2 ────────────────────────────────────────────────────────────────
   const [exceptionsRes, validationsRes, docsRes, absEns] = await Promise.all([
     slotIds.length
-      ? supabase.from('schedule_exceptions').select('schedule_slot_id, exception_date, exception_type, override_start_time, override_end_time, override_teacher_id').in('schedule_slot_id', slotIds).eq('exception_date', aujourdhui)
+      ? supabase.from('schedule_exceptions').select('schedule_slot_id, exception_date, exception_type').in('schedule_slot_id', slotIds).eq('exception_date', aujourdhui)
       : Promise.resolve({ data: [] }),
     slotIds.length
       ? supabase.from('schedule_validations').select('schedule_slot_id, validation_date').in('schedule_slot_id', slotIds).eq('validation_date', aujourdhui)

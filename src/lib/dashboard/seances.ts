@@ -41,12 +41,10 @@ export interface ExceptionSource {
   schedule_slot_id: string
   exception_date: string
   exception_type: string
-  override_start_time: string | null
-  override_end_time: string | null
-  override_teacher_id: string | null
+  remplacant_teacher_id?: string | null
   override_room_id?: string | null
   /** Remplacant d'une absence (`fusionnerDecisions`). */
-  override_profile_id?: string | null
+  remplacant_profil_id?: string | null
 }
 
 export interface ValidationSource {
@@ -118,8 +116,8 @@ export function seancesDuJour(
         slotId: s.id,
         classId: s.class_id,
         date,
-        debut: (ex?.override_start_time ?? s.start_time).slice(0, 5),
-        fin: (ex?.override_end_time ?? s.end_time).slice(0, 5),
+        debut: s.start_time.slice(0, 5),
+        fin: s.end_time.slice(0, 5),
         slotType: s.slot_type,
         teacherId: qui.teacherId,
         titulaireId: qui.titulaireId,

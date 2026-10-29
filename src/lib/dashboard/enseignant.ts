@@ -116,7 +116,7 @@ export async function chargerDonneesEnseignant(
       .select('class_id, teacher_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, academic_year, cotisation_types(is_adult))')
       .eq('teacher_id', moi).eq('classes.academic_year', annee.label),
     supabase.from('schedule_slots')
-      .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
+      .select('id, class_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
       .eq('school_year_id', annee.id).eq('is_active', true),
     supabase.from('presence_types').select('code, label, is_absence').eq('school_year_id', annee.id),
     // `profile_id` explicite en plus de la RLS : un enseignant qui cumulerait
@@ -162,7 +162,7 @@ export async function chargerDonneesEnseignant(
   const [exRes, valRes, inscrRes, adultesRes, absRes, evalsRes, devoirsRes, absEns] = await Promise.all([
     slots.length
       ? supabase.from('schedule_exceptions')
-          .select('schedule_slot_id, exception_date, exception_type, override_start_time, override_end_time, override_teacher_id')
+          .select('schedule_slot_id, exception_date, exception_type')
           .in('schedule_slot_id', slots.map(s => s.id)).gte('exception_date', du).lte('exception_date', au)
       : Promise.resolve({ data: [] }),
     // Mes validations seulement (RLS : `profile_id = auth.uid()` pour un enseignant).

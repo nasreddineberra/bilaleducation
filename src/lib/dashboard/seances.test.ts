@@ -21,7 +21,7 @@ const slot = (o: Partial<SlotSource>): SlotSource => ({
 
 const ex = (o: Partial<ExceptionSource>): ExceptionSource => ({
   schedule_slot_id: 's1', exception_date: SAMEDI, exception_type: 'modified',
-  override_start_time: null, override_end_time: null, override_teacher_id: null, ...o,
+  remplacant_teacher_id: null, ...o,
 })
 
 test('jourSuivant traverse les fins de mois', () => {
@@ -41,11 +41,11 @@ test('seancesDuJour : jour, fenetre d effet, inactif, ponctuel', () => {
   assert.deepEqual(seancesDuJour(slots, [], TIT, SAMEDI).map(s => s.slotId), ['f', 'a'])
 })
 
-test('seancesDuJour : annulation, remplacement, horaire modifie', () => {
+test('seancesDuJour : annulation, remplacement', () => {
   const slots = [slot({ id: 's1' }), slot({ id: 's2', start_time: '11:00:00', end_time: '12:00:00' })]
   const exceptions = [
     ex({ schedule_slot_id: 's1', exception_type: 'cancelled' }),
-    ex({ schedule_slot_id: 's2', override_teacher_id: 't9', override_start_time: '11:15:00' }),
+    ex({ schedule_slot_id: 's2', remplacant_teacher_id: 't9' }),
   ]
   const [a, b] = seancesDuJour(slots, exceptions, TIT, SAMEDI)
   assert.equal(a.annulee, true)
@@ -53,7 +53,7 @@ test('seancesDuJour : annulation, remplacement, horaire modifie', () => {
   assert.equal(b.remplacement, true)
   assert.equal(b.teacherId, 't9')
   assert.equal(b.titulaireId, 't1')
-  assert.equal(b.debut, '11:15')
+  assert.equal(b.debut, '11:00')
 })
 
 test('statutSeance selon l heure et la validation', () => {
@@ -107,8 +107,8 @@ test('seancesSousAbsence : a remplacer, remplacee, annulee et jour ferme exclus'
     slot({ id: 'c', class_id: 'c3', teacher_id: 't1' }),
   ]
   const ex: ExceptionSource[] = [
-    { schedule_slot_id: 'b', exception_date: SAMEDI, exception_type: 'replacement', override_start_time: null, override_end_time: null, override_teacher_id: 't3' },
-    { schedule_slot_id: 'c', exception_date: SAMEDI, exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null },
+    { schedule_slot_id: 'b', exception_date: SAMEDI, exception_type: 'replacement', remplacant_teacher_id: 't3' },
+    { schedule_slot_id: 'c', exception_date: SAMEDI, exception_type: 'cancelled', remplacant_teacher_id: null },
   ]
   const absents = new Set(['t1', 't2'])
   // Titulaire DEDUIT de la classe (et non lu sur le creneau) : c2 a pour titulaire t2.

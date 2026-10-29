@@ -65,7 +65,7 @@ test('seance annulee dans l EDT et jour ferme : ecartes', () => {
   const touchees = seancesTouchees(
     { debut: '2026-11-04T00:00', fin: '2026-11-04T23:59', teacherId: T },
     slots,
-    [{ schedule_slot_id: 'ce1-mer-matin', exception_date: '2026-11-04', exception_type: 'cancelled', override_teacher_id: null }],
+    [{ schedule_slot_id: 'ce1-mer-matin', exception_date: '2026-11-04', exception_type: 'cancelled' }],
     indexTitulaires(affectations),
   )
   assert.deepEqual(touchees.map(s => s.slotId), ['ce1-mer-aprem', 'cm1-mer'])

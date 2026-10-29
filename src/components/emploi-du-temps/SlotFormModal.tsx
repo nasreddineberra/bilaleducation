@@ -1,28 +1,32 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
-import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
 import { NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
 
+/**
+ * NOUVELLE SEANCE PONCTUELLE (EDT).
+ *
+ * Depuis la conception du 27/10, l'emploi du temps ne cree que des seances
+ * ponctuelles (une serie se cree dans la fiche classe) et ne modifie plus ni
+ * l'horaire ni l'enseignant d'une seance ; le lot 5 (29/10) a retire le code
+ * d'edition devenu mort. L'enseignant n'est jamais saisi : il se DEDUIT du
+ * titulaire en poste a la date (`lib/edt/seance.ts`).
+ */
+
 interface SlotData {
   id: string
   class_id: string
-  teacher_id: string | null
-  cours_id: string | null
-  unite_enseignement_id?: string | null
-  libelle?: string | null
   room_id: string | null
   is_recurring: boolean
   day_of_week: number | null
   slot_date: string | null
   start_time: string
   end_time: string
-  slot_type: string
   effective_from?: string | null
   effective_until?: string | null
 }
@@ -40,13 +44,6 @@ interface ClassData {
   }[]
 }
 
-interface TeacherData {
-  id: string
-  first_name: string
-  last_name: string
-  civilite?: string
-}
-
 interface RoomData {
   id: string
   name: string
@@ -54,33 +51,18 @@ interface RoomData {
   capacity: number | null
 }
 
-const DAY_OPTIONS = [
-  { value: 1, label: 'Lundi', recurring: 'Tous les lundis' },
-  { value: 2, label: 'Mardi', recurring: 'Tous les mardis' },
-  { value: 3, label: 'Mercredi', recurring: 'Tous les mercredis' },
-  { value: 4, label: 'Jeudi', recurring: 'Tous les jeudis' },
-  { value: 5, label: 'Vendredi', recurring: 'Tous les vendredis' },
-  { value: 6, label: 'Samedi', recurring: 'Tous les samedis' },
-  { value: 0, label: 'Dimanche', recurring: 'Tous les dimanches' },
-]
-
 const SLOT_TYPES = [
   { value: 'cours', label: 'Cours' },
   { value: 'activite', label: 'Activité' },
 ]
 
 interface Props {
-  slot: SlotData | null
-  editMode: 'all' | 'this_only' | null
-  editDate: string | null
   prefillDay: number | null
   prefillTime: string | null
   prefillDate: string | null
   prefillClassId: string
-  prefillTeacherId: string
   weekDayDates: Record<number, string>
   classes: ClassData[]
-  teachers: TeacherData[]
   /** Salles de cours libres sur un creneau (date, debut, fin, seance exclue, salle actuelle). */
   sallesPour: (date: string, debut: string, fin: string, exclureSlotId?: string | null, salleActuelle?: string | null) => RoomData[]
   /** Unites d'enseignement du referentiel, dans leur ordre : matiere d'un cours. */
@@ -88,116 +70,46 @@ interface Props {
   existingSlots: SlotData[]
   vacations?: { start_date: string; end_date: string; label: string }[]
   onSave: (data: {
-    id?: string
     class_id: string
-    teacher_id: string | null
-    cours_id: string | null
     unite_enseignement_id: string | null
     libelle: string | null
     room_id: string | null
-    day_of_week: number | null
-    slot_date: string | null
-    is_recurring: boolean
+    slot_date: string
     start_time: string
     end_time: string
     slot_type: string
-    editAll?: boolean
-    pivotDate?: string
-  }) => void
-  onSaveException: (data: {
-    schedule_slot_id: string
-    exception_date: string
-    start_time: string
-    end_time: string
-    teacher_id: string | null
-    room_id: string | null
-  }) => void
+  }) => void | Promise<void>
   onClose: () => void
 }
 
 export default function SlotFormModal({
-  slot, editMode, editDate, prefillDay, prefillTime, prefillDate, prefillClassId, prefillTeacherId,
-  weekDayDates, classes, teachers, sallesPour, matieres, existingSlots, vacations = [], onSave, onSaveException, onClose,
+  prefillDay, prefillTime, prefillDate, prefillClassId,
+  weekDayDates, classes, sallesPour, matieres, existingSlots, vacations = [], onSave, onClose,
 }: Props) {
-  const isEditingThisOnly = editMode === 'this_only' && !!editDate && !!slot
-  const enseignantRequis = isEditingThisOnly && !!slot?.teacher_id
+  const initialClass = classes.find(c => c.id === prefillClassId)
 
-  const initialClass = classes.find(c => c.id === (slot?.class_id ?? prefillClassId))
-  const initialMainTeacherId = titulaireActuel(initialClass?.class_teachers)?.teachers?.id
-
-  const [classId, setClassId] = useState(slot?.class_id ?? prefillClassId ?? '')
-  // Creneau existant : SON enseignant, aucun s'il n'en a pas (« Prof non affecté ») ;
-  // jamais le titulaire de la classe en remplacement d'un vide.
-  const initialTeacherId = slot ? (slot.teacher_id ?? '') : (prefillTeacherId || initialMainTeacherId || '')
-  const [teacherId, setTeacherId] = useState(initialTeacherId)
-  const [roomId, setRoomId] = useState(slot?.room_id ?? initialClass?.room_id ?? '')
-  const [slotType, setSlotType] = useState(slot?.slot_type ?? 'cours')
+  const [classId, setClassId] = useState(prefillClassId ?? '')
+  const [roomId, setRoomId] = useState(initialClass?.room_id ?? '')
+  const [slotType, setSlotType] = useState('cours')
   // Facultatifs : matiere d'un cours, nom d'une activite (chacun a sa place).
-  const [ueId, setUeId] = useState(slot?.unite_enseignement_id ?? '')
-  const [libelle, setLibelle] = useState(slot?.libelle ?? '')
-  const [startTime, setStartTime] = useState(slot?.start_time?.slice(0, 5) ?? prefillTime ?? '')
-  const [endTime, setEndTime] = useState(slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''))
+  const [ueId, setUeId] = useState('')
+  const [libelle, setLibelle] = useState('')
+  const [startTime, setStartTime] = useState(prefillTime ?? '')
+  const [endTime, setEndTime] = useState(prefillTime ? addHour(prefillTime) : '')
   const [saving, setSaving] = useState(false)
-  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const [slotDate, setSlotDate] = useState<string>(
+    prefillDate ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : '')
+  )
 
   // Règle projet : fermeture par X / Annuler uniquement (ni Échap, ni clic hors
   // fenêtre) — une saisie de créneau ne doit pas se perdre sur une touche.
 
-  // Recurring vs Ponctuel (null = pas encore choisi)
-  const isEditingAll = editMode === 'all' && !!slot
-  const isEditMode = !!slot
-  // Creation dans l'EDT = seance PONCTUELLE seulement (conception 27/10) : une
-  // serie se cree dans la fiche classe.
-  const [isRecurring] = useState<boolean | null>(slot ? slot.is_recurring : false)
-  const [dayOfWeek, setDayOfWeek] = useState<number | ''>(slot?.day_of_week ?? prefillDay ?? '')
-  const [slotDate, setSlotDate] = useState<string>(
-    slot?.slot_date ?? prefillDate ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : '')
-  )
-
-  // Track initial values for change detection in edit mode
-  const initVals = useMemo(() => ({
-    classId: slot?.class_id ?? prefillClassId ?? '',
-    teacherId: initialTeacherId,
-    roomId: slot?.room_id ?? initialClass?.room_id ?? '',
-    slotType: slot?.slot_type ?? 'cours',
-    ueId: slot?.unite_enseignement_id ?? '',
-    libelle: slot?.libelle ?? '',
-    startTime: slot?.start_time?.slice(0, 5) ?? prefillTime ?? '',
-    endTime: slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''),
-    dayOfWeek: slot?.day_of_week ?? prefillDay ?? '',
-    slotDate: slot?.slot_date ?? prefillDate ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : ''),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [])
-
-  const hasChanges = !isEditMode || (
-    classId !== initVals.classId ||
-    teacherId !== initVals.teacherId ||
-    roomId !== initVals.roomId ||
-    slotType !== initVals.slotType ||
-    ueId !== initVals.ueId ||
-    libelle.trim() !== initVals.libelle ||
-    startTime !== initVals.startTime ||
-    endTime !== initVals.endTime ||
-    dayOfWeek !== initVals.dayOfWeek ||
-    slotDate !== initVals.slotDate
-  )
-
   const selectedClass = classes.find(c => c.id === classId)
 
-  // Auto-fill room + teacher from class
+  // Salle de la classe proposee a son choix.
   useEffect(() => {
-    if (!selectedClass || slot) return
-    if (selectedClass.room_id) setRoomId(selectedClass.room_id)
-    const mainT = titulaireActuel(selectedClass.class_teachers)
-    if (mainT?.teachers?.id) setTeacherId(mainT.teachers.id)
-  }, [classId, selectedClass, slot])
-
-  // Sync slotDate when changing dayOfWeek (week view only, pas quand prefillDate est fourni)
-  useEffect(() => {
-    if (!isRecurring && !prefillDate && prefillDay !== null && dayOfWeek !== '' && weekDayDates[dayOfWeek]) {
-      setSlotDate(weekDayDates[dayOfWeek])
-    }
-  }, [dayOfWeek, isRecurring, prefillDay, prefillDate, weekDayDates])
+    if (selectedClass?.room_id) setRoomId(selectedClass.room_id)
+  }, [classId, selectedClass])
 
   // Vérifier si une date est en vacances
   const isVacationDate = useCallback((dateStr: string) => {
@@ -207,195 +119,78 @@ export default function SlotFormModal({
     return false
   }, [vacations])
 
-  const dateInVacation = !isRecurring && slotDate ? isVacationDate(slotDate) : false
+  const dateInVacation = slotDate ? isVacationDate(slotDate) : false
 
-  const isValid = useMemo(() => {
-    if (isRecurring === null) return false
-    if (!classId) return false
-    // Enseignant facultatif (creneau « Prof non affecté »), sauf pour modifier UNE
-    // seance d'un creneau qui en a un : une exception sans enseignant garderait le sien.
-    if (enseignantRequis && !teacherId) return false
-    if (!startTime || !endTime) return false
-    if (startTime >= endTime) return false
-    if (isRecurring && dayOfWeek === '') return false
-    if (!isRecurring && !slotDate) return false
-    if (dateInVacation) return false
-    return true
-  }, [classId, teacherId, enseignantRequis, startTime, endTime, isRecurring, slotDate, dayOfWeek, dateInVacation])
+  const isValid = !!classId && !!startTime && !!endTime && startTime < endTime && !!slotDate && !dateInVacation
 
-  // Conflict detection
+  // Conflits avec les seances de la meme date : seances ponctuelles, et series
+  // du meme jour de semaine qui couvrent la date.
   const conflicts = useMemo(() => {
     const msgs: string[] = []
-    if (!classId || !startTime || !endTime) return msgs
-
+    if (!classId || !startTime || !endTime || !slotDate) return msgs
+    const jour = new Date(slotDate + 'T00:00').getDay()
     for (const s of existingSlots) {
-      if (slot?.id === s.id) continue
-
-      // Match day: for recurring check day_of_week, for ponctual check slot_date
-      let sameDay = false
-      if (isRecurring && s.is_recurring && s.day_of_week === dayOfWeek) sameDay = true
-      if (!isRecurring && !s.is_recurring && s.slot_date === slotDate) sameDay = true
-      if (isRecurring && !s.is_recurring) {
-        // Serie contre creneau ponctuel : meme jour de semaine ET date DANS la periode de
-        // la serie. Sans le second critere, un ponctuel isole du 08/08 (un samedi) entrait
-        // en conflit avec une serie du samedi qui ne commence que le 07/09 : faux conflit.
-        // Modification d'UNE seule seance : seule la date visee compte.
-        if (s.slot_date) {
-          const d = new Date(s.slot_date)
-          const dansLaSerie = (!slot?.effective_from || s.slot_date >= slot.effective_from)
-                           && (!slot?.effective_until || s.slot_date <= slot.effective_until)
-          if (d.getDay() === dayOfWeek && (isEditingThisOnly ? s.slot_date === editDate : dansLaSerie)) sameDay = true
-        }
-      }
-      // Modification d'UNE seance : une autre serie ne gene que si elle couvre cette date.
-      if (isEditingThisOnly && s.is_recurring && editDate
-          && ((s.effective_from && s.effective_from > editDate) || (s.effective_until && s.effective_until < editDate))) {
-        continue
-      }
-      if (!sameDay) continue
-
-      // Créneaux récurrents : ignorer si les périodes d'effet (Du → Au) ne se chevauchent pas.
-      // Chevauchement si (myFrom ≤ sUntil) ET (sFrom ≤ myUntil) — null = borne ouverte.
-      // Nouveau créneau (pas de `slot`) : période ouverte → alertes conservées.
-      if (isRecurring && s.is_recurring) {
-        const myFrom  = slot?.effective_from ?? null
-        const myUntil = slot?.effective_until ?? null
-        const sFrom   = s.effective_from ?? null
-        const sUntil  = s.effective_until ?? null
-        const disjoint =
-          (!!myFrom && !!sUntil && myFrom > sUntil) ||
-          (!!sFrom && !!myUntil && sFrom > myUntil)
-        if (disjoint) continue
-      }
-
+      const memeDate = s.is_recurring
+        ? s.day_of_week === jour
+          && (!s.effective_from || s.effective_from <= slotDate)
+          && (!s.effective_until || s.effective_until >= slotDate)
+        : s.slot_date === slotDate
+      if (!memeDate) continue
       const overlaps = s.start_time < endTime && s.end_time > startTime
-
       if (overlaps && s.class_id === classId) {
         msgs.push(`Conflit classe : ${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)}`)
-      }
-      if (overlaps && s.teacher_id === teacherId && teacherId) {
-        msgs.push(`Conflit enseignant : même créneau`)
       }
       if (overlaps && s.room_id === roomId && roomId) {
         msgs.push(`Conflit salle : même créneau`)
       }
     }
     return msgs
-  }, [existingSlots, slot, classId, teacherId, roomId, dayOfWeek, slotDate, startTime, endTime, isRecurring, isEditingThisOnly, editDate])
+  }, [existingSlots, classId, roomId, slotDate, startTime, endTime])
 
   const handleSubmit = async () => {
-    if (!isValid || isRecurring === null) return
-
-    const doSave = async () => {
-      setSaving(true)
-      if (isEditingThisOnly && slot) {
-        await onSaveException({
-          schedule_slot_id: slot.id,
-          exception_date: editDate!,
-          start_time: startTime,
-          end_time: endTime,
-          teacher_id: teacherId || null,
-          room_id: roomId || null,
-        })
-      } else {
-        await onSave({
-          id: slot?.id,
-          class_id: classId,
-          // Seance creee ici : enseignant deduit du titulaire, rien a recopier.
-          teacher_id: isEditMode ? (teacherId || null) : null,
-          cours_id: null,
-          unite_enseignement_id: slotType === 'cours' ? (ueId || null) : null,
-          libelle: slotType === 'activite' ? (libelle.trim() || null) : null,
-          room_id: roomId || null,
-          day_of_week: isRecurring && dayOfWeek !== '' ? dayOfWeek : null,
-          slot_date: isRecurring ? null : slotDate,
-          is_recurring: isRecurring,
-          start_time: startTime,
-          end_time: endTime,
-          slot_type: slotType,
-          editAll: isEditingAll,
-          pivotDate: editDate ?? undefined,
-        })
-      }
-      setSaving(false)
-    }
-
-    // Confirmation pour récurrent (création)
-    if (isRecurring && !slot) {
-      const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
-      setPendingConfirm({ message: `Ce créneau sera répété chaque ${day} pour toute l'année scolaire. Continuer ?`, onConfirm: doSave })
-      return
-    }
-
-    // Confirmation pour modification de tous les créneaux
-    if (isEditingAll && hasChanges) {
-      const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
-      setPendingConfirm({
-        message: `Tous les créneaux récurrents seront modifiés à partir d'aujourd'hui.\nLa fiche classe sera mise à jour avec : ${day} ${startTime}-${endTime}.\n\nContinuer ?`,
-        onConfirm: doSave,
-      })
-      return
-    }
-
-    await doSave()
+    if (!isValid) return
+    setSaving(true)
+    await onSave({
+      class_id: classId,
+      unite_enseignement_id: slotType === 'cours' ? (ueId || null) : null,
+      libelle: slotType === 'activite' ? (libelle.trim() || null) : null,
+      room_id: roomId || null,
+      slot_date: slotDate,
+      start_time: startTime,
+      end_time: endTime,
+      slot_type: slotType,
+    })
+    setSaving(false)
   }
 
-  const modalTitle = isEditingThisOnly
-    ? `Modifier le ${new Date(editDate! + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} uniquement`
-    : slot ? 'Modifier le créneau' : 'Nouvelle séance ponctuelle'
-
-  const typeLabel = SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'
-  const frequenceLabel = isEditingThisOnly ? 'Exception ponctuelle' : isRecurring ? 'Récurrent' : 'Ponctuel'
-
   return (
-    <>
     <FormModal
-      title={modalTitle}
+      title="Nouvelle séance ponctuelle"
       onClose={onClose}
       maxWidth="max-w-lg"
       footer={<>
         <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
         <div className="flex-1" />
         <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
-        <FloatButton
-          variant={slot ? 'edit' : 'submit'}
-          type="button"
-          onClick={handleSubmit}
-          disabled={!isValid || !hasChanges}
-          loading={saving}
-        >
-          {isEditingThisOnly ? 'Modifier ce créneau' : slot ? 'Modifier' : 'Valider'}
+        <FloatButton variant="submit" type="button" onClick={handleSubmit} disabled={!isValid} loading={saving}>
+          Valider
         </FloatButton>
       </>}
     >
-      {/* Type + Fréquence : choix en création, valeurs verrouillées en modification */}
-      <div className="flex justify-between">
-        <div>
-          <span className={LIBELLE_CHOIX}>Type</span>
-          <div className="mt-1">
-            {isEditMode ? (
-              <ValeurVerrouillee>{typeLabel}</ValeurVerrouillee>
-            ) : (
-              <FiltreSwitch
-                ariaLabel="Type de créneau"
-                actif={slotType}
-                onChange={setSlotType}
-                options={SLOT_TYPES.map(st => ({ valeur: st.value, libelle: st.label }))}
-              />
-            )}
-          </div>
-        </div>
-        <div>
-          <span className={LIBELLE_CHOIX}>Fréquence</span>
-          <div className="mt-1">
-            <ValeurVerrouillee>{frequenceLabel}</ValeurVerrouillee>
-          </div>
+      <div>
+        <span className={LIBELLE_CHOIX}>Type</span>
+        <div className="mt-1">
+          <FiltreSwitch
+            ariaLabel="Type de créneau"
+            actif={slotType}
+            onChange={setSlotType}
+            options={SLOT_TYPES.map(st => ({ valeur: st.value, libelle: st.label }))}
+          />
         </div>
       </div>
 
-      {/* Intitule : matiere d'un cours, nom d'une activite. Pas sur UNE seance
-          (une exception ne porte que l'horaire, l'enseignant et la salle). */}
-      {!isEditingThisOnly && (slotType === 'cours' ? (
+      {/* Intitule : matiere d'un cours, nom d'une activite. */}
+      {slotType === 'cours' ? (
         <FloatSelect label="Matière" value={ueId} onChange={e => setUeId(e.target.value)}>
           <option value=""></option>
           {matieres.map(m => <option key={m.id} value={m.id}>{m.nom_fr}</option>)}
@@ -407,149 +202,74 @@ export default function SlotFormModal({
           maxLength={NOM_ACTIVITE_MAX}
           onChange={e => setLibelle(e.target.value)}
         />
-      ))}
-
-      {/* Class */}
-      {!isEditingThisOnly && (
-        <FloatSelect
-          label="Classe"
-          required
-          value={classId}
-          onChange={e => setClassId(e.target.value)}
-        >
-          <option value=""></option>
-          {classes.map(c => {
-            const mainT = titulaireActuel(c.class_teachers)
-            const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
-            const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
-            return (
-              <option key={c.id} value={c.id}>
-                {c.name}{infoParts.length > 0 ? ` · ${infoParts.join(' · ')}` : ''}
-              </option>
-            )
-          })}
-        </FloatSelect>
       )}
 
-      {/* Enseignant : seulement en modification d'une seance existante. A la
-          creation, il est DEDUIT du titulaire en poste (lib/edt/seance.ts). */}
-      {isEditMode && <FloatSelect
-        label="Enseignant"
-        required={enseignantRequis}
-        value={teacherId}
-        onChange={e => setTeacherId(e.target.value)}
+      <FloatSelect
+        label="Classe"
+        required
+        value={classId}
+        onChange={e => setClassId(e.target.value)}
       >
         <option value=""></option>
-        {teachers.map(t => (
-          <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-        ))}
-      </FloatSelect>}
+        {classes.map(c => {
+          const mainT = titulaireActuel(c.class_teachers)
+          const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
+          const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
+          return (
+            <option key={c.id} value={c.id}>
+              {c.name}{infoParts.length > 0 ? ` · ${infoParts.join(' · ')}` : ''}
+            </option>
+          )
+        })}
+      </FloatSelect>
 
-      {/* Room */}
       <FloatSelect
         label="Salle"
         value={roomId}
         onChange={e => setRoomId(e.target.value)}
       >
         <option value=""></option>
-        {sallesPour(isRecurring ? '' : slotDate, startTime, endTime, slot?.id, roomId || null).map(r => (
+        {sallesPour(slotDate, startTime, endTime, null, roomId || null).map(r => (
           <option key={r.id} value={r.id}>
             {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
           </option>
         ))}
       </FloatSelect>
 
-      {/* Day / Date + Times */}
-      {!isEditingThisOnly && (
-        <div className={isRecurring === true ? 'grid grid-cols-[3fr_2fr_2fr] gap-3' : 'grid grid-cols-3 gap-3'}>
-          <div>
-            {isRecurring === true ? (
-              <FloatSelect
-                label="Jour"
-                required
-                value={String(dayOfWeek)}
-                onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
-              >
-                <option value=""></option>
-                {DAY_OPTIONS.map(d => (
-                  <option key={d.value} value={d.value}>{d.recurring}</option>
-                ))}
-              </FloatSelect>
-            ) : isRecurring === false ? (
-              <div>
-                <FloatInput
-                  label="Date"
-                  required
-                  type="date"
-                  value={slotDate}
-                  onChange={e => setSlotDate(e.target.value)}
-                />
-                {dateInVacation && (
-                  <p role="alert" className="text-xs text-red-700 mt-1">Cette date tombe pendant les vacances scolaires</p>
-                )}
-              </div>
-            ) : (
-              <FloatSelect
-                label="Jour"
-                required
-                value={String(dayOfWeek)}
-                onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
-              >
-                <option value=""></option>
-                {DAY_OPTIONS.map(d => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
-                ))}
-              </FloatSelect>
-            )}
-          </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
           <FloatInput
-            label="Début"
+            label="Date"
             required
-            type="time"
-            value={startTime}
-            onChange={e => {
-              setStartTime(e.target.value)
-              if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
-            }}
+            type="date"
+            value={slotDate}
+            onChange={e => setSlotDate(e.target.value)}
           />
-          <FloatInput
-            label="Fin"
-            required
-            type="time"
-            value={endTime}
-            onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
-            min={startTime || undefined}
-            disabled={!startTime}
-          />
+          {dateInVacation && (
+            <p role="alert" className="text-xs text-red-700 mt-1">Cette date tombe pendant les vacances scolaires</p>
+          )}
         </div>
-      )}
+        <FloatInput
+          label="Début"
+          required
+          type="time"
+          value={startTime}
+          onChange={e => {
+            setStartTime(e.target.value)
+            if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+          }}
+        />
+        <FloatInput
+          label="Fin"
+          required
+          type="time"
+          value={endTime}
+          onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+          min={startTime || undefined}
+          disabled={!startTime}
+        />
+      </div>
 
-      {/* Times only for this_only edit */}
-      {isEditingThisOnly && (
-        <div className="grid grid-cols-2 gap-3">
-          <FloatInput
-            label="Début"
-            required
-            type="time"
-            value={startTime}
-            onChange={e => {
-              setStartTime(e.target.value)
-              if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
-            }}
-          />
-          <FloatInput
-            label="Fin"
-            required
-            type="time"
-            value={endTime}
-            onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
-            min={startTime || undefined}
-            disabled={!startTime}
-          />
-        </div>
-      )}
-
-      {/* Conflicts */}
       {conflicts.length > 0 && (
         <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
           {conflicts.map((c, i) => (
@@ -558,28 +278,10 @@ export default function SlotFormModal({
         </div>
       )}
     </FormModal>
-
-    <ConfirmModal
-      open={!!pendingConfirm}
-      message={pendingConfirm?.message ?? ''}
-      confirmLabel="Continuer"
-      onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
-      onCancel={() => setPendingConfirm(null)}
-    />
-    </>
   )
 }
 
 const LIBELLE_CHOIX = 'text-xs font-semibold text-warm-700 uppercase tracking-wide'
-
-// Valeur figee (Type, Frequence en modification) : meme habit qu'un champ verrouille.
-function ValeurVerrouillee({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-block px-3 py-1.5 rounded-lg text-xs font-medium border border-warm-200 bg-[var(--champ-verrou)] text-warm-400 cursor-default">
-      {children}
-    </span>
-  )
-}
 
 function addHour(time: string): string {
   const [h, m] = time.split(':').map(Number)

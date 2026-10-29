@@ -26,9 +26,9 @@ test('un remplacant de classe (non principal) n\'est pas titulaire', () => {
 
 test('seance : annulee, remplacee, titulaire, prof non affecte', () => {
   const t = indexTitulaires([aff('tit', null, null)])
-  assert.deepEqual(enseignantDeSeance('c', '2026-10-01', { exception_type: 'cancelled', override_teacher_id: null }, t),
+  assert.deepEqual(enseignantDeSeance('c', '2026-10-01', { exception_type: 'cancelled', remplacant_teacher_id: null }, t),
     { annulee: true, teacherId: null, titulaireId: 'tit', remplacement: false, remplacantProfileId: null })
-  assert.deepEqual(enseignantDeSeance('c', '2026-10-01', { exception_type: 'modified', override_teacher_id: 'r' }, t),
+  assert.deepEqual(enseignantDeSeance('c', '2026-10-01', { exception_type: 'modified', remplacant_teacher_id: 'r' }, t),
     { annulee: false, teacherId: 'r', titulaireId: 'tit', remplacement: true, remplacantProfileId: null })
   assert.deepEqual(enseignantDeSeance('c', '2026-10-01', null, t),
     { annulee: false, teacherId: 'tit', titulaireId: 'tit', remplacement: false, remplacantProfileId: null })
@@ -40,16 +40,16 @@ test('remplacant d\'une absence : avec ou sans fiche enseignant', () => {
   const t = indexTitulaires([aff('tit', null, null)])
   // Enseignant remplacant : sa fiche assure la seance.
   assert.deepEqual(enseignantDeSeance('c', '2026-10-01',
-    { exception_type: 'remplacement', override_teacher_id: 'r', override_profile_id: 'profil-r' }, t),
+    { exception_type: 'remplacement', remplacant_teacher_id: 'r', remplacant_profil_id: 'profil-r' }, t),
     { annulee: false, teacherId: 'r', titulaireId: 'tit', remplacement: true, remplacantProfileId: 'profil-r' })
   // Secretaire remplacante : ni le titulaire, ni « Prof non affecté ».
   assert.deepEqual(enseignantDeSeance('c', '2026-10-01',
-    { exception_type: 'remplacement', override_teacher_id: null, override_profile_id: 'profil-sec' }, t),
+    { exception_type: 'remplacement', remplacant_teacher_id: null, remplacant_profil_id: 'profil-sec' }, t),
     { annulee: false, teacherId: null, titulaireId: 'tit', remplacement: true, remplacantProfileId: 'profil-sec' })
 })
 
 test('decisions fondues dans les exceptions : annulee, remplacee, salle conservee', () => {
-  const exceptions = [{ schedule_slot_id: 's1', exception_date: '2026-11-04', exception_type: 'modified', override_teacher_id: null, override_room_id: 'salle' }]
+  const exceptions = [{ schedule_slot_id: 's1', exception_date: '2026-11-04', exception_type: 'modified', remplacant_teacher_id: null, override_room_id: 'salle' }]
   const decisions = [
     { absence_id: 'a', schedule_slot_id: 's1', seance_date: '2026-11-04', decision: 'remplacee', remplacant_profile_id: 'p-ens' },
     { absence_id: 'a', schedule_slot_id: 's2', seance_date: '2026-11-04', decision: 'annulee', remplacant_profile_id: null },
@@ -59,12 +59,12 @@ test('decisions fondues dans les exceptions : annulee, remplacee, salle conserve
   const de = (slot: string) => fusion.find(e => e.schedule_slot_id === slot)
   assert.equal(de('s1')?.exception_type, 'modified')
   assert.equal(de('s1')?.override_room_id, 'salle')
-  assert.equal(de('s1')?.override_teacher_id, 't-ens')
-  assert.equal(de('s1')?.override_profile_id, 'p-ens')
+  assert.equal(de('s1')?.remplacant_teacher_id, 't-ens')
+  assert.equal(de('s1')?.remplacant_profil_id, 'p-ens')
   assert.equal(de('s2')?.exception_type, 'cancelled')
   assert.equal(de('s2')?.par_absence, true)
   assert.equal(de('s3')?.exception_type, 'remplacement')
-  assert.equal(de('s3')?.override_teacher_id, null)
+  assert.equal(de('s3')?.remplacant_teacher_id, null)
   assert.equal(fusionnerDecisions(exceptions, [], () => null), exceptions)
 })
 

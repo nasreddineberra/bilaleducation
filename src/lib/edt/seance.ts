@@ -6,7 +6,7 @@
  * l'ancien titulaire restait propose apres son depart) : il est DEDUIT, pour la
  * date de la seance, dans cet ordre :
  *   1. seance ANNULEE : personne, elle n'a pas lieu ;
- *   2. REMPLACANT designe pour cette seance (`override_teacher_id`) ;
+ *   2. REMPLACANT designe pour cette seance (`remplacant_teacher_id`) ;
  *   3. TITULAIRE EN POSTE ce jour-la (affectation principale dont les dates
  *      couvrent la seance) ;
  *   4. sinon personne : « Prof non affecté » — la seance a lieu.
@@ -51,9 +51,11 @@ export function indexTitulaires(affectations: AffectationSource[]): TitulaireDe 
 
 export interface ExceptionSeance {
   exception_type: string
-  override_teacher_id: string | null
+  /** Remplacant d'une seance, EN MEMOIRE seulement (`fusionnerDecisions`) : aucune
+   *  colonne en base (l'ancien `override_teacher_id` est retire au lot 5). */
+  remplacant_teacher_id?: string | null
   /** Remplacant designe par une absence d'enseignant (`profiles.id`), voir `fusionnerDecisions`. */
-  override_profile_id?: string | null
+  remplacant_profil_id?: string | null
 }
 
 export interface EnseignantSeance {
@@ -79,8 +81,8 @@ export function enseignantDeSeance(
   if (exception?.exception_type === 'cancelled') {
     return { annulee: true, teacherId: null, titulaireId, remplacement: false, remplacantProfileId: null }
   }
-  const remplacant = exception?.override_teacher_id ?? null
-  const remplacantProfileId = exception?.override_profile_id ?? null
+  const remplacant = exception?.remplacant_teacher_id ?? null
+  const remplacantProfileId = exception?.remplacant_profil_id ?? null
   // Un remplacant sans fiche enseignant (secretaire, direction) assure la seance :
   // ce n'est ni le titulaire ni « Prof non affecté ».
   const teacherId = remplacant ?? (remplacantProfileId ? null : titulaireId)
@@ -105,19 +107,19 @@ export interface DecisionSeance {
 /**
  * Les decisions d'absence, fondues dans les exceptions de l'EDT : une seance
  * ANNULEE pour absence se lit comme une annulation, une seance REMPLACEE porte
- * son remplacant (`override_profile_id`, et `override_teacher_id` s'il a une
+ * son remplacant (`remplacant_profil_id`, et `remplacant_teacher_id` s'il a une
  * fiche enseignant). L'exception propre a la seance (salle changee) est
  * conservee. `par_absence` et `absence_id` disent d'ou vient l'etat ; une seance
  * remplacee sans autre exception prend le type `remplacement`.
  */
-export function fusionnerDecisions<E extends { schedule_slot_id: string; exception_date: string; exception_type: string; override_teacher_id: string | null }>(
+export function fusionnerDecisions<E extends { schedule_slot_id: string; exception_date: string; exception_type: string; remplacant_teacher_id?: string | null }>(
   exceptions: E[],
   decisions: DecisionSeance[],
   enseignantDuProfil: (profileId: string) => string | null,
-): (E & { override_profile_id?: string | null; par_absence?: boolean; absence_id?: string })[] {
+): (E & { remplacant_profil_id?: string | null; par_absence?: boolean; absence_id?: string })[] {
   if (decisions.length === 0) return exceptions
   const cle = (slotId: string, date: string) => `${slotId}|${date}`
-  const parCle = new Map<string, E & { override_profile_id?: string | null; par_absence?: boolean; absence_id?: string }>(
+  const parCle = new Map<string, E & { remplacant_profil_id?: string | null; par_absence?: boolean; absence_id?: string }>(
     exceptions.map(e => [cle(e.schedule_slot_id, e.exception_date), e]),
   )
   for (const d of decisions) {
@@ -129,11 +131,11 @@ export function fusionnerDecisions<E extends { schedule_slot_id: string; excepti
       schedule_slot_id: d.schedule_slot_id,
       exception_date: date,
       exception_type: d.decision === 'annulee' ? 'cancelled' : (existante?.exception_type ?? 'remplacement'),
-      override_teacher_id: remplacee ? enseignantDuProfil(d.remplacant_profile_id!) : (existante?.override_teacher_id ?? null),
-      override_profile_id: remplacee ? d.remplacant_profile_id : null,
+      remplacant_teacher_id: remplacee ? enseignantDuProfil(d.remplacant_profile_id!) : (existante?.remplacant_teacher_id ?? null),
+      remplacant_profil_id: remplacee ? d.remplacant_profile_id : null,
       par_absence: true,
       absence_id: d.absence_id,
-    } as E & { override_profile_id?: string | null; par_absence?: boolean; absence_id?: string })
+    } as E & { remplacant_profil_id?: string | null; par_absence?: boolean; absence_id?: string })
   }
   return [...parCle.values()]
 }
