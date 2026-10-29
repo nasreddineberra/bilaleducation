@@ -9869,3 +9869,7 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   « Familles prévenues le »), alignees en grille qui se replie (14 rem minimum), couleur selon la decision CHOISIE
   avant meme d'enregistrer, jetons d'etat de la charte : À décider `ton-attente`, Annulée `ton-danger`, Remplacée
   `ton-remplacement`, Validée `ton-ok` (decision en lecture). Index des couleurs en tete du bloc.
+- **Fiche d'une absence, alignement** (capture du 29/10) : les listes « Même décision » depassaient du cadre (celle
+  « pour toutes » de la hauteur fixe du bandeau, celles des creneaux du bord droit). Colonne de gauche de largeur
+  fixe (`COLONNE_TITRE`, 22 rem des `sm`) pour l'index des couleurs et les titres de creneau ; chaque liste suit a la
+  meme distance. « Même décision pour toutes » sous le bandeau, a cote de l'index ; Enregistrer reste dans le bandeau.

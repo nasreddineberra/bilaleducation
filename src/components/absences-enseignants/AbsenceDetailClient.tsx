@@ -77,6 +77,10 @@ const INDEX_COULEURS: { ton: TonCarte; libelle: string }[] = [
   { ton: 'remplacement', libelle: 'Remplacée' },
   { ton: 'ok', libelle: 'Validée' },
 ]
+// Colonne de gauche de LARGEUR FIXE (index des couleurs, titres de creneau) : les
+// listes « Même décision » commencent toutes a la meme distance (29/10).
+const COLONNE_TITRE = 'sm:w-[22rem] shrink-0'
+
 function tonCarte(validee: boolean, valeur: string): TonCarte {
   if (validee) return 'ok'
   if (valeur === 'annulee') return 'danger'
@@ -254,18 +258,6 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
           <h2 className="text-xs font-bold uppercase tracking-widest truncate">Séances touchées</h2>
           {peutGerer && seances.length > 0 && (
             <div className="flex items-center gap-2 shrink-0">
-              {seances.length > 1 && (
-                <FloatSelect
-                  label="Même décision pour toutes"
-                  compact
-                  wrapperClassName="w-64"
-                  value=""
-                  onChange={e => appliquer(seances, e.target.value)}
-                >
-                  <option value="" disabled hidden />
-                  {options(seances)}
-                </FloatSelect>
-              )}
               <FloatButton size="mini" variant="submit" type="button" onClick={demanderEnregistrement}
                 loading={saving} disabled={modifiees.length === 0}>
                 Enregistrer
@@ -274,15 +266,31 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
           )}
         </div>
 
+        {/* Index des couleurs, puis « Même décision pour toutes » sous le bandeau
+            (dans le bandeau, la liste depassait de sa hauteur fixe). */}
         {seances.length > 0 && (
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0 text-[11px] text-warm-700" aria-label="Couleurs des séances">
-            {INDEX_COULEURS.map(i => (
-              <li key={i.ton} className="flex items-center gap-1.5">
-                <span aria-hidden className={clsx('w-3 h-3 rounded-sm border-l-[3px] border-l-current', `ton-${i.ton}`)} />
-                {i.libelle}
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-wrap items-center gap-3 shrink-0 pt-2">
+            <ul className={clsx('flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-warm-700', COLONNE_TITRE)} aria-label="Couleurs des séances">
+              {INDEX_COULEURS.map(i => (
+                <li key={i.ton} className="flex items-center gap-1.5">
+                  <span aria-hidden className={clsx('w-3 h-3 rounded-sm border-l-[3px] border-l-current', `ton-${i.ton}`)} />
+                  {i.libelle}
+                </li>
+              ))}
+            </ul>
+            {peutGerer && seances.length > 1 && (
+              <FloatSelect
+                label="Même décision pour toutes"
+                compact
+                wrapperClassName="w-64"
+                value=""
+                onChange={e => appliquer(seances, e.target.value)}
+              >
+                <option value="" disabled hidden />
+                {options(seances)}
+              </FloatSelect>
+            )}
+          </div>
         )}
 
         {seances.length === 0 ? (
@@ -293,8 +301,8 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
               const premier = groupe[0]
               return (
                 <section key={premier.slotId} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="section-title">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className={clsx('section-title truncate', COLONNE_TITRE)}>
                       {premier.classe} · {jourSemaine(premier.date)} {premier.debut}-{premier.fin} · {pluriel(groupe.length, 'séance')}
                     </h3>
                     {peutGerer && groupe.length > 1 && (
