@@ -93,7 +93,7 @@ export async function supprimerAbsence(id: string, prevenir = false): Promise<{ 
 export async function deciderSeances(
   absenceId: string,
   decisions: { slotId: string; date: string; decision: Decision; remplacant: string | null }[],
-  prevenir: { annulees: boolean; maintenues: boolean } = { annulees: false, maintenues: false },
+  prevenir: { annulees: boolean; maintenues: boolean; remplacees?: boolean } = { annulees: false, maintenues: false },
 ): Promise<{ error?: string; avertissement?: string }> {
   const { error: roleError } = await requireRoleServer([...ENCADREMENT])
   if (roleError) return { error: roleError }
@@ -115,11 +115,19 @@ export async function deciderSeances(
   const annulees = prevenir.annulees
     ? decisions.filter(d => d.decision === 'annulee' && !dejaAnnoncees.has(cle(d))).map(({ slotId, date }) => ({ slotId, date }))
     : []
-  if (annulees.length === 0 && maintenues.length === 0) return {}
+  // Remplacee maintenant (nouvelle decision ou autre remplacant) : annonce
+  // facultative (29/10). Une seance annoncee annulee qui passe a « remplacee »
+  // est deja dite maintenue : pas de second email.
+  const retablies = new Set((rendu?.retablies ?? []).map(r => `${r.slot_id}|${r.date}`))
+  const remplacees = prevenir.remplacees
+    ? decisions.filter(d => d.decision === 'remplacee' && !retablies.has(cle(d))).map(({ slotId, date }) => ({ slotId, date }))
+    : []
+  if (annulees.length === 0 && maintenues.length === 0 && remplacees.length === 0) return {}
 
   const ecole = await ecoleDe(supabase, absenceId)
   if (!ecole) return {}
   let echecs = await annoncerMaintenues(supabase, ecole, maintenues)
+  if (remplacees.length) echecs += (await prevenirFamilles(supabase, ecole, remplacees, 'remplacee')).echecs
   if (annulees.length) {
     const envoi = await prevenirFamilles(supabase, ecole, annulees, 'annulee')
     echecs += envoi.echecs

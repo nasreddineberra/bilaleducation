@@ -8,7 +8,9 @@ import { formatJourLongFr, horodatageParis } from '@/lib/dates'
 import { escapeHtml } from '@/lib/security/escape-html'
 
 /**
- * PREVENIR LES FAMILLES D'UNE SEANCE ANNULEE OU RETABLIE (lot 3c, 28/10).
+ * PREVENIR LES FAMILLES D'UNE SEANCE ANNULEE OU RETABLIE (lot 3c, 28/10), OU
+ * ASSUREE PAR UN REMPLACANT (29/10 : case DECOCHEE par defaut, sans le nom du
+ * remplacant, qui peut encore changer).
  *
  * Un email par foyer ET par classe, qui liste toutes ses seances : une absence
  * d'une semaine fait un email, pas cinq. Il dit la classe, le jour et l'horaire,
@@ -21,7 +23,7 @@ import { escapeHtml } from '@/lib/security/escape-html'
  */
 
 export type SeanceCle = { slotId: string; date: string }
-export type Sorte = 'annulee' | 'retablie'
+export type Sorte = 'annulee' | 'retablie' | 'remplacee'
 
 type Detail = SeanceCle & { classId: string; classe: string; isAdult: boolean; debut: string; fin: string }
 
@@ -78,12 +80,18 @@ export async function prevenirFamilles(
     const plusieurs = liste.length > 1
     const titreSeul = sorte === 'annulee'
       ? (plusieurs ? 'Séances annulées' : 'Séance annulée')
-      : (plusieurs ? 'Séances maintenues' : 'Séance maintenue')
+      : sorte === 'remplacee'
+        ? (plusieurs ? 'Séances assurées par un remplaçant' : 'Séance assurée par un remplaçant')
+        : (plusieurs ? 'Séances maintenues' : 'Séance maintenue')
     const phrase = sorte === 'annulee'
       ? (plusieurs ? 'Ces séances sont annulées : il n’y aura pas cours.' : 'Cette séance est annulée : il n’y aura pas cours.')
-      : (plusieurs
-          ? 'Ces séances, annoncées annulées, ont bien lieu aux horaires habituels.'
-          : 'Cette séance, annoncée annulée, a bien lieu à l’horaire habituel.')
+      : sorte === 'remplacee'
+        ? (plusieurs
+            ? 'Ces séances ont bien lieu aux horaires habituels : elles seront assurées par un enseignant remplaçant.'
+            : 'Cette séance a bien lieu à l’horaire habituel : elle sera assurée par un enseignant remplaçant.')
+        : (plusieurs
+            ? 'Ces séances, annoncées annulées, ont bien lieu aux horaires habituels.'
+            : 'Cette séance, annoncée annulée, a bien lieu à l’horaire habituel.')
     const lignesSeances = liste.map((d, i) => [
       i === 0 ? (plusieurs ? 'Séances' : 'Séance') : '',
       `${formatJourLongFr(`${d.date}T12:00`)} · ${d.debut}-${d.fin}`,

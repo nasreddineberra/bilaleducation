@@ -9875,3 +9875,10 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   meme distance. « Même décision pour toutes » sous le bandeau, a cote de l'index ; Enregistrer reste dans le bandeau.
 - **Fiche d'une absence, Annuler** (demande du 29/10) : bouton « Annuler » (secondaire) a gauche d'Enregistrer, qui
   remet les listes sur les decisions enregistrees ; grise tant que rien n'est modifie ou pendant l'enregistrement.
+- **Familles prevenues d'un remplacement** (demande du 29/10, revient sur « aucun email pour une seance remplacee »
+  du 28/10) : a l'enregistrement, une seance A VENIR qui passe a « Remplacée par » (ou change de remplacant) ouvre la
+  confirmation avec la case « Prévenir les familles du remplacement », DECOCHEE par defaut (preconisation acceptee par
+  « go » : rien ne change pour les familles, une longue absence multiplierait les emails). Email par foyer et par
+  classe (`prevenirFamilles`, sorte `remplacee`) : « assurée par un enseignant remplaçant », sans motif, sans
+  l'absent, sans le remplacant (il peut changer). Une seance annoncee annulee qui passe a remplacee ne recoit que
+  « maintenue ». Rien n'est note en base pour cet envoi.

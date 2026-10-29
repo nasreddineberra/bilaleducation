@@ -113,6 +113,7 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
   const [confirmeEnvoi, setConfirmeEnvoi] = useState(false)
   const [prevenirAnnulees, setPrevenirAnnulees] = useState(true)
   const [prevenirMaintenues, setPrevenirMaintenues] = useState(true)
+  const [prevenirRemplacees, setPrevenirRemplacees] = useState(false)
   const [prevenirSuppression, setPrevenirSuppression] = useState(true)
 
   const membreParId = useMemo(() => new Map(membres.map(m => [m.id, m])), [membres])
@@ -136,6 +137,10 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
   // A dire maintenues : annoncees annulees, a venir, qui ne le sont plus.
   const aMaintenir = modifiees.filter(s => aVenir(s) && annoncee(s) && choix[cle(s)] !== 'annulee')
   const annonceesAVenir = seances.filter(s => aVenir(s) && annoncee(s))
+  // A dire remplacees : a venir, remplacant choisi maintenant (nouveau ou autre),
+  // pas deja annoncees annulees (celles-la partent en « maintenues »). Case
+  // DECOCHEE par defaut (29/10) : pour les familles, rien ne change.
+  const aRemplacer = modifiees.filter(s => aVenir(s) && choix[cle(s)].startsWith('r:') && !annoncee(s))
 
   const appliquer = (cibles: SeanceFiche[], valeur: string) => {
     if (!valeur) return
@@ -181,8 +186,8 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
   }
 
   const demanderEnregistrement = () => {
-    if (aAnnoncer.length || aMaintenir.length) {
-      setPrevenirAnnulees(true); setPrevenirMaintenues(true); setConfirmeEnvoi(true)
+    if (aAnnoncer.length || aMaintenir.length || aRemplacer.length) {
+      setPrevenirAnnulees(true); setPrevenirMaintenues(true); setPrevenirRemplacees(false); setConfirmeEnvoi(true)
     } else enregistrer()
   }
 
@@ -196,6 +201,7 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
     }), {
       annulees: messagerie && aAnnoncer.length > 0 && prevenirAnnulees,
       maintenues: messagerie && aMaintenir.length > 0 && prevenirMaintenues,
+      remplacees: messagerie && aRemplacer.length > 0 && prevenirRemplacees,
     })
     setSaving(false)
     setConfirmeEnvoi(false)
@@ -437,6 +443,18 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
                 </ul>
                 <CasePrevenir label="Prévenir les familles par email" coche={prevenirMaintenues}
                   onChange={setPrevenirMaintenues} messagerie={messagerie} />
+              </div>
+            )}
+            {aRemplacer.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="font-medium text-secondary-800">
+                  {aRemplacer.length > 1 ? `${aRemplacer.length} séances assurées par un remplaçant` : 'Séance assurée par un remplaçant'}
+                </p>
+                <ul className="text-warm-700 tabular-nums">
+                  {aRemplacer.map(s => <li key={cle(s)}>{s.classe} · {jourLong(s.date)} · {s.debut}-{s.fin}</li>)}
+                </ul>
+                <CasePrevenir label="Prévenir les familles du remplacement" coche={prevenirRemplacees}
+                  onChange={setPrevenirRemplacees} messagerie={messagerie} />
               </div>
             )}
           </div>
