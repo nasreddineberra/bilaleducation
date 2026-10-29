@@ -84,9 +84,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (`teaches_student`), sa propre ligne `teachers`. Lit l'EDT de toute l'ecole (document collectif)
   mais l'ecran ne lui montre que SON planning (+ classes qu'il remplace). Ne communique que les
   devoirs. Valide ses propres seances.
-- **Remplacant** : ligne `class_teachers` `is_main_teacher = false` + dates. Voit le cahier de texte
-  7 j avant sa prise de poste (RLS), voit et valide les seances de la classe pendant sa periode
-  (heures a son nom, `replaced_profile_id` = titulaire). Le titulaire remplace ne valide plus.
+- **Remplacant** : decision « Remplacee par » d'une absence d'enseignant, seance par seance (plus jamais une ligne
+  `class_teachers`, refusee depuis le lot 5). Voit le cahier de texte 7 j avant a 7 j apres, valide les seances qu'il
+  assure (heures a son nom, `replaced_profile_id` = titulaire). Le titulaire remplace ne valide plus.
 - **Comptable** : Financements + Parametres -> Cotisations ; pas de notes/absences.
 - **Resp. pedagogique** : pedagogie complete, enseignants dans Temps de presence (sans couts).
 - **Secretaire** : eleves, parents, enseignants (sans suppression), classes, gabarits, notes,
@@ -115,8 +115,16 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   ecrite par la base). Un retour dans l'annee annule le depart ; seul le DERNIER depart compte.
 - **Notes / bulletins** : gabarits a date obligatoire (ordre `lib/evaluations/ordre.ts`), absences
   reportees de l'appel, bulletins PDF bilingues FR/AR archives avec chiffres figes.
-- **Planning, absences, presence** : chantier en cours, conception validee
-  `docs/CONCEPTION-PLANNING-ABSENCES.md` (une information = un ecran qui l'ecrit ; lots 1 et 2 faits).
+- **Planning, absences, presence** (chantier TERMINE le 29/10, `docs/CONCEPTION-PLANNING-ABSENCES.md`) : une
+  information = un ecran qui l'ecrit. QUI ASSURE une seance se DEDUIT a la date (`lib/edt/seance.ts`) : rien n'est
+  recopie sur un creneau (plus de `schedule_slots.teacher_id`, `class_teachers` = titulaires seuls, seance
+  « modifiee » = salle seule, controle 34). Validation par la base (`valider_seance`), seance validee intouchable.
+- **Absences enseignants** (seul ecran qui les ecrit) : date + HEURE exactes, seance touchee des qu'elle chevauche ;
+  decisions par seance : Remplacee par (tout membre actif de l'equipe, jamais occupe) / Annulee / A decider (= aucune
+  ligne) ; declarent encadrement + secretaire ; enseignant et comptable LISENT tout (liste + fiche via
+  `absences_enseignants_information`) ; motif visible de tout le personnel, jamais des parents. Familles prevenues
+  (case) d'une annulation, d'un retablissement, d'un remplacement (decochee). Heures du remplacant a la validation.
+  Lecture unique : `chargerAbsencesEtSeances` / `chargerAbsencesInformation` (`lib/absences-enseignants/contexte.ts`).
 - **EDT** : grille 15 min (8 h-19 h, elargie au creneau le plus matinal), creneaux recurrents avec dates
   d'effet, vacances et jours feries bloquants (`lib/school-year/jours-fermes.ts`). Creneau = cours (matiere
   = unite d'enseignement, facultative) ou activite (nom facultatif) ; type FIGE apres creation (il decide du
@@ -374,57 +382,22 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
    pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
    redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
-1. **A la reprise (arret du 28/10 au soir, tout pousse, aucune migration en attente)** :
-   - **Chantier Planning / absences** (`docs/CONCEPTION-PLANNING-ABSENCES.md`) : lots 1 et 2 FAITS + corrections
-     EDT du 27/10, vues et validees a l'ecran le 28/10 (colonne du jour `--edt-jour` gardee). Saisies de
-     confirmation (mot-cle, nom, slug) : `ui/SaisieConfirmation` partout (28/10, sans collage, espace entre
-     deux mots seulement).
-   - **Lot 3 · Absences enseignants, decisions du 28/10** : absence en date + HEURE exactes (bornes comprises,
-     seance touchee des qu'elle chevauche) ; 3 decisions (Remplacee par / Annulee / A decider par defaut = aucune
-     ligne) ; declarent encadrement + secretaire ; remplacant = tout membre actif de l'equipe, jamais occupe sur
-     l'horaire (refus) ; deux absences du meme enseignant ne se chevauchent pas ; heures du remplacant a la
-     VALIDATION ; familles prevenues d'une annulation (case cochee) ET d'un retablissement apres email (cochee) ;
-     seance validee intouchable ; alerte tableau de bord encadrement de la saisie au dernier jour (ambre tant
-     qu'il reste des seances a decider) ; motif conge / maladie / personnel / formation / autre ; remplacement long
-     = meme page (« meme decision pour tous »), acces du remplacant au cahier de texte 7 j avant a porter.
-     **3a FAIT** (migration `add-absences-enseignants.sql` appliquee, controle 29, `lib/edt/absences.ts`).
-     **3b-1 FAIT** (28/10) : page Absences enseignants (liste, declaration avec « Journee entiere », fiche avec
-     decision par seance), `remplacants_possibles` (migration `absences-enseignants-remplacants.sql`, controle 30 ;
-     compte `admin` ecarte des remplacants, signale a l'utilisateur), Temps de presence ne propose plus l'absence ni
-     « En remplacement de ». Enseignant et comptable voient TOUTES les absences de l'ecole en lecture (liste et fiche, 29/10).
-     **3b-2a FAIT** (28/10) : validation par la base (`valider_seance` / `retirer_validation_seance`, migration
-     `absences-enseignants-validation.sql`, controle 31), EDT branche sur les decisions (`fusionnerDecisions` de
-     `lib/edt/seance.ts`, « Absent · a decider » en ambre, menu « Regler l'absence » -> fiche de l'absence),
-     cahier de texte du remplacant (7 j avant a 7 j apres, accordes le 28/10). **3b-2b FAIT** : tableaux de bord
-     sur `absences_enseignants` + decisions (`lib/absences-enseignants/tableau-de-bord.ts`), alerte « Absences
-     d'enseignant » dans « A traiter » (direction, resp. pedago, secretaire). **3b-2c FAIT** : fiche classe sans
-     declaration de remplacant, absences et remplacements comptes dans les refus de suppression (fiche, compte).
-     Temps de presence : types cours / activite plus saisissables, heures nees de l'EDT sans Modifier / Supprimer.
-     **3c FAIT** (28/10) : emails aux familles (migration `absences-enseignants-familles.sql`, controle 32 ;
-     `marquer_familles_prevenues`, type de notification « seance ») : confirmation avant d'enregistrer, case
-     cochee (grisee sans messagerie), seances a venir seulement, ni motif ni nom de l'absent ; aussi a la
-     suppression et au raccourcissement de l'absence. **A voir a l'ecran** (demonstration, messagerie configuree) :
-     annulation annoncee puis retablissement, hauteur de « A traiter » (direction), en-tete des tableaux de bord,
-     bouton plein ecran, « Ajouter » grise de Temps de presence, capsule EDT (infobulle unique, « Remplacée par »
-     accorde, etats centres). Infobulle de validation de la capsule selon que la seance est la sienne ou non (29/10).
-     **Lot 4 FAIT** (29/10) : absences d'enseignant lues partout depuis `chargerAbsencesEtSeances`
-     (`lib/absences-enseignants/contexte.ts` + `seances-manquees.ts` : une ligne par seance touchee, duree, decision) ;
-     Temps de presence (recaps + PDF = heures de seances manquees), assiduite (fiche enseignant, Mon compte : une ligne
-     par seance, decision, lien vers l'absence), encadre Remplacements de la fiche classe (remplacees / annulees du jour
-     et a venir, en lecture) ; comptable lecteur de `absences_enseignants` (migration `absences-enseignants-comptable.sql`,
-     controle 29). **Calendrier de Temps de presence FAIT** (29/10) : absences d'enseignant visibles de TOUT le
-     personnel MOTIF COMPRIS, jamais aux parents (`absences_enseignants_information`, migrations
-     `absences-enseignants-information.sql` puis `-motif.sql`, controle 33 ; `chargerAbsencesInformation`), barres sur
-     les jours (`lib/temps-presence/barres-absences.ts`, « NOM P. », infobulle nom + motif, trait ambre si a decider,
-     « +N », clic = le jour sous le pointeur ; AUCUN lien vers l'absence dans Temps de presence), calendrier pleine
-     hauteur. Fiche d'une absence : seances en CARTES colorees selon la decision (`ton-*`), index des couleurs.
-     Assiduite : remplacements DECIDES avec leur etat (assure / a venir / non valide). **A voir a l'ecran**
-     (demonstration) : lot 4 (4 ecrans), infobulle de validation, calendrier (mois, semaine, compte enseignant).
-     **Lot 5 FAIT** (29/10, migration `lot5-nettoyage.sql`, controle 34) : plus de `schedule_slots.teacher_id`, ni
-     d'enseignant / horaire sur une seance modifiee (salle seule), ni `classes.room_number` ; `class_teachers` =
-     titulaires seuls ; `SlotFormModal` = creation d'une seance ponctuelle. Chantier Planning / absences TERMINE.
-     **A voir a l'ecran** : EDT (creation ponctuelle, DnD), fiche classe (titulaire, encadre Remplacements).
-   - Ensuite : sortie des `any` lot 5 (eleves, parents, affectation : ~66 dans `app/dashboard/{students,parents,affectation}`), voir le point 4.
+1. **A la reprise (arret du 29/10 au soir, tout pousse, aucune migration en attente)** :
+   - **A TESTER a l'ecran** (demonstration) :
+     - **Fiche classe · Planning EDT avec des seances DEJA VALIDEES** : ajouter, modifier, supprimer un creneau
+       (et changer le titulaire) quand des seances passees de ce creneau sont validees. Attendu : les validations,
+       les heures de Temps de presence et l'historique restent justes ; rien de valide ne se perd ni ne se
+       recalcule en silence.
+     - Lot 5 : EDT (creation d'une seance ponctuelle, glisser-deposer), fiche classe (titulaire, encadre
+       Remplacements).
+     - Sortie des `any` lots 3 et 4 : 6 audits du passage d'annee, Historique des classes ; Reglements (famille,
+       infobulle de classe avec niveau, historique, impayes anterieurs), Synthese, Vue globale, ouverture d'un
+       paiement sans enregistrer, tableaux de bord comptable et direction.
+     - Absences (messagerie configuree) : annulation annoncee puis retablissement, remplacement annonce.
+   - **Ensuite** : sortie des `any` lot 5 (eleves, parents, affectation : ~66 dans
+     `app/dashboard/{students,parents,affectation}`), voir le point 4. Plan a presenter avant de coder.
+   - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
+     archiver les remplacements depuis `absences_enseignants_seances` ?
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
      a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
