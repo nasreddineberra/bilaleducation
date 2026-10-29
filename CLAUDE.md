@@ -414,7 +414,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      personnel MOTIF COMPRIS, jamais aux parents (`absences_enseignants_information`, migrations
      `absences-enseignants-information.sql` puis `-motif.sql`, controle 33 ; `chargerAbsencesInformation`), barres sur
      les jours (`lib/temps-presence/barres-absences.ts`, « NOM P. », infobulle nom + motif, trait ambre si a decider,
-     « +N », clic = le jour ; lien vers l'absence dans le panneau du jour seulement), calendrier pleine hauteur.
+     « +N », clic = le jour sous le pointeur ; AUCUN lien vers l'absence dans Temps de presence), calendrier pleine
+     hauteur. Fiche d'une absence : seances en CARTES colorees selon la decision (`ton-*`), index des couleurs.
      Assiduite : remplacements DECIDES avec leur etat (assure / a venir / non valide). **A voir a l'ecran**
      (demonstration) : lot 4 (4 ecrans), infobulle de validation, calendrier (mois, semaine, compte enseignant).
      **Prochain** : lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort de `SlotFormModal`, remplacants

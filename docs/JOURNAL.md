@@ -9858,3 +9858,14 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   classe, absent (nom par `absences_enseignants_information`) ; compteur « N remplacements · X assurés · Y à venir » ;
   une heure de remplacement nee d'une seance decidee ne s'affiche pas deux fois. Lien vers l'absence sur la fiche
   enseignant seulement (pas sur Mon compte : un enseignant ne lit pas l'absence d'un collegue).
+
+### 29/10 · Temps de presence sans lien vers l'absence ; fiche d'une absence en cartes
+
+- **Temps de presence** (demande de l'utilisateur) : aucun lien vers la fiche d'une absence d'enseignant, ni sur les
+  barres (le clic sautait au premier jour de l'absence), ni dans le panneau du jour. La barre n'est plus un bouton :
+  un clic selectionne la case qu'elle recouvre SOUS le pointeur, comme un clic sur la case. Prop `peutOuvrirAbsence`
+  retiree.
+- **Fiche d'une absence** : les seances touchees passent du tableau aux CARTES (date, horaire, liste « Décision »,
+  « Familles prévenues le »), alignees en grille qui se replie (14 rem minimum), couleur selon la decision CHOISIE
+  avant meme d'enregistrer, jetons d'etat de la charte : À décider `ton-attente`, Annulée `ton-danger`, Remplacée
+  `ton-remplacement`, Validée `ton-ok` (decision en lecture). Index des couleurs en tete du bloc.

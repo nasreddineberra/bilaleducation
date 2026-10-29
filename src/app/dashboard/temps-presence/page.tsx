@@ -97,7 +97,6 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         staffList={(staffList ?? []) as any[]}
         presenceTypes={(presenceTypes ?? []) as any[]}
         absences={absences}
-        peutOuvrirAbsence={['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(role)}
         vacations={(currentYear?.vacations as never[]) ?? []}
         feries={(currentYear?.jours_feries as never[]) ?? []}
         presenceTypeRates={presenceTypeRates}

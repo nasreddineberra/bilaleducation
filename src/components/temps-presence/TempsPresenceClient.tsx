@@ -82,8 +82,6 @@ interface Props {
    * colonne Absences des recapitulatifs (heures des seances manquees).
    */
   absences?: AbsenceInformation[]
-  /** Encadrement : le panneau du jour ouvre la fiche de l'absence (l'enseignant, les siennes). */
-  peutOuvrirAbsence?: boolean
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
   presenceTypes: PresenceType[]
@@ -296,7 +294,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
-  absences = [], peutOuvrirAbsence = false,
+  absences = [],
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
@@ -727,7 +725,6 @@ export default function TempsPresenceClient({
   )
   const absencesParId = useMemo(() => new Map(absencesAffichees.map(a => [a.id, a])), [absencesAffichees])
   const absencesDuJour = absencesAffichees.filter(a => a.premier <= selectedDay && a.dernier >= selectedDay)
-  const peutOuvrir = (a: AbsenceInformation) => peutOuvrirAbsence || a.profileId === currentUserId
 
   // HAUTEUR : le calendrier occupe la page jusqu'en bas (demande du 29/10) ; le
   // nombre de barres par semaine se deduit de la hauteur MESUREE d'une semaine.
@@ -768,14 +765,21 @@ export default function TempsPresenceClient({
         className={clsx('pointer-events-auto min-w-0', !b.coupeAvant && 'pl-1', !b.coupeApres && 'pr-1')}
       >
         <Tooltip content={infobulleAbsence(a)} className="w-full" maxWidth="max-w-xs">
-          <button
-            type="button"
-            // Le clic ouvre le jour (debut de la barre dans la semaine) ; le lien
-            // vers l'absence est dans le panneau du jour seulement (29/10).
-            onClick={() => setSelectedDay(cles[b.colDebut])}
+          {/* AUCUN LIEN vers l'absence dans Temps de presence (29/10) : la barre
+              informe. Un clic dessus fait comme un clic sur la case qu'elle
+              recouvre : il selectionne le jour SOUS le pointeur. */}
+          <span
+            role="img"
+            tabIndex={0}
+            onClick={e => {
+              const r = e.currentTarget.getBoundingClientRect()
+              const nb = b.colFin - b.colDebut + 1
+              const col = b.colDebut + Math.min(nb - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * nb)))
+              setSelectedDay(cles[col])
+            }}
             aria-label={`${a.nom}, ${accordGenre(genreCivilite(a.civilite), 'absent', 'absente', 'absence')} ${periodeAbsence(a)}, ${a.motif}${aDecider ? ', séances à décider' : ''}`}
             className={clsx(
-              'h-[18px] w-full min-w-0 flex items-center px-1.5 bg-warm-100 text-secondary-800 text-[10px] font-semibold leading-none border-l-[3px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
+              'h-[18px] w-full min-w-0 flex items-center px-1.5 bg-warm-100 text-secondary-800 text-[10px] font-semibold leading-none border-l-[3px] cursor-default outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
               b.coupeAvant ? 'rounded-l-none' : 'rounded-l',
               b.coupeApres ? 'rounded-r-none' : 'rounded-r',
               aDecider && 'border-l-amber-500',
@@ -783,7 +787,7 @@ export default function TempsPresenceClient({
             style={aDecider ? undefined : { borderLeftColor: couleurAbsence }}
           >
             <span className="truncate">{a.nomCourt}</span>
-          </button>
+          </span>
         </Tooltip>
       </div>
     )
@@ -821,15 +825,8 @@ export default function TempsPresenceClient({
           </span>
           <TruncatedText text={a.nom} className="text-[11px] font-bold text-warm-800" />
         </div>
-        {/* Lecture seule : l'absence se regle dans Absences enseignants. */}
-        {peutOuvrir(a) ? (
-          <Link href={`/dashboard/absences-enseignants/${a.id}`} aria-label={`Ouvrir l’absence de ${a.nom}`}
-            className="flex-1 min-w-0 space-y-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
-            {contenu}
-          </Link>
-        ) : (
-          <div className="flex-1 min-w-0 space-y-1">{contenu}</div>
-        )}
+        {/* Lecture seule, sans lien (29/10) : l'absence se regle dans Absences enseignants. */}
+        <div className="flex-1 min-w-0 space-y-1">{contenu}</div>
       </div>
     )
   }

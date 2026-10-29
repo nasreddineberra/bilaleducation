@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { clsx } from 'clsx'
 import { FloatButton, FloatSelect } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -67,6 +68,22 @@ function jourSemaine(date: string): string {
 function jourCourt(instant: string): string {
   return new Date(instant).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' })
 }
+// CARTES (29/10) : une carte par seance, couleur selon la decision CHOISIE (avant
+// meme d'enregistrer), jetons d'etat de la charte (`ton-*`). Index en tete.
+type TonCarte = 'attente' | 'danger' | 'remplacement' | 'ok'
+const INDEX_COULEURS: { ton: TonCarte; libelle: string }[] = [
+  { ton: 'attente', libelle: 'À décider' },
+  { ton: 'danger', libelle: 'Annulée' },
+  { ton: 'remplacement', libelle: 'Remplacée' },
+  { ton: 'ok', libelle: 'Validée' },
+]
+function tonCarte(validee: boolean, valeur: string): TonCarte {
+  if (validee) return 'ok'
+  if (valeur === 'annulee') return 'danger'
+  if (valeur.startsWith('r:')) return 'remplacement'
+  return 'attente'
+}
+
 const aVenir = (s: SeanceFiche) => `${s.date}T${s.debut}` > horodatageParis(new Date())
 const annoncee = (s: SeanceFiche) => s.decision === 'annulee' && !!s.prevenuesLe
 
@@ -257,6 +274,17 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
           )}
         </div>
 
+        {seances.length > 0 && (
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 shrink-0 text-[11px] text-warm-700" aria-label="Couleurs des séances">
+            {INDEX_COULEURS.map(i => (
+              <li key={i.ton} className="flex items-center gap-1.5">
+                <span aria-hidden className={clsx('w-3 h-3 rounded-sm border-l-[3px] border-l-current', `ton-${i.ton}`)} />
+                {i.libelle}
+              </li>
+            ))}
+          </ul>
+        )}
+
         {seances.length === 0 ? (
           <p className="text-sm text-warm-700 py-6 text-center">Aucune séance touchée par cette absence.</p>
         ) : (
@@ -282,42 +310,39 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
                       </FloatSelect>
                     )}
                   </div>
-                  <div className="liste">
-                    <table className="w-full text-xs" aria-label={`Séances ${premier.classe} du ${jourSemaine(premier.date)}`}>
-                      <tbody className="divide-y divide-warm-50">
-                        {groupe.map(s => (
-                          <tr key={cle(s)} className="sans-survol">
-                            <td className="list-td whitespace-nowrap text-secondary-800">{jourLong(s.date)}</td>
-                            <td className="list-td whitespace-nowrap text-warm-700 tabular-nums">{s.debut}-{s.fin}</td>
-                            <td className="list-td whitespace-nowrap text-warm-700">
-                              {annoncee(s) && <>Familles prévenues le {jourCourt(s.prevenuesLe!)}</>}
-                            </td>
-                            <td className="list-td w-80">
-                              {peutGerer && !s.validee ? (
-                                <FloatSelect
-                                  label={`Décision du ${jourLong(s.date)}`}
-                                  compact
-                                  value={choix[cle(s)]}
-                                  onChange={e => setChoix(prev => ({ ...prev, [cle(s)]: e.target.value }))}
-                                >
-                                  {options([s], choix[cle(s)])}
-                                </FloatSelect>
-                              ) : (
-                                <span className="flex items-center gap-1.5">
-                                  {decisionLue(s)}
-                                  {s.validee && (
-                                    <Tooltip content="Séance validée : retirez d’abord la validation de présence dans l’emploi du temps.">
-                                      <span><Puce ton="ok">Validée</Puce></span>
-                                    </Tooltip>
-                                  )}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {/* Cartes alignees : la grille en place autant que la largeur le
+                      permet et se replie d'elle-meme. */}
+                  <ul className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-2" aria-label={`Séances ${premier.classe} du ${jourSemaine(premier.date)}`}>
+                    {groupe.map(s => (
+                      <li key={cle(s)} className={clsx('rounded-lg p-2 space-y-1.5 border-l-4 border-l-current', `ton-${tonCarte(s.validee, choix[cle(s)])}`)}>
+                        <div className="text-xs font-bold">{jourLong(s.date)}</div>
+                        <div className="text-xs text-warm-700 tabular-nums">{s.debut}-{s.fin}</div>
+                        {peutGerer && !s.validee ? (
+                          <FloatSelect
+                            label="Décision"
+                            aria-label={`Décision du ${jourLong(s.date)}`}
+                            compact
+                            value={choix[cle(s)]}
+                            onChange={e => setChoix(prev => ({ ...prev, [cle(s)]: e.target.value }))}
+                          >
+                            {options([s], choix[cle(s)])}
+                          </FloatSelect>
+                        ) : (
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            {decisionLue(s)}
+                            {s.validee && (
+                              <Tooltip content="Séance validée : retirez d’abord la validation de présence dans l’emploi du temps.">
+                                <span><Puce ton="ok">Validée</Puce></span>
+                              </Tooltip>
+                            )}
+                          </span>
+                        )}
+                        {annoncee(s) && (
+                          <div className="text-[10px] text-warm-700">Familles prévenues le {jourCourt(s.prevenuesLe!)}</div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </section>
               )
             })}
