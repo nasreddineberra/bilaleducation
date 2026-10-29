@@ -418,8 +418,10 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      hauteur. Fiche d'une absence : seances en CARTES colorees selon la decision (`ton-*`), index des couleurs.
      Assiduite : remplacements DECIDES avec leur etat (assure / a venir / non valide). **A voir a l'ecran**
      (demonstration) : lot 4 (4 ecrans), infobulle de validation, calendrier (mois, semaine, compte enseignant).
-     **Prochain** : lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort de `SlotFormModal`, remplacants
-     `class_teachers`).
+     **Lot 5 FAIT** (29/10, migration `lot5-nettoyage.sql`, controle 34) : plus de `schedule_slots.teacher_id`, ni
+     d'enseignant / horaire sur une seance modifiee (salle seule), ni `classes.room_number` ; `class_teachers` =
+     titulaires seuls ; `SlotFormModal` = creation d'une seance ponctuelle. Chantier Planning / absences TERMINE.
+     **A voir a l'ecran** : EDT (creation ponctuelle, DnD), fiche classe (titulaire, encadre Remplacements).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
      a relier un jour a celle du creneau.

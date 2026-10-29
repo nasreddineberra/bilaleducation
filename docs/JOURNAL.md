@@ -9885,3 +9885,21 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - **Ecart barres / pastilles** (capture du 29/10) : 2 px au lieu de 6. Le numero du jour fait 16 px (20 px seulement
   pour le jour courant, pastille ronde) alors que les barres sont posees a 24 px (4 + 20) : la ligne du numero prend
   `min-h-5` dans toutes les cases.
+
+## 29/10 · Lot 5 du chantier Planning / absences : le nettoyage
+
+- **Pourquoi** : qui assure une seance se DEDUIT a la date (`lib/edt/seance.ts`) ; les copies sur le creneau
+  (`schedule_slots.teacher_id`) et sur la seance (`override_teacher_id`, horaires modifies) ne servaient plus et
+  pouvaient contredire la deduction. Le FK de `schedule_slots.teacher_id` etait en ON DELETE CASCADE : supprimer
+  une fiche enseignant effacait ses creneaux.
+- **Code** : fiche classe sans cascade du titulaire sur les creneaux ni bloc remplacants / historique ; modale EDT
+  en creation seule (seance ponctuelle, conflits aussi contre les series du jour) ; `handleSaveException` mort
+  supprime ; remplacant en memoire renomme `remplacant_teacher_id` / `remplacant_profil_id` (rempli par
+  `fusionnerDecisions`, jamais lu en base) ; horaires d'une seance = ceux du creneau ; suppression d'un enseignant
+  sans dependance EDT.
+- **Migration** `lot5-nettoyage.sql` : `valider_seance` et `fn_demo_peupler` rapiecees par ancrage, colonnes
+  retirees, gardes `schedule_exceptions_modifiee_salle` et `class_teachers_titulaire_seul`. Controle 34.
+- **Incident** : premier essai dans l'editeur SQL Supabase refuse (« ancrage 3 introuvable ») : le corps en base est
+  en CRLF (normalise), mais le collage sous Windows remettait l'ancre multi-ligne en CRLF. Ancres normalisees aussi.
+  Puis la migration a ete jouee AVANT le deploiement du code (production en erreur quelques minutes, corrigee par
+  le push). Lecon : un changement restrictif = pousser le code, attendre le deploiement Vercel, PUIS jouer.
