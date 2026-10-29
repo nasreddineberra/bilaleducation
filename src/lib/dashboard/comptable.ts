@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import type { FeeStatus } from '@/types/database'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { chargerCoutHeures } from '@/lib/financements/cout-heures'
@@ -41,7 +42,7 @@ const cle = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export async function chargerDonneesComptable(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   annee: AnneeRef | null,
   aujourdhui: string,
 ): Promise<DonneesComptable> {
@@ -75,7 +76,7 @@ export async function chargerDonneesComptable(
   const k = financials.kpi
   const parMois = new Map(financials.monthly.map(m => [m.key, m.amount]))
 
-  const somme = (rows: any[] | null) => (rows ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0)
+  const somme = (rows: { amount: number | null }[] | null) => (rows ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0)
   // Une lecture en echec ne doit pas produire un faux solde : pas de situation.
   const situation = coutHeures && !depensesRes.error && !revenusRes.error
     ? (() => {
@@ -111,7 +112,7 @@ export async function chargerDonneesComptable(
       precedent: parMois.get(clePrecedent) ?? 0,
       paiements: paiementsMoisRes.error ? null : (paiementsMoisRes.count ?? null),
     },
-    paiements: ((derniersRes.data ?? []) as any[]).map(p => {
+    paiements: (derniersRes.data ?? []).map(p => {
       const par = p.family_fees?.parents
       return {
         id: p.id,

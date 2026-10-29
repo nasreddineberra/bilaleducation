@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import type { FeeStatus, JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
 import { indexTitulaires, affectationsDesClasses } from '@/lib/edt/seance'
@@ -92,7 +93,7 @@ function decaler(date: string, n: number): string {
 }
 
 export async function chargerDonneesDirection(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   annee: AnneeRef | null,
   periodeId: string | null,
   aujourdhui: string,
@@ -145,25 +146,25 @@ export async function chargerDonneesDirection(
     supabase.from('document_type_configs').select('doc_key').eq('is_required', true),
   ])
 
-  const vacations = ((anneeComplete as any).data?.vacations ?? []) as VacationPeriod[]
-  const feries = ((anneeComplete as any).data?.jours_feries ?? []) as JourFerie[]
+  const vacations: VacationPeriod[] = (anneeComplete.data?.vacations ?? [])
+  const feries: JourFerie[] = (anneeComplete.data?.jours_feries ?? [])
   const estFerme = (d: string) => jourFerme(d, vacations, feries) !== null
   const fermeAujourdhui = jourFerme(aujourdhui, vacations, feries)
 
-  const classesList = ((classesRes as any).data ?? []) as any[]
+  const classesList = (classesRes.data ?? [])
   // Qui assure une seance : DEDUIT des titulaires (lib/edt/seance.ts), jamais lu sur le creneau.
   const titulaireDe = indexTitulaires(affectationsDesClasses(classesList))
   const classIds = classesList.map(c => c.id)
-  const slotsRaw = ((slotsRes as any).data ?? []) as any[]
-  const slots = slotsRaw as SlotSource[]
+  const slotsRaw = (slotsRes.data ?? [])
+  const slots: SlotSource[] = slotsRaw
   const slotIds = slots.map(s => s.id)
-  const teachers = ((teachersRes as any).data ?? []) as any[]
+  const teachers = (teachersRes.data ?? [])
   const teacherParId = new Map(teachers.map(t => [t.id, t]))
 
   // ── Vague 2 : ce qui depend des classes, creneaux et evaluations ───────────
-  const evalsPeriode = ((evalsPeriodeRes as any).data ?? []) as any[]
+  const evalsPeriode = (evalsPeriodeRes.data ?? [])
   const evalIds = evalsPeriode.map(e => e.id)
-  const docKeys = (((docConfigsRes as any).data ?? []) as any[]).map(d => d.doc_key)
+  const docKeys = (docConfigsRes.data ?? []).map(d => d.doc_key)
 
   const [eleves, adultes, exceptionsRes, validationsRes, absEns, notesRes, notesAdultesRes, elevesActifs, docsRes] = await Promise.all([
     classIds.length ? supabase.from('enrollments').select('class_id').eq('status', 'active').in('class_id', classIds) : Promise.resolve({ data: [] }),
@@ -183,10 +184,10 @@ export async function chargerDonneesDirection(
   ])
 
   // ── Effectifs ──────────────────────────────────────────────────────────────
-  const compter = (rows: any[] | null) =>
+  const compter = (rows: { class_id: string }[] | null) =>
     (rows ?? []).reduce<Record<string, number>>((m, r) => (m[r.class_id] = (m[r.class_id] ?? 0) + 1, m), {})
-  const parClasseEleves = compter((eleves as any).data)
-  const parClasseAdultes = compter((adultes as any).data)
+  const parClasseEleves = compter(eleves.data)
+  const parClasseAdultes = compter(adultes.data)
   const effectif = (id: string) => (parClasseEleves[id] ?? 0) + (parClasseAdultes[id] ?? 0)
 
   const classes = classesList.map(c => ({
@@ -195,7 +196,7 @@ export async function chargerDonneesDirection(
     max: c.max_students ?? 30,
     adulte: !!c.cotisation_types?.is_adult,
     // Titulaire ACTIF aujourd'hui (jour de Paris), comme partout ailleurs.
-    professeur: nomEnseignantCivilite(((c.class_teachers ?? []) as any[]).find(ct =>
+    professeur: nomEnseignantCivilite((c.class_teachers ?? []).find(ct =>
       ct.is_main_teacher
       && (!ct.effective_from || ct.effective_from <= aujourdhui)
       && (!ct.effective_until || ct.effective_until >= aujourdhui))?.teachers),
@@ -206,8 +207,8 @@ export async function chargerDonneesDirection(
   // Decisions d'absence fondues : une seance remplacee ou annulee pour absence
   // se lit comme le reste (lib/edt/seance.ts).
   const enseignantDuProfil = (p: string) => teachers.find(t => t.user_id === p)?.id ?? null
-  const exceptions = absEns.fusionner(((exceptionsRes as any).data ?? []) as ExceptionSource[], enseignantDuProfil)
-  const validations = ((validationsRes as any).data ?? []) as any[]
+  const exceptions = absEns.fusionner(exceptionsRes.data ?? [], enseignantDuProfil)
+  const validations = (validationsRes.data ?? [])
   const validees = ensembleValidations(validations)
   const nomClasse = new Map(classesList.map(c => [c.id, c.name]))
   const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
@@ -235,12 +236,12 @@ export async function chargerDonneesDirection(
   // ── Assiduite du mois (eleves : classes non adultes) ───────────────────────
   const effectifEleves: Record<string, number> = {}
   for (const c of classesList) if (!c.cotisation_types?.is_adult) effectifEleves[c.id] = parClasseEleves[c.id] ?? 0
-  const absMois = ((absMoisRes as any).data ?? null) as any[] | null
+  const absMois = (absMoisRes.data ?? null)
   const assiduite = tauxAssiduite(slots, exceptions, titulaireDe, effectifEleves, absMois ?? [], debutMois, aujourdhui, maintenant, estFerme)
 
   // ── Tendance 30 jours ──────────────────────────────────────────────────────
   const parJour: Record<string, { justified: number; unjustified: number }> = {}
-  for (const a of (((absTendanceRes as any).data ?? []) as any[])) {
+  for (const a of (absTendanceRes.data ?? [])) {
     const k = String(a.absence_date).slice(0, 10)
     parJour[k] ??= { justified: 0, unjustified: 0 }
     if (a.is_justified) parJour[k].justified++
@@ -253,7 +254,7 @@ export async function chargerDonneesDirection(
 
   // ── Eleves a surveiller : 3 absences et plus sur la periode ────────────────
   const parEleve = new Map<string, { nom: string; classe: string; nb: number }>()
-  for (const a of (((absPeriodeRes as any).data ?? []) as any[])) {
+  for (const a of (absPeriodeRes.data ?? [])) {
     const e = parEleve.get(a.student_id) ?? { nom: `${a.students?.last_name ?? ''} ${a.students?.first_name ?? ''}`.trim(), classe: a.classes?.name ?? '', nb: 0 }
     e.nb++
     parEleve.set(a.student_id, e)
@@ -266,17 +267,17 @@ export async function chargerDonneesDirection(
 
   // ── Evaluations passees sans aucune note ───────────────────────────────────
   const notees = new Set([
-    ...(((notesRes as any).data ?? []) as any[]).map(g => g.evaluation_id),
-    ...(((notesAdultesRes as any).data ?? []) as any[]).map(g => g.evaluation_id),
+    ...(notesRes.data ?? []).map(g => g.evaluation_id),
+    ...(notesAdultesRes.data ?? []).map(g => g.evaluation_id),
   ])
   const evaluationsSansNote = evalsPeriode.filter(e => !notees.has(e.id)).length
 
   // ── Fiches incompletes : eleves actifs sans tous les documents requis ──────
   let fichesIncompletes: number | null = null
   if (docKeys.length) {
-    const actifs = (((elevesActifs as any).data ?? []) as any[]).map(s => s.id)
+    const actifs = (elevesActifs.data ?? []).map(s => s.id)
     const docsParEleve = new Map<string, Set<string>>()
-    for (const d of (((docsRes as any).data ?? []) as any[])) {
+    for (const d of (docsRes.data ?? [])) {
       if (!docsParEleve.has(d.student_id)) docsParEleve.set(d.student_id, new Set())
       docsParEleve.get(d.student_id)!.add(d.doc_type_key)
     }
@@ -299,14 +300,14 @@ export async function chargerDonneesDirection(
     : null
 
   // ── Assemblage ─────────────────────────────────────────────────────────────
-  const n1 = (nouveauxEleves as any).count as number | null
-  const n2 = (nouveauxAdultes as any).count as number | null
+  const n1 = nouveauxEleves.count
+  const n2 = nouveauxAdultes.count
 
   return {
     aujourdhui,
     fermeture: fermeAujourdhui ? (fermeAujourdhui.label ?? fermeAujourdhui.titre) : null,
     inscrits,
-    limite: (etab as any).data?.max_students ?? null,
+    limite: etab.data?.max_students ?? null,
     nouveauxCeMois: n1 === null || n2 === null ? null : n1 + n2,
     finances,
     assiduite,
@@ -317,7 +318,7 @@ export async function chargerDonneesDirection(
     seances,
     aTraiter: {
       famillesSansPaiement: financials ? financials.kpi.counts.pending : null,
-      absencesNonJustifiees: (absNonJustAnRes as any).count ?? null,
+      absencesNonJustifiees: absNonJustAnRes.count ?? null,
       seancesAValider: aValider.length,
       evaluationsSansNote,
       fichesIncompletes,

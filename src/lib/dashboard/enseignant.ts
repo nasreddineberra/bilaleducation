@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import type { JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
 import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
@@ -8,6 +9,7 @@ import {
   type SlotSource, type ExceptionSource, type StatutSeance, type Seance,
 } from './seances'
 import { chargerAbsencesFenetre } from '@/lib/absences-enseignants/tableau-de-bord'
+import { cleAdulte } from '@/lib/parents/participant'
 import { moyenneSur20, avancementSaisie, type AvancementSaisie, type NoteSaisie } from './notes'
 import type { AnneeRef } from './direction'
 
@@ -86,7 +88,7 @@ const VIDE = (aujourdhui: string, sansFiche: boolean): DonneesEnseignant => ({
 })
 
 export async function chargerDonneesEnseignant(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
   annee: AnneeRef | null,
   periodeId: string | null,
@@ -97,7 +99,7 @@ export async function chargerDonneesEnseignant(
   const { data: teacher } = await supabase
     .from('teachers').select('id').eq('user_id', userId).eq('is_active', true).maybeSingle()
   if (!teacher || !annee) return VIDE(aujourdhui, !teacher)
-  const moi = teacher.id as string
+  const moi = teacher.id
 
   const debutMois = `${aujourdhui.slice(0, 8)}01`
   const [ay, am] = aujourdhui.split('-').map(Number)
@@ -116,7 +118,7 @@ export async function chargerDonneesEnseignant(
       .select('class_id, teacher_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, academic_year, cotisation_types(is_adult))')
       .eq('teacher_id', moi).eq('classes.academic_year', annee.label),
     supabase.from('schedule_slots')
-      .select('id, class_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
+      .select('id, class_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr), rooms(name), classes(name, cotisation_types(is_adult))')
       .eq('school_year_id', annee.id).eq('is_active', true),
     supabase.from('presence_types').select('code, label, is_absence').eq('school_year_id', annee.id),
     // `profile_id` explicite en plus de la RLS : un enseignant qui cumulerait
@@ -125,8 +127,8 @@ export async function chargerDonneesEnseignant(
       .eq('profile_id', userId).gte('entry_date', du).lte('entry_date', finMois),
   ])
 
-  const vacations = ((anneeRes.data as any)?.vacations ?? []) as VacationPeriod[]
-  const feries = ((anneeRes.data as any)?.jours_feries ?? []) as JourFerie[]
+  const vacations: VacationPeriod[] = (anneeRes.data?.vacations ?? [])
+  const feries: JourFerie[] = (anneeRes.data?.jours_feries ?? [])
   const fermeLabel = (d: string) => {
     const f = jourFerme(d, vacations, feries)
     return f ? (f.label ?? f.titre) : null
@@ -136,8 +138,8 @@ export async function chargerDonneesEnseignant(
   // Mes classes AUJOURD'HUI (titulaire ou remplacant, fenetre d'effet).
   // Qui assure une seance : DEDUIT de mes affectations de titulaire (lib/edt/seance.ts),
   // jamais lu sur le creneau. Mes remplacements arrivent par les seances (override).
-  const titulaireDe = indexTitulaires((ctRes.data ?? []) as AffectationSource[])
-  const affectations = ((ctRes.data ?? []) as any[]).filter(ct =>
+  const titulaireDe = indexTitulaires(ctRes.data ?? [])
+  const affectations = (ctRes.data ?? []).filter(ct =>
     (!ct.effective_from || ct.effective_from <= aujourdhui) && (!ct.effective_until || ct.effective_until >= aujourdhui))
   const mesClasses = new Map<string, { name: string; titulaire: boolean; adulte: boolean }>()
   for (const ct of affectations) {
@@ -150,11 +152,11 @@ export async function chargerDonneesEnseignant(
   }
   const classIds = [...mesClasses.keys()]
 
-  const slotsRaw = (slotsRes.data ?? []) as any[]
-  const slots = slotsRaw as SlotSource[]
+  const slotsRaw = (slotsRes.data ?? [])
+  const slots: SlotSource[] = slotsRaw
   const infoSlot = new Map(slotsRaw.map(s => [s.id, s]))
   const intituleParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
-  const types = (typesRes.data ?? []) as any[]
+  const types = (typesRes.data ?? [])
   const codesAbsence = new Set(types.filter(t => t.is_absence).map(t => String(t.code).toUpperCase()))
 
   // ── Vague 2 ────────────────────────────────────────────────────────────────
@@ -190,10 +192,10 @@ export async function chargerDonneesEnseignant(
 
   // Je ne lis que MA fiche enseignant : un remplacant designe par son compte n'est
   // moi que si c'est mon compte.
-  const exceptions = absEns.fusionner((exRes.data ?? []) as ExceptionSource[], p => (p === userId ? moi : null))
-  const validations = (valRes.data ?? []) as any[]
+  const exceptions = absEns.fusionner(exRes.data ?? [], p => (p === userId ? moi : null))
+  const validations = (valRes.data ?? [])
   const validees = ensembleValidations(validations)
-  const evals = (evalsRes.data ?? []) as any[]
+  const evals = (evalsRes.data ?? [])
 
   // ── Vague 3 : notes des evaluations de la periode ─────────────────────────
   const evalIds = evals.map(e => e.id)
@@ -203,12 +205,16 @@ export async function chargerDonneesEnseignant(
         supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, comment, is_absent').in('evaluation_id', evalIds),
       ])
     : [{ data: [] }, { data: [] }]
-  const notes = [...((notesRes.data ?? []) as any[]), ...((notesAdRes.data ?? []) as any[])]
+  // Un eleve ou un adulte (`lib/parents/participant.ts`) : la cle de l'apprenant est posee ici.
+  const notes = [
+    ...(notesRes.data ?? []).map(n => ({ ...n, apprenant: n.student_id })),
+    ...(notesAdRes.data ?? []).map(n => ({ ...n, apprenant: cleAdulte(n.parent_id, n.tutor_number) })),
+  ]
 
   // ── Effectifs ──────────────────────────────────────────────────────────────
-  const inscriptions = (inscrRes.data ?? []) as any[]
+  const inscriptions = (inscrRes.data ?? [])
   const effectif: Record<string, number> = {}
-  for (const r of [...inscriptions, ...((adultesRes.data ?? []) as any[])]) effectif[r.class_id] = (effectif[r.class_id] ?? 0) + 1
+  for (const r of [...inscriptions, ...(adultesRes.data ?? [])]) effectif[r.class_id] = (effectif[r.class_id] ?? 0) + 1
 
   // ── Mes seances ────────────────────────────────────────────────────────────
   // Absent sans decision : la seance ne se valide pas, ne la compter « a valider » la rendrait eternelle.
@@ -238,9 +244,9 @@ export async function chargerDonneesEnseignant(
     const s = miennes(d).find(x => !x.annulee && (d > aujourdhui || x.fin > maintenant))
     if (!s) continue
     const info = infoSlot.get(s.slotId)
-    const devoir = ((devoirsRes.data ?? []) as any[]).find(h => h.class_id === s.classId && h.due_date === d)
+    const devoir = (devoirsRes.data ?? []).find(h => h.class_id === s.classId && h.due_date === d)
     // Absents a la seance precedente de cette classe (derniere date d'appel).
-    const datesAbs = ((absRes.data ?? []) as any[]).filter(a => a.class_id === s.classId && a.absence_date < d).map(a => a.absence_date as string)
+    const datesAbs = (absRes.data ?? []).filter(a => a.class_id === s.classId && a.absence_date < d).map(a => a.absence_date)
     const derniere = datesAbs.sort().at(-1) ?? null
     const ecart = ecartJours(aujourdhui, d)
     const quand = d === aujourdhui
@@ -258,7 +264,7 @@ export async function chargerDonneesEnseignant(
   }
 
   // Semaine en cours : jours ou j'ai cours, plus aujourd'hui.
-  const debutSemaineIdx = Number((etabRes.data as any)?.week_start_day ?? 1)
+  const debutSemaineIdx = Number(etabRes.data?.week_start_day ?? 1)
   const [ty, tm, td] = aujourdhui.split('-').map(Number)
   const dow = new Date(ty, tm - 1, td).getDay()
   const lundi = decaler(aujourdhui, -((dow - debutSemaineIdx + 7) % 7))
@@ -272,7 +278,7 @@ export async function chargerDonneesEnseignant(
   }
 
   // ── Classes : effectif, assiduite du mois, moyenne de la periode ───────────
-  const absences = (absRes.data ?? []) as any[]
+  const absences = (absRes.data ?? [])
   const absMois = absences.filter(a => a.absence_date >= debutMois)
   const evalParId = new Map(evals.map(e => [e.id, e]))
   // ── Saisie des notes : une note attendue par apprenant inscrit et evaluation passee ──
@@ -282,16 +288,16 @@ export async function chargerDonneesEnseignant(
     inscritsParClasse.get(classe)!.add(cle)
   }
   for (const r of inscriptions) inscrire(r.class_id, r.student_id)
-  for (const r of ((adultesRes.data ?? []) as any[])) inscrire(r.class_id, `${r.parent_id}-${r.tutor_number}`)
+  for (const r of (adultesRes.data ?? [])) inscrire(r.class_id, `${r.parent_id}-${r.tutor_number}`)
   const notesSaisie: NoteSaisie[] = notes.map(n => ({
     evaluation_id: n.evaluation_id,
-    apprenant: n.student_id ?? `${n.parent_id}-${n.tutor_number}`,
+    apprenant: n.apprenant,
     score: n.score,
     comment: n.comment,
     is_absent: n.is_absent,
   }))
   const saisie = periodeId ? avancementSaisie(evals, notesSaisie, inscritsParClasse, aujourdhui) : null
-  const bareme = new Map(evals.map(e => [e.id as string, Number(e.max_score ?? 0)]))
+  const bareme = new Map(evals.map(e => [e.id, Number(e.max_score ?? 0)]))
   const classes = classIds.map(id => {
     const c = mesClasses.get(id)!
     const t = c.adulte ? null : tauxAssiduite(
@@ -308,7 +314,7 @@ export async function chargerDonneesEnseignant(
   // ── Notes a saisir : evaluations passees de la periode sans aucune note ────
 
   // ── Devoirs a venir ───────────────────────────────────────────────────────
-  const devoirs = ((devoirsRes.data ?? []) as any[]).map(h => ({
+  const devoirs = (devoirsRes.data ?? []).map(h => ({
     id: h.id, titre: h.title, classe: mesClasses.get(h.class_id)?.name ?? '', date: h.due_date, jours: ecartJours(aujourdhui, h.due_date),
   }))
 
@@ -325,7 +331,8 @@ export async function chargerDonneesEnseignant(
     .map(([id, e]) => ({ id, nom: e.nom, classe: e.classe, motif: 'absences sur la période', nb: e.nb }))
   const il21j = decaler(aujourdhui, -21)
   const nouveaux = inscriptions
-    .filter(r => r.enrollment_date && r.enrollment_date >= il21j && r.enrollment_date <= aujourdhui)
+    .filter((r): r is typeof r & { enrollment_date: string } =>
+      !!r.enrollment_date && r.enrollment_date >= il21j && r.enrollment_date <= aujourdhui)
     .slice(0, 6 - assidus.length)
     .map(r => ({
       id: r.student_id,
@@ -336,7 +343,7 @@ export async function chargerDonneesEnseignant(
     }))
 
   // ── Mes heures du mois ────────────────────────────────────────────────────
-  const heuresMois = ((heuresRes.data ?? []) as any[]).filter(e => e.entry_date >= debutMois && !codesAbsence.has(String(e.entry_type).toUpperCase()))
+  const heuresMois = (heuresRes.data ?? []).filter(e => e.entry_date >= debutMois && !codesAbsence.has(String(e.entry_type).toUpperCase()))
   const parType = new Map<string, number>()
   for (const e of heuresMois) {
     const label = types.find(t => String(t.code).toUpperCase() === String(e.entry_type).toUpperCase())?.label ?? e.entry_type

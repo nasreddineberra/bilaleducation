@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import type { JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
 import { indexTitulaires, affectationsDesClasses } from '@/lib/edt/seance'
@@ -76,7 +77,7 @@ function ecartJours(de: string, a: string): number {
 const SEUIL_MOYENNE = 8
 
 export async function chargerDonneesPedagogie(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   annee: AnneeRef | null,
   periodeId: string | null,
   aujourdhui: string,
@@ -124,22 +125,22 @@ export async function chargerDonneesPedagogie(
     periodeId ? supabase.from('adult_bulletin_appreciations').select('parent_id, tutor_number, appreciation').eq('period_id', periodeId) : Promise.resolve({ data: [] }),
   ])
 
-  const vacations = ((anneeRes as any).data?.vacations ?? []) as VacationPeriod[]
-  const feries = ((anneeRes as any).data?.jours_feries ?? []) as JourFerie[]
+  const vacations: VacationPeriod[] = (anneeRes.data?.vacations ?? [])
+  const feries: JourFerie[] = (anneeRes.data?.jours_feries ?? [])
   const estFerme = (d: string) => jourFerme(d, vacations, feries) !== null
   const fermeAujourdhui = jourFerme(aujourdhui, vacations, feries)
 
-  const classesList = ((classesRes as any).data ?? []) as any[]
+  const classesList = (classesRes.data ?? [])
   // Qui assure une seance : DEDUIT des titulaires (lib/edt/seance.ts), jamais lu sur le creneau.
   const titulaireDe = indexTitulaires(affectationsDesClasses(classesList))
   const classIds = classesList.map(c => c.id)
-  const nomClasse = new Map(classesList.map(c => [c.id as string, c.name as string]))
-  const slotsRaw = ((slotsRes as any).data ?? []) as any[]
-  const slots = slotsRaw as SlotSource[]
+  const nomClasse = new Map(classesList.map(c => [c.id, c.name]))
+  const slotsRaw = (slotsRes.data ?? [])
+  const slots: SlotSource[] = slotsRaw
   const slotIds = slots.map(s => s.id)
-  const teachers = ((teachersRes as any).data ?? []) as any[]
+  const teachers = (teachersRes.data ?? [])
   const teacherParId = new Map(teachers.map(t => [t.id, t]))
-  const evalsPeriode = ((evalsPeriodeRes as any).data ?? []) as any[]
+  const evalsPeriode = (evalsPeriodeRes.data ?? [])
   const evalIds = evalsPeriode.map(e => e.id)
 
   // ── Vague 2 ────────────────────────────────────────────────────────────────
@@ -161,8 +162,8 @@ export async function chargerDonneesPedagogie(
   ])
 
   // ── Effectifs ──────────────────────────────────────────────────────────────
-  const inscriptions = ((elevesRes as any).data ?? []) as any[]
-  const adultes = ((adultesRes as any).data ?? []) as any[]
+  const inscriptions = (elevesRes.data ?? [])
+  const adultes = (adultesRes.data ?? [])
   const parClasseEleves: Record<string, number> = {}
   for (const r of inscriptions) parClasseEleves[r.class_id] = (parClasseEleves[r.class_id] ?? 0) + 1
   const parClasseAdultes: Record<string, number> = {}
@@ -179,11 +180,11 @@ export async function chargerDonneesPedagogie(
   // ── Seances du jour, avec l'etat du cahier de texte ────────────────────────
   // Decisions d'absence fondues (lib/edt/seance.ts).
   const enseignantDuProfil = (p: string) => teachers.find(t => t.user_id === p)?.id ?? null
-  const exceptions = absEns.fusionner(((exceptionsRes as any).data ?? []) as ExceptionSource[], enseignantDuProfil)
-  const validations = ((validationsRes as any).data ?? []) as any[]
+  const exceptions = absEns.fusionner(exceptionsRes.data ?? [], enseignantDuProfil)
+  const validations = (validationsRes.data ?? [])
   const validees = ensembleValidations(validations)
   const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
-  const cahier = ((cahierRes as any).data ?? []) as any[]
+  const cahier = (cahierRes.data ?? [])
   const cahierDuJour = new Set(cahier.filter(j => j.session_date === aujourdhui).map(j => j.class_id))
 
   const seances: SeancePedago[] = fermeAujourdhui
@@ -207,10 +208,10 @@ export async function chargerDonneesPedagogie(
   // ── Assiduite du mois (eleves : classes non adultes) ───────────────────────
   const effectifEleves: Record<string, number> = {}
   for (const c of classesList) if (!c.cotisation_types?.is_adult) effectifEleves[c.id] = parClasseEleves[c.id] ?? 0
-  const absMois = ((absMoisRes as any).data ?? null) as any[] | null
+  const absMois = (absMoisRes.data ?? null)
   const assiduite = tauxAssiduite(slots, exceptions, titulaireDe, effectifEleves, absMois ?? [], debutMois, aujourdhui, maintenant, estFerme)
   const parJour: Record<string, number> = {}
-  for (const a of (((absTendanceRes as any).data ?? []) as any[])) {
+  for (const a of (absTendanceRes.data ?? [])) {
     const k = String(a.absence_date).slice(0, 10)
     parJour[k] = (parJour[k] ?? 0) + 1
   }
@@ -218,11 +219,11 @@ export async function chargerDonneesPedagogie(
   for (let d = il30j; d <= aujourdhui; d = jourSuivant(d)) tendance.push(parJour[d] ?? 0)
 
   // ── Notes de la periode : avancement de la saisie (`notes.ts`) ─────────────
-  const notesEleves = ((notesRes as any).data ?? []) as any[]
-  const notesAdultes = ((notesAdRes as any).data ?? []) as any[]
+  const notesEleves = (notesRes.data ?? [])
+  const notesAdultes = (notesAdRes.data ?? [])
   const notes = [...notesEleves, ...notesAdultes]
-  const bareme = new Map(evalsPeriode.map(e => [e.id as string, Number(e.max_score ?? 0)]))
-  const evalClasse = new Map(evalsPeriode.map(e => [e.id as string, e.class_id as string]))
+  const bareme = new Map(evalsPeriode.map(e => [e.id, Number(e.max_score ?? 0)]))
+  const evalClasse = new Map(evalsPeriode.map(e => [e.id, e.class_id]))
   const inscritsParClasse = new Map<string, Set<string>>()
   const inscrire = (classe: string, cle: string) => {
     if (!inscritsParClasse.has(classe)) inscritsParClasse.set(classe, new Set())
@@ -238,14 +239,14 @@ export async function chargerDonneesPedagogie(
 
   // ── Bulletins de la periode ────────────────────────────────────────────────
   const effectifTotal = inscriptions.length + adultes.length
-  const rempli = (a: any) => typeof a.appreciation === 'string' && a.appreciation.replace(/<[^>]*>/g, '').trim() !== ''
+  const rempli = (a: { appreciation: string | null }) => typeof a.appreciation === 'string' && a.appreciation.replace(/<[^>]*>/g, '').trim() !== ''
   const bulletins = periodeId
     ? {
-        archives: new Set((((archivesRes as any).data ?? []) as any[]).map(a => a.student_id)).size
-          + new Set((((archivesAdRes as any).data ?? []) as any[]).map(a => `${a.parent_id}-${a.tutor_number}`)).size,
+        archives: new Set((archivesRes.data ?? []).map(a => a.student_id)).size
+          + new Set((archivesAdRes.data ?? []).map(a => `${a.parent_id}-${a.tutor_number}`)).size,
         effectif: effectifTotal,
-        appreciations: new Set((((apprRes as any).data ?? []) as any[]).filter(rempli).map(a => a.student_id)).size
-          + new Set((((apprAdRes as any).data ?? []) as any[]).filter(rempli).map(a => `${a.parent_id}-${a.tutor_number}`)).size,
+        appreciations: new Set((apprRes.data ?? []).filter(rempli).map(a => a.student_id)).size
+          + new Set((apprAdRes.data ?? []).filter(rempli).map(a => `${a.parent_id}-${a.tutor_number}`)).size,
       }
     : null
 
@@ -256,7 +257,7 @@ export async function chargerDonneesPedagogie(
       id: c.id,
       name: c.name,
       adulte: !!c.cotisation_types?.is_adult,
-      professeur: nomEnseignantCivilite(((c.class_teachers ?? []) as any[]).find(ct =>
+      professeur: nomEnseignantCivilite((c.class_teachers ?? []).find(ct =>
         ct.is_main_teacher
         && (!ct.effective_from || ct.effective_from <= aujourdhui)
         && (!ct.effective_until || ct.effective_until >= aujourdhui))?.teachers),
@@ -298,7 +299,7 @@ export async function chargerDonneesPedagogie(
 
   // ── Eleves a suivre ────────────────────────────────────────────────────────
   const parEleve = new Map<string, { nom: string; classe: string; nb: number }>()
-  for (const a of (((absPeriodeRes as any).data ?? []) as any[])) {
+  for (const a of (absPeriodeRes.data ?? [])) {
     const e = parEleve.get(a.student_id) ?? { nom: `${a.students?.last_name ?? ''} ${a.students?.first_name ?? ''}`.trim(), classe: a.classes?.name ?? '', nb: 0 }
     e.nb++
     parEleve.set(a.student_id, e)
@@ -309,15 +310,15 @@ export async function chargerDonneesPedagogie(
     .slice(0, 5)
     .map(([id, e]) => ({ id, ...e }))
 
-  const inscriptionParEleve = new Map(inscriptions.map(r => [r.student_id as string, r]))
-  const notesParEleve = new Map<string, any[]>()
+  const inscriptionParEleve = new Map(inscriptions.map(r => [r.student_id, r]))
+  const notesParEleve = new Map<string, typeof notesEleves>()
   for (const n of notesEleves) {
     if (!notesParEleve.has(n.student_id)) notesParEleve.set(n.student_id, [])
     notesParEleve.get(n.student_id)!.push(n)
   }
   const moyennesASuivre = [...notesParEleve.entries()]
     .map(([id, ns]) => ({ id, moyenne: moyenneSur20(ns, bareme), r: inscriptionParEleve.get(id) }))
-    .filter((e): e is { id: string; moyenne: number; r: any } => e.moyenne !== null && e.moyenne < SEUIL_MOYENNE && !!e.r)
+    .filter((e): e is { id: string; moyenne: number; r: NonNullable<typeof e.r> } => e.moyenne !== null && e.moyenne < SEUIL_MOYENNE && !!e.r)
     .sort((a, b) => a.moyenne - b.moyenne)
     .slice(0, 5)
     .map(e => ({
@@ -347,7 +348,9 @@ export async function chargerDonneesPedagogie(
     },
     classes,
     aSuivre: { absences: absencesASuivre, moyennes: moyennesASuivre },
-    evaluations: (((evalsAVenirRes as any).data ?? []) as any[]).filter(e => nomClasse.has(e.class_id)).map(e => ({
+    evaluations: (evalsAVenirRes.data ?? [])
+      .filter((e): e is typeof e & { evaluation_date: string } => !!e.evaluation_date && nomClasse.has(e.class_id))
+      .map(e => ({
       id: e.id, titre: e.title, classe: nomClasse.get(e.class_id) ?? '', date: e.evaluation_date, jours: ecartJours(aujourdhui, e.evaluation_date),
     })),
     equipe,

@@ -37,7 +37,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~675 avertissements (any)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~527 avertissements (520 any au 29/10)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -422,7 +422,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      d'enseignant / horaire sur une seance modifiee (salle seule), ni `classes.room_number` ; `class_teachers` =
      titulaires seuls ; `SlotFormModal` = creation d'une seance ponctuelle. Chantier Planning / absences TERMINE.
      **A voir a l'ecran** : EDT (creation ponctuelle, DnD), fiche classe (titulaire, encadre Remplacements).
-   - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
+   - Ensuite : sortie des `any` lot 3 (`lib/closure`, 87), voir le point 4.
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
      a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
@@ -434,8 +434,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
-   (~669 au 27/10, dont ~147 dans `lib/dashboard` et 87 dans `lib/closure`) : lot 1 FAIT (clients Supabase
-   types, `src/types/supabase.ts` genere), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
+   (520 au 29/10, dont 87 dans `lib/closure`) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts`
+   genere), lot 2 FAIT (`lib/dashboard` : 0 `any`, 0 conversion forcee), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
    defaut jamais NULL (quand toutes les ecritures seront typees).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de

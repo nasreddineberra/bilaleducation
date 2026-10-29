@@ -9903,3 +9903,20 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   en CRLF (normalise), mais le collage sous Windows remettait l'ancre multi-ligne en CRLF. Ancres normalisees aussi.
   Puis la migration a ete jouee AVANT le deploiement du code (production en erreur quelques minutes, corrigee par
   le push). Lecon : un changement restrictif = pousser le code, attendre le deploiement Vercel, PUIS jouer.
+
+## 29/10 · Emploi du temps casse apres le lot 5 ; sortie des `any`, lot 2 (`lib/dashboard`)
+
+- **Incident (corrige, commit `add7be2`)** : la page Emploi du temps et son rechargement demandaient encore
+  `teachers(...)` a travers `schedule_slots.teacher_id`, supprimee par `lot5-nettoyage.sql`. PostgREST refusait la
+  requete (PGRST200) : emploi du temps vide sur toutes les ecoles jusqu'au deploiement du correctif. Le compilateur ne
+  l'avait pas vu : resultat force en `as any`. Le nom etait deja deduit (`quiAssure`) : imbrication et bloc de
+  completion du nom (code mort) retires, `teacher_id` retire de `SlotData` et `SlotSource`. Verifie : aucune autre
+  requete ni fonction de la base ne lit les colonnes retirees. Lecon : avant de retirer une colonne, chercher aussi les
+  IMBRICATIONS PostgREST qui passent par sa cle etrangere (`table(...)` dans un `select`), pas seulement son nom.
+- **Lot 2 des `any`** : les 5 chargeurs de tableau de bord recoivent `SupabaseClient<Database>` ; 91 `any` et toutes
+  les conversions forcees (`as SlotSource[]`, `as ExceptionSource[]`, `as string`, `.count as number | null`)
+  retirees : chaque ligne est typee par sa requete. Replis des requetes conditionnelles a la forme de la reponse
+  (`error: null` la ou il est lu). Trouves en chemin : parenthese en trop dans la requete des creneaux du tableau de
+  bord enseignant (toleree par PostgREST, corrigee) ; cle adulte des notes par `cleAdulte` (source unique) ; dates
+  d'inscription et d'evaluation NULL possibles en base ecartees par le filtre qui les supposait presentes.
+  Comportement inchange. Bilan : 520 `any` (lint 0 erreur, 527 avertissements), 178 tests, build OK.
