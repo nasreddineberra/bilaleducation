@@ -95,17 +95,26 @@ function fmtAxis(n: number) {
 
 /** Tooltip commun : surface blanche, ink texte, pastille de serie a cote.
  *  `unit` non vide = valeurs en effectif (et non en euros). */
-function VizTooltip({ active, payload, label, total, unit }: any) {
+type VizTooltipProps = {
+  /** Fournis par Recharts au survol. */
+  active?: boolean
+  payload?: ReadonlyArray<{ value?: unknown; name?: string | number; dataKey?: string | number | unknown; color?: string; payload?: { fill?: string } }>
+  label?: string | number
+  total?: number
+  unit?: string
+}
+
+function VizTooltip({ active, payload, label, total, unit }: VizTooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-card)] px-2.5 py-1.5 shadow-[var(--card-shadow)]">
       {label && <p className="text-[11px] font-semibold text-secondary-800 mb-0.5">{label}</p>}
-      {payload.map((p: any) => {
+      {payload.map(p => {
         const value = Number(p.value ?? 0)
         const pct = total && total > 0 ? ` (${Math.round((value / total) * 100)} %)` : ''
         const shown = unit ? `${value} ${unit}${value > 1 ? 's' : ''}` : fmt(value)
         return (
-          <p key={p.dataKey ?? p.name} className="flex items-center gap-1.5 text-[11px] text-secondary-700">
+          <p key={String(p.dataKey ?? p.name)} className="flex items-center gap-1.5 text-[11px] text-secondary-700">
             <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: p.color ?? p.payload?.fill }} aria-hidden="true" />
             <span className="text-warm-700">{p.name}</span>
             <span className="font-semibold tabular-nums ml-auto">{shown}{pct}</span>

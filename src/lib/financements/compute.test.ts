@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { feeStatus, computeFamilyFinancials, lignesCotisation, moisProrata, departsRetenus } from './compute.ts'
+import { feeStatus, computeFamilyFinancials, lignesCotisation, moisProrata, departsRetenus, type DecisionAjustement, type RegleAjustement } from './compute.ts'
 
 /**
  * `feeStatus` EST LA SEULE REGLE DE CE MODULE DUPLIQUEE EN SQL.
@@ -134,7 +134,7 @@ describe('lignesCotisation — depart en cours d annee (26/10)', () => {
   })
 
   test('les quatre regles sur un depart le 15 novembre', () => {
-    const dep = (regle: any, decision: any = null) =>
+    const dep = (regle: RegleAjustement, decision: DecisionAjustement | null = null) =>
       lignesCotisation([{ ct, depart: { date: '2026-11-15', regle, decision } }], annee)[0]
     assert.equal(dep('sans_ajustement').total, 20)           // frais seuls
     assert.equal(dep('due').total, 320)

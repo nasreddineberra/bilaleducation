@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 // LEVENT une exception nommee au lieu de toucher zero ligne en silence, donc
 // `if (err) throw err` suffit. Le helper reste employe ailleurs.
 import { useToast } from '@/lib/toast-context'
+import { messageErreur } from '@/lib/erreur'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -33,6 +34,7 @@ import {
   type FamilyFinancials, type RecapDossier, type RetourReduction, type RetourSuppression, type AnneeLike, type LigneCotisation, type DecisionAjustement,
 } from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
+import type { AdulteReglement, DonneesReglements, DossierReglement, MouvementReglement, ParentReglement } from '@/lib/financements/reglements'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,21 +91,22 @@ interface ParentOption {
 }
 
 
+// Donnees : `chargerReglements` (types tires de ses requetes, jamais recopies).
 interface Props {
   currentYear: { id: string; label: string } & AnneeLike
-  parents: any[]
-  adultEnrollments: any[]
-  familyFees: any[]
-  communications: any[]
+  parents: ParentReglement[]
+  adultEnrollments: AdulteReglement[]
+  familyFees: DossierReglement[]
+  communications: DonneesReglements['communications']
   /** Mouvements d'inscription de l'annee, tous foyers (`mouvements_inscription`). */
   mouvements?: Mouvement[]
   /** Suppression du journal comptable : admin/direction seuls (policy fin_comm_delete). */
   canDeleteComms?: boolean
   /** Emplacement des cartes de montants, a droite des onglets (`ReglementsShell`). */
   emplacementMontants?: HTMLElement | null
-  etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null; contact: string | null } | null
+  etablissement: DonneesReglements['etablissement']
   /** Historique des paiements par foyer (années précédentes : vif si dispo, sinon archive). */
-  familyHistory?: Record<string, { yearLabel: string; totalDue: number; totalPaid: number; remaining: number; status: string; installments: any[] }[]>
+  familyHistory?: DonneesReglements['familyHistory']
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -125,25 +128,8 @@ function fmtDateHeure(d: string) {
   return `${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
 }
 
-/** Une ligne de `mouvements_inscription`, telle que la page la charge. */
-interface Mouvement {
-  id: string
-  parent_id: string | null
-  student_id: string | null
-  tutor_number: 1 | 2 | null
-  sens: 'arrivee' | 'depart'
-  motif: 'affectation' | 'correction' | 'depart' | 'statut'
-  survenu_le: string
-  date_effet: string
-  regle: RegleAjustement
-  decision: DecisionAjustement | null
-  classe_nom: string | null
-  auteur_nom: string | null
-  /** Depart encore compte (`chargerDeparts`) : faux pour un participant revenu ou un depart plus ancien. */
-  retenu?: boolean
-  students: { last_name: string; first_name: string } | null
-  parents: { tutor1_last_name: string; tutor1_first_name: string; tutor2_last_name: string | null; tutor2_first_name: string | null } | null
-}
+/** Une ligne de `mouvements_inscription` (`chargerReglements`), `retenu` = depart encore compte. */
+type Mouvement = MouvementReglement
 
 /** Eleve `NOM Prenom`, ou tuteur (cours adulte) d'apres son numero. */
 function nomMouvement(m: Mouvement): string {
@@ -212,7 +198,7 @@ const METHOD_LABELS: Record<string, string> = {
 // Calcul financier d'une famille : le modele vit dans `lib/financements/compute`
 // (source unique partagee avec Stats reglements). Ici, seul l'assemblage du
 // sous-total a partir des lignes deja totalisees de la famille.
-function familyFinancials(parent: ParentOption | null, fee: any): FamilyFinancials {
+function familyFinancials(parent: ParentOption | null, fee: DossierReglement | null): FamilyFinancials {
   // Sans inscription active, il n'y a plus de lignes d'ou recalculer le sous-total :
   // on reprend celui ENREGISTRE au dernier calcul (quand l'enfant etait inscrit).
   // Recalculer donnerait 0 — tout le paye deviendrait un « trop percu », et la
@@ -230,11 +216,16 @@ const DAYS: Record<string, string> = {
 
 // ─── Parse parents ────────────────────────────────────────────────────────────
 
-function buildClassTooltip(cls: any): string | null {
+/** Classe d'un eleve ou d'un adulte, telle que `chargerReglements` la lit. */
+type ClasseReglement =
+  | ParentReglement['students'][number]['enrollments'][number]['classes']
+  | AdulteReglement['classes']
+
+function buildClassTooltip(cls: ClasseReglement | null | undefined): string | null {
   const day   = cls?.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
   const start = cls?.start_time ? cls.start_time.slice(0, 5) : null
   const end   = cls?.end_time   ? cls.end_time.slice(0, 5)   : null
-  const mainTeacher = (cls?.class_teachers ?? []).find((t: any) => t.is_main_teacher)
+  const mainTeacher = (cls?.class_teachers ?? []).find(t => t.is_main_teacher)
   const teacherName = mainTeacher?.teachers
     ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
     : null
@@ -283,9 +274,9 @@ function NomParti({ depart, children }: { depart: Depart | null; children: React
 const departDe = (l: LigneCotisation, date: string | undefined): Depart | null =>
   date ? { date, regle: l.regle, mois: l.mois, cotisation: l.cotisation } : null
 
-function parseParents(raw: any[], adultEnrollments: any[], annee: AnneeLike): ParentOption[] {
+function parseParents(raw: ParentReglement[], adultEnrollments: AdulteReglement[], annee: AnneeLike): ParentOption[] {
   // Grouper les inscriptions adultes par parent_id
-  const adultByParent: Record<string, any[]> = {}
+  const adultByParent: Record<string, AdulteReglement[]> = {}
   for (const ae of adultEnrollments) {
     const pid = ae.parent_id
     if (!adultByParent[pid]) adultByParent[pid] = []
@@ -296,13 +287,13 @@ function parseParents(raw: any[], adultEnrollments: any[], annee: AnneeLike): Pa
     const studentsRaw = p.students ?? []
 
     // Lignes (remise fratrie, departs) : calcul partage, source unique.
-    const lignes = lignesCotisation(studentsRaw.map((s: any) => ({
+    const lignes = lignesCotisation(studentsRaw.map(s => ({
       ct:     (s.enrollments ?? [])[0]?.classes?.cotisation_types,
       ordre:  s.created_at,
       depart: s.depart,
     })), annee)
 
-    const students: StudentLine[] = studentsRaw.map((s: any, i: number) => {
+    const students: StudentLine[] = studentsRaw.map((s, i) => {
       const enrollment = (s.enrollments ?? [])[0]
       const cls = enrollment?.classes
       const ct = cls?.cotisation_types
@@ -329,10 +320,10 @@ function parseParents(raw: any[], adultEnrollments: any[], annee: AnneeLike): Pa
     })
     // Lignes adultes
     const parentAdultEnrollments = adultByParent[p.id] ?? []
-    const lignesAdultes = lignesCotisation(parentAdultEnrollments.map((ae: any) => ({
+    const lignesAdultes = lignesCotisation(parentAdultEnrollments.map(ae => ({
       ct: ae.classes?.cotisation_types, depart: ae.depart,
     })), annee, { fratrie: false })
-    const adultLines: AdultLine[] = parentAdultEnrollments.map((ae: any, i: number) => {
+    const adultLines: AdultLine[] = parentAdultEnrollments.map((ae, i) => {
       const cls = ae.classes
       const ct  = cls?.cotisation_types
       const cotisation = ct?.amount ?? 0
@@ -358,9 +349,9 @@ function parseParents(raw: any[], adultEnrollments: any[], annee: AnneeLike): Pa
     // cotisation de la famille (eleves + adultes). 0/absent = pas de limite pour ce
     // type. Si aucun type n'a de max defini → 0 (pas de badge, on ne limite rien).
     const allMax = [
-      ...studentsRaw.map((s: any) => s.enrollments?.[0]?.classes?.cotisation_types?.max_installments),
-      ...parentAdultEnrollments.map((ae: any) => ae.classes?.cotisation_types?.max_installments),
-    ].filter((m: any): m is number => typeof m === 'number' && m > 0)
+      ...studentsRaw.map(s => s.enrollments?.[0]?.classes?.cotisation_types?.max_installments),
+      ...parentAdultEnrollments.map(ae => ae.classes?.cotisation_types?.max_installments),
+    ].filter((m): m is number => typeof m === 'number' && m > 0)
     const maxInstallments = allMax.length ? Math.max(...allMax) : 0
 
     return {
@@ -391,7 +382,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   // Plan de travail : recherche + filtre de statut de la liste des familles.
   const [parentSearch,  setParentSearch]  = useState('')
   const [statusFilter,  setStatusFilter]  = useState<FeeStatus | null>(null)
-  const [familyFees, setFamilyFees]             = useState<any[]>(initialFees)
+  const [familyFees, setFamilyFees]             = useState<DossierReglement[]>(initialFees)
   const familyFeesRef = useRef(familyFees)
   familyFeesRef.current = familyFees
   const [saving, setSaving]                     = useState(false)
@@ -442,7 +433,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   // ── Plan de travail : stats par famille, KPI, liste filtree/triee ──────────
   const familyStats = useMemo(
     () => parentOptions.map(p => {
-      const fee = familyFees.find((f: any) => f.parent_id === p.id) ?? null
+      const fee = familyFees.find(f => f.parent_id === p.id) ?? null
       return { parent: p, ...familyFinancials(p, fee) }
     }),
     [parentOptions, familyFees],
@@ -478,7 +469,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   }, [familyStats, statusFilter, parentSearch])
 
   // ── Detail de la famille selectionnee (meme calcul via le helper) ──────────
-  const currentFee = familyFees.find((f: any) => f.parent_id === selectedParentId) ?? null
+  const currentFee = familyFees.find(f => f.parent_id === selectedParentId) ?? null
   const sel = familyFinancials(selectedParent ?? null, currentFee)
   const { subtotal, totalDue, adjustmentsTotal, totalPaid, netPercu, remaining, status: derivedStatus } = sel
 
@@ -548,8 +539,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       if (err) throw err
       setFamilyFees(prev => [...prev, data])
       return data.id
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur lors de la création du dossier.')
+    } catch (e) {
+      setError(messageErreur(e) ?? 'Erreur lors de la création du dossier.')
       return null
     } finally {
       setSaving(false)
@@ -604,8 +595,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       setAddingAdjustment(false)
       setAdjForm({ type: '', label: '', amount: '', date: aujourdhui() })
       setSuccess('Ajustement enregistré.')
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur.')
+    } catch (e) {
+      setError(messageErreur(e) ?? 'Erreur.')
     } finally {
       setSaving(false)
     }
@@ -627,12 +618,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
-          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
+          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_adjustments: (f.fee_adjustments ?? []).filter(a => a.id !== adj.id) }
           : f
       ))
       setSuccess('Ajustement supprime.')
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur.')
+    } catch (e) {
+      setError(messageErreur(e) ?? 'Erreur.')
     } finally {
       setSaving(false)
     }
@@ -688,12 +679,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
-          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_installments: (f.fee_installments ?? []).filter((p: any) => p.id !== payment.id) }
+          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_installments: (f.fee_installments ?? []).filter(p => p.id !== payment.id) }
           : f
       ))
       setSuccess('Paiement supprime.')
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur.')
+    } catch (e) {
+      setError(messageErreur(e) ?? 'Erreur.')
     } finally {
       setSaving(false)
     }
@@ -856,8 +847,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       if (res.communication) setCommunications(prev => [res.communication!, ...prev])
       setAttestOpen(false)
       toast.success('Attestation ouverte pour impression.')
-    } catch (e: any) {
-      toast.error(e.message ?? "Erreur lors de la génération de l'attestation.")
+    } catch (e) {
+      toast.error(messageErreur(e) ?? "Erreur lors de la génération de l'attestation.")
     } finally {
       setAttestSending(false)
     }
@@ -1212,7 +1203,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       </div>
                       {y.installments?.length > 0 && (
                         <ul className="pl-2 space-y-0.5">
-                          {y.installments.map((i: any, j: number) => (
+                          {y.installments.map((i, j) => (
                             <li key={j} className="flex items-center gap-2 text-warm-700">
                               <span className="tabular-nums w-16 shrink-0">{i.date ? fmtDate(i.date) : '·'}</span>
                               <span className="tabular-nums font-medium text-secondary-700">{fmtEur(Number(i.montant))}</span>
@@ -1277,7 +1268,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </thead>
                 <tbody>
                   {payments.map((p, idx) => {
-                    const ref = p.payment_reference as any
+                    const ref = p.payment_reference
                     // La colonne « Moyen » donne deja le contexte : pas de prefixe.
                     let refLabel = ''
                     if (ref?.check_number) refLabel = ref.check_number

@@ -9961,3 +9961,22 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   `class_year_history.remplacements` (lue dans `class_teachers`) sera donc toujours vide. Les remplacements vivent
   dans `absences_enseignants_seances` : les archiver de la sont une decision a prendre.
 - Bilan : 433 `any` (lint 0 erreur), 178 tests, build OK, aucune migration.
+
+## 29/10 · Sortie des `any`, lot 4 (financements)
+
+- **Calculs** (`family-financials`, `departs`, `cout-heures`) : le client maison `type SB = { from: (table) => any }`
+  remplace par `SupabaseClient<Database>` ; toutes les requetes du calcul d'argent partage (tableaux de bord,
+  Reglements, Synthese, archivage) sont desormais verifiees. `EleveParti` / `AdultePartie` DEDUITS de la requete de
+  `chargerDeparts` (selections `as const`), plus de copie a la main. Un enfant ou un adulte present porte
+  `depart: null` (le calcul ne distingue plus par `'depart' in`). `chargerCoutHeures` sans bornes d'annee rend un
+  cout nul sans lire (la lecture bornee par NULL rendait deja vide).
+- **Reglements** : les lectures de la page passent dans `lib/financements/reglements.ts` (`chargerReglements`,
+  deplacees telles quelles) ; `ReglementsShell` et `FinancementsClient` tirent leurs types de `DonneesReglements`
+  (le `Mouvement` recopie a la main est retire). Historique des annees passees en `ArchivePaiement` (lot 3).
+- **Defauts trouves** : l'infobulle de classe des Reglements prevoyait « Niveau ... » mais les requetes eleves et
+  adultes ne lisaient pas `classes.level` (seuls les enfants partis l'avaient) : ajoute. Archives d'un foyer supprime
+  (`family_year_finance.parent_id` NULL) rangees sous une cle `"null"` jamais affichee : ecartees.
+- **Source unique** : `lib/erreur.ts` (`messageErreur`), car une erreur PostgREST n'est pas une `Error`.
+  Synthese : depenses et revenus typees par leurs tables (`Pick<Tables<...>>`), charges utiles sans `any`.
+  Infobulle Recharts typee.
+- Bilan : 325 `any` (lint 0 erreur), 178 tests, build OK, aucune migration.

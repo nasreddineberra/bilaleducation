@@ -10,25 +10,17 @@
 // inline et divergeait (reductions retranchees du percu au lieu du du).
 // Toute evolution passe par ICI.
 
-import { computeFamilyFinancials, lignesCotisation, type FeeLike } from './compute'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
+import { computeFamilyFinancials, lignesCotisation, type CotisationLike } from './compute'
 import { chargerDeparts } from './departs'
 import type { FeeStatus } from '@/types/database'
-
-// Client Supabase serveur (type volontairement souple : evite d'importer le type
-// generique dans un module reutilise cote page).
-type SB = { from: (table: string) => any }
 
 export interface YearRef {
   id: string
   label: string
   start_date?: string | null
   end_date?: string | null
-}
-
-/** Une ligne `family_fees` telle que cette fonction la lit. */
-interface LigneFeeStockee extends FeeLike {
-  id?: string | null
-  total_due?: number | null
 }
 
 export interface FamilyRow {
@@ -81,7 +73,7 @@ const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'aoû
  * Renvoie les lignes par famille, le cumul mensuel des encaissements, la
  * ventilation par moyen de paiement, la facture par activite et les agregats.
  */
-export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): Promise<FamilyFinancials> {
+export async function getFamilyFinancials(supabase: SupabaseClient<Database>, currentYear: YearRef): Promise<FamilyFinancials> {
   // Parents avec eleves actifs cette annee
   const { data: parents } = await supabase
     .from('parents')
@@ -121,15 +113,20 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
   const departs = await chargerDeparts(supabase, currentYear)
 
   // Parents adultes (ou partis) sans eleve actif
-  const existingParentIds = new Set((parents ?? []).map((p: any) => p.id))
+  const existingParentIds = new Set((parents ?? []).map(p => p.id))
   const adultParentIds = [...new Set([
-    ...(adultEnrollments ?? []).map((ae: any) => ae.parent_id),
+    ...(adultEnrollments ?? []).map(ae => ae.parent_id),
     ...departs.eleves.map(e => e.parent_id).filter((id): id is string => !!id),
     ...departs.adultes.map(a => a.parent_id),
   ])]
     .filter(id => !existingParentIds.has(id))
 
-  let additionalParents: any[] = []
+  // Foyers ajoutes a ceux qui ont un eleve actif : meme forme, sans eleve.
+  type Foyer = Omit<NonNullable<typeof parents>[number], 'students'> & {
+    students: NonNullable<typeof parents>[number]['students']
+    sansInscription?: boolean
+  }
+  let additionalParents: Foyer[] = []
   if (adultParentIds.length > 0) {
     const { data } = await supabase
       .from('parents')
@@ -137,7 +134,7 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
       .in('id', adultParentIds)
       .order('tutor1_last_name')
       .order('tutor1_first_name')
-    additionalParents = (data ?? []).map((p: any) => ({ ...p, students: [] }))
+    additionalParents = (data ?? []).map(p => ({ ...p, students: [] }))
   }
 
   // Family fees avec installments + ajustements
@@ -150,8 +147,9 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     `)
     .eq('school_year_id', currentYear.id)
 
-  const feeByParent: Record<string, any> = {}
-  for (const ff of (familyFees ?? []) as any[]) {
+  type Fee = NonNullable<typeof familyFees>[number]
+  const feeByParent: Record<string, { fees: Fee[] }> = {}
+  for (const ff of familyFees ?? []) {
     if (!feeByParent[ff.parent_id]) feeByParent[ff.parent_id] = { fees: [] }
     feeByParent[ff.parent_id].fees.push(ff)
   }
@@ -162,20 +160,21 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
   // l'archive de cloture. Meme regle que l'ecran Reglements.
   const dejaListes = new Set([...existingParentIds, ...adultParentIds])
   const sansInscriptionIds = Object.keys(feeByParent).filter(id => !dejaListes.has(id))
-  let parentsSansInscription: any[] = []
+  let parentsSansInscription: Foyer[] = []
   if (sansInscriptionIds.length > 0) {
     const { data } = await supabase
       .from('parents')
       .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name')
       .in('id', sansInscriptionIds)
-    parentsSansInscription = (data ?? []).map((p: any) => ({ ...p, students: [], sansInscription: true }))
+    parentsSansInscription = (data ?? []).map(p => ({ ...p, students: [], sansInscription: true }))
   }
 
-  const allParents = [...(parents ?? []), ...additionalParents, ...parentsSansInscription]
+  const allParents: Foyer[] = [...(parents ?? []), ...additionalParents, ...parentsSansInscription]
     .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
 
-  const adultByParent: Record<string, any[]> = {}
-  for (const ae of [...(adultEnrollments ?? []), ...departs.adultes] as any[]) {
+  type Adulte = { parent_id: string; classes: { cotisation_types: (CotisationLike & { label: string; is_adult: boolean | null }) | null } | null; depart?: typeof departs.adultes[number]['depart'] }
+  const adultByParent: Record<string, Adulte[]> = {}
+  for (const ae of [...(adultEnrollments ?? []), ...departs.adultes]) {
     if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
     adultByParent[ae.parent_id].push(ae)
   }
@@ -185,24 +184,27 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
   // Facture par activite (exact, ligne a ligne). L'ENCAISSE n'est pas ventilable
   // par activite (paiement au niveau du foyer).
   const cotisAgg: Record<string, { label: string; billed: number; count: number; isAdult: boolean }> = {}
-  const addCotis = (ct: any, amount: number) => {
+  const addCotis = (ct: { label?: string | null; is_adult?: boolean | null } | null | undefined, amount: number) => {
     const label = ct?.label ?? 'Sans cotisation'
     if (!cotisAgg[label]) cotisAgg[label] = { label, billed: 0, count: 0, isAdult: !!ct?.is_adult }
     cotisAgg[label].billed += amount
     cotisAgg[label].count++
   }
 
-  for (const p of allParents as any[]) {
+  for (const p of allParents) {
     // Enfants partis : rattaches a leur foyer, avec `depart`.
-    const students = [...(p.students ?? []), ...departs.eleves.filter(e => e.parent_id === p.id)]
-    const lignes = lignesCotisation(students.map((s: any) => ({
+    const students = [
+      ...(p.students ?? []).map(s => ({ ...s, depart: null })),
+      ...departs.eleves.filter(e => e.parent_id === p.id),
+    ]
+    const lignes = lignesCotisation(students.map(s => ({
       ct:     (s.enrollments ?? [])[0]?.classes?.cotisation_types,
       ordre:  s.created_at,
       depart: s.depart,
     })), currentYear)
 
     let subtotal = 0
-    students.forEach((s: any, i: number) => {
+    students.forEach((s, i) => {
       const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
       if (!ct) return
       subtotal += lignes[i].total
@@ -210,10 +212,10 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     })
 
     const adultes = adultByParent[p.id] ?? []
-    const lignesAdultes = lignesCotisation(adultes.map((ae: any) => ({
+    const lignesAdultes = lignesCotisation(adultes.map(ae => ({
       ct: ae.classes?.cotisation_types, depart: ae.depart,
     })), currentYear, { fratrie: false })
-    adultes.forEach((ae: any, i: number) => {
+    adultes.forEach((ae, i) => {
       const ct = ae.classes?.cotisation_types
       if (!ct) return
       subtotal += lignesAdultes[i].total
@@ -224,13 +226,13 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     // ENREGISTRE (le recalcul donnerait 0). Range a part dans « facture par
     // activite », pour que la somme des activites reste egale au facture.
     if (p.sansInscription) {
-      subtotal = ((feeByParent[p.id]?.fees ?? []) as any[]).reduce((a, f) => a + Number(f.subtotal ?? 0), 0)
+      subtotal = (feeByParent[p.id]?.fees ?? []).reduce((a, f) => a + Number(f.subtotal ?? 0), 0)
       if (subtotal > 0) addCotis({ label: 'Sans inscription' }, subtotal)
     }
 
-    // Type local plutot que `any` : ces lignes servent au calcul (via `FeeLike`)
-    // ET a l'audit de cloture, qui lit `id` et `total_due`.
-    const parentFees: LigneFeeStockee[] = feeByParent[p.id]?.fees ?? []
+    // Ces lignes servent au calcul (via `FeeLike`) ET a l'audit de cloture, qui
+    // lit `id` et `total_due`.
+    const parentFees = feeByParent[p.id]?.fees ?? []
     const { totalDue, netPercu, remaining, status } = computeFamilyFinancials(subtotal, parentFees)
 
     const label = [p.tutor1_last_name, p.tutor1_first_name].filter(Boolean).join(' ')
@@ -251,7 +253,7 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
   }
 
   // Encaissements : ventilation par moyen de paiement + cumul mensuel.
-  const allFees = (familyFees ?? []) as any[]
+  const allFees = familyFees ?? []
   const byMethod: Record<string, number> = {}
   const paidByMonth: Record<string, number> = {}
   for (const ff of allFees) {

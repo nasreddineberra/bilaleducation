@@ -4,7 +4,8 @@
 // et le tableau de bord comptable : le solde affiche des deux cotes doit etre
 // le meme chiffre.
 
-type SB = { from: (table: string) => any }
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 
 export interface AnneeCout {
   id: string
@@ -20,7 +21,9 @@ export interface CoutHeures {
   unratedTypes: { code: string; hours: number }[]
 }
 
-export async function chargerCoutHeures(supabase: SB, annee: AnneeCout): Promise<CoutHeures> {
+export async function chargerCoutHeures(supabase: SupabaseClient<Database>, annee: AnneeCout): Promise<CoutHeures> {
+  // Sans bornes, aucune heure a valoriser (la lecture bornee par NULL rendait deja vide).
+  if (!annee.start_date || !annee.end_date) return { total: 0, byMonth: [], byType: [], unratedTypes: [] }
   const [
     { data: timeEntries },
     { data: presenceTypes },
@@ -60,9 +63,9 @@ export async function chargerCoutHeures(supabase: SB, annee: AnneeCout): Promise
   // CHAQUE fois et renvoyait parametrer un taux que l'interface interdit de
   // saisir — vu a l'ecran le 24 septembre.
   const absenceCodes = new Set<string>()
-  for (const pt of (presenceTypes ?? []) as any[]) {
+  for (const pt of presenceTypes ?? []) {
     const code = pt.code.toUpperCase()
-    const rate = ((presenceTypeRates ?? []) as any[]).find((r: any) => r.presence_type_id === pt.id)?.rate ?? 0
+    const rate = (presenceTypeRates ?? []).find(r => r.presence_type_id === pt.id)?.rate ?? 0
     rateByCode[code]  = Number(rate)
     labelByCode[code] = pt.label ?? code
     if (pt.is_absence) absenceCodes.add(code)
@@ -77,7 +80,7 @@ export async function chargerCoutHeures(supabase: SB, annee: AnneeCout): Promise
   // remonter a l'utilisateur (banniere).
   const unratedHoursByCode: Record<string, number> = {}
 
-  for (const e of (timeEntries ?? []) as any[]) {
+  for (const e of timeEntries ?? []) {
     const hours = e.duration_minutes / 60
     const code  = String(e.entry_type ?? '').toUpperCase()
     const rate  = rateByCode[code]

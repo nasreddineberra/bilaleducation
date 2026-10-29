@@ -21,42 +21,29 @@
 // l'admin et la comptabilite) ; s'il manque, la regle par defaut s'applique
 // (`REGLE_PAR_DEFAUT`).
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
+import { cleAdulte } from '@/lib/parents/participant'
 import { REGLE_PAR_DEFAUT, departsRetenus, type DepartLike, type DecisionAjustement, type ParticipantLike, type RegleAjustement } from './compute'
-
-type SB = { from: (table: string) => any }
 
 export interface DepartCharge extends DepartLike {
   /** Id du mouvement « depart » : sert a la decision au cas par cas. */
   mouvementId: string | null
 }
 
-export interface EleveParti {
-  id: string
-  parent_id: string | null
-  first_name: string
-  last_name: string
-  created_at: string | null
-  is_active: boolean
-  enrollments: any[]
-  depart: DepartCharge
-}
+// Formes DEDUITES des requetes (`as const` : le type de chaque ligne se lit dans
+// la chaine de selection), jamais recopiees.
+export type Departs = Awaited<ReturnType<typeof chargerDeparts>>
+export type EleveParti = Departs['eleves'][number]
+export type AdultePartie = Departs['adultes'][number]
 
-export interface AdultePartie {
-  parent_id: string
-  tutor_number: 1 | 2
-  classes: any
-  depart: DepartCharge
-}
-
-const CT = 'id, label, amount, registration_fee, sibling_discount, sibling_discount_same_type, max_installments, is_adult'
-const CLASSE = `id, name, level, academic_year, day_of_week, start_time, end_time,
-  class_teachers ( is_main_teacher, teachers ( civilite, first_name, last_name ) ),
-  cotisation_types ( ${CT} )`
+const CT = 'id, label, amount, registration_fee, sibling_discount, sibling_discount_same_type, max_installments, is_adult' as const
+const CLASSE = `id, name, level, academic_year, day_of_week, start_time, end_time, class_teachers ( is_main_teacher, teachers ( civilite, first_name, last_name ) ), cotisation_types ( ${CT} )` as const
 
 export async function chargerDeparts(
-  supabase: SB,
+  supabase: SupabaseClient<Database>,
   annee: { id: string; label: string },
-): Promise<{ eleves: EleveParti[]; adultes: AdultePartie[] }> {
+) {
   const [{ data: enr }, { data: pce }, { data: mvts }, { data: actifs }, { data: adultesActifs }] = await Promise.all([
     supabase.from('enrollments')
       .select(`id, status, class_id, date_depart, students!inner ( id, parent_id, first_name, last_name, created_at, is_active ), classes!inner ( ${CLASSE} )`)
@@ -80,15 +67,15 @@ export async function chargerDeparts(
       .eq('status', 'active')
       .eq('classes.academic_year', annee.label),
   ])
-  const revenus = new Set(((actifs ?? []) as any[]).map(a => a.student_id))
-  const tuteur = (a: any) => `${a.parent_id}-${a.tutor_number}`
-  const adultesRevenus = new Set(((adultesActifs ?? []) as any[])
+  const revenus = new Set((actifs ?? []).map(a => a.student_id))
+  const tuteur = (a: { parent_id: string; tutor_number: 1 | 2 }) => cleAdulte(a.parent_id, a.tutor_number)
+  const adultesRevenus = new Set((adultesActifs ?? [])
     .filter(a => a.classes?.cotisation_types?.is_adult).map(tuteur))
 
   // Le DERNIER depart de chaque participant dans chaque classe (un enfant parti,
   // revenu puis reparti : seul le dernier compte).
-  const mvtPar = new Map<string, any>()
-  for (const m of (mvts ?? []) as any[]) {
+  const mvtPar = new Map<string, NonNullable<typeof mvts>[number]>()
+  for (const m of mvts ?? []) {
     const cle = m.student_id ? `e:${m.student_id}:${m.class_id}` : `a:${m.parent_id}-${m.tutor_number}:${m.class_id}`
     if (!mvtPar.has(cle)) mvtPar.set(cle, m)
   }
@@ -102,7 +89,7 @@ export async function chargerDeparts(
     }
   }
 
-  const eleves: EleveParti[] = departsRetenus((enr ?? []) as any[], e => e.students.id, revenus).map(e => ({
+  const eleves = departsRetenus(enr ?? [], e => e.students.id, revenus).map(e => ({
     id:          e.students.id,
     parent_id:   e.students.parent_id,
     first_name:  e.students.first_name,
@@ -113,8 +100,8 @@ export async function chargerDeparts(
     depart:      depart(`e:${e.students.id}:${e.class_id}`, e.date_depart),
   }))
 
-  const adultes: AdultePartie[] = departsRetenus(
-    ((pce ?? []) as any[]).filter(a => a.classes?.cotisation_types?.is_adult), tuteur, adultesRevenus,
+  const adultes = departsRetenus(
+    (pce ?? []).filter(a => a.classes?.cotisation_types?.is_adult), tuteur, adultesRevenus,
   ).map(a => ({
     parent_id:    a.parent_id,
     tutor_number: a.tutor_number,
@@ -141,7 +128,7 @@ export interface ApercuDepart {
 }
 
 export async function chargerApercuDeparts(
-  supabase: SB,
+  supabase: SupabaseClient<Database>,
   annee: { id: string; label: string },
 ): Promise<ApercuDepart[]> {
   const departs = await chargerDeparts(supabase, annee)
@@ -162,13 +149,13 @@ export async function chargerApercuDeparts(
       .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name')
       .in('id', parentIds),
   ])
-  const parentPar = new Map(((parents ?? []) as any[]).map(p => [p.id, p]))
+  const parentPar = new Map((parents ?? []).map(p => [p.id, p]))
 
   const apercu: ApercuDepart[] = []
   for (const e of departs.eleves) {
     if (!e.depart.mouvementId) continue
     const famille = [
-      ...((freres ?? []) as any[]).filter(f => f.parent_id === e.parent_id).map(f => ({ id: f.id, ordre: f.created_at, ct: f.enrollments[0]?.classes?.cotisation_types, depart: null })),
+      ...(freres ?? []).filter(f => f.parent_id === e.parent_id).map(f => ({ id: f.id, ordre: f.created_at, ct: f.enrollments[0]?.classes?.cotisation_types, depart: null })),
       ...departs.eleves.filter(d => d.parent_id === e.parent_id).map(d => ({ id: d.id, ordre: d.created_at, ct: d.enrollments[0]?.classes?.cotisation_types, depart: d.depart })),
     ]
     apercu.push({

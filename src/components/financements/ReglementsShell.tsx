@@ -4,20 +4,14 @@ import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { useState } from 'react'
 import FinancementsClient from './FinancementsClient'
 import ImpayesAnterieurs from './ImpayesAnterieurs'
+import type { DonneesReglements } from '@/lib/financements/reglements'
 
-interface Props {
+// Donnees : `chargerReglements` (types tires de ses requetes).
+type Props = DonneesReglements & {
   currentYear: { id: string; label: string; start_date?: string | null; end_date?: string | null }
-  parents: any[]
-  adultEnrollments: any[]
-  familyFees: any[]
-  communications: any[]
-  mouvements: any[]
-  etablissement: any
   initialParentId?: string
-  familyHistory: Record<string, any[]>
   /** Suppression du journal comptable : admin/direction seuls. */
   canDeleteComms?: boolean
-  pastDebts: any[]
 }
 
 export default function ReglementsShell({ pastDebts, ...fc }: Props) {

@@ -51,7 +51,7 @@ export default async function SynthesePage() {
     .eq('school_year_id', currentYear.id)
     .order('expense_date', { ascending: false })
 
-  const totalExpenses = (expenses ?? []).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0)
+  const totalExpenses = (expenses ?? []).reduce((s, e) => s + Number(e.amount ?? 0), 0)
 
   // ── Revenus autres ─────────────────────────────────────────────────────
   const { data: revenues } = await supabase
@@ -60,7 +60,7 @@ export default async function SynthesePage() {
     .eq('school_year_id', currentYear.id)
     .order('revenue_date', { ascending: false })
 
-  const totalRevenues = (revenues ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0)
+  const totalRevenues = (revenues ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0)
 
   return (
     <div className="h-full animate-fade-in">
@@ -75,9 +75,9 @@ export default async function SynthesePage() {
           collectRate: fin.kpi.rate,
         }}
         teachingCosts={coutHeures}
-        initialExpenses={(expenses ?? []) as any[]}
+        initialExpenses={expenses ?? []}
         totalExpenses={totalExpenses}
-        initialRevenues={(revenues ?? []) as any[]}
+        initialRevenues={revenues ?? []}
         totalRevenues={totalRevenues}
       />
     </div>

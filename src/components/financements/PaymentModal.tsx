@@ -7,6 +7,7 @@ import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import FormModal from '@/components/ui/FormModal'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
 import type { RecapDossier, RetourPaiement } from '@/lib/financements/compute'
+import { messageErreur } from '@/lib/erreur'
 
 // Principales banques (chèques), triées alphabétiquement, + « Autre » pour saisie libre.
 const BANKS = [
@@ -222,8 +223,8 @@ export default function PaymentModal({
       setSaving(false)
       const { paiement, recap } = res as unknown as RetourPaiement
       onSaved(paiement, recap)
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur lors de l\'enregistrement.')
+    } catch (e) {
+      setError(messageErreur(e) ?? 'Erreur lors de l\'enregistrement.')
       setSaving(false)
     }
   }

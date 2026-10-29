@@ -6,6 +6,8 @@ import { clsx } from 'clsx'
 import { TrendingUp, TrendingDown, Pencil, Trash2, X, FileText, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
+import { messageErreur } from '@/lib/erreur'
+import type { Tables } from '@/types/supabase'
 import { FloatButton, FloatInput, FloatSelect, FloatTextarea } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
@@ -110,26 +112,11 @@ async function openDocument(supabase: ReturnType<typeof createClient>, path: str
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Expense {
-  id: string
-  expense_date: string
-  label: string
-  amount: number
-  category: string | null
-  /** Chemin dans le bucket PRIVE ({etablissement_id}/...) : jamais une URL
-   *  publique — le justificatif serait lisible sans authentification. */
-  document_path: string | null
-  notes: string | null
-}
-
-interface Revenue {
-  id: string
-  revenue_date: string
-  label: string
-  amount: number
-  source_type: string | null
-  notes: string | null
-}
+// Colonnes lues par la page. `document_path` : chemin dans le bucket PRIVE
+// ({etablissement_id}/...), jamais une URL publique — le justificatif serait
+// lisible sans authentification.
+type Expense = Pick<Tables<'expenses'>, 'id' | 'expense_date' | 'label' | 'amount' | 'category' | 'document_path' | 'notes'>
+type Revenue = Pick<Tables<'other_revenues'>, 'id' | 'revenue_date' | 'label' | 'amount' | 'source_type' | 'notes'>
 
 interface Props {
   yearLabel: string
@@ -265,8 +252,8 @@ export default function SyntheseClient({
         await refreshRevenues()
       }
       setDeleteTarget(null)
-    } catch (e: any) {
-      setDeleteError(e?.message ?? 'Erreur lors de la suppression.')
+    } catch (e) {
+      setDeleteError(messageErreur(e) ?? 'Erreur lors de la suppression.')
     } finally {
       setDeleting(false)
     }
@@ -662,17 +649,13 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
       await supabase.storage.from(BUCKET).remove([initDoc])
     }
 
-    const payload: any = {
+    const payload = {
       expense_date: date,
       label: label.trim(),
       amount: parseFloat(amount),
       category: category.trim() || null,
       notes: notes.trim() || null,
       document_path: documentPath || null,
-    }
-
-    if (!isEdit) {
-      payload.school_year_id = schoolYearId
     }
 
     try {
@@ -682,12 +665,12 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
           'Cette depense',
         )
       } else {
-        const { error: err } = await supabase.from('expenses').insert(payload)
+        const { error: err } = await supabase.from('expenses').insert({ ...payload, school_year_id: schoolYearId })
         if (err) throw new Error(err.message)
       }
-    } catch (e: any) {
+    } catch (e) {
       setSaving(false)
-      setError(e?.message ?? 'Enregistrement impossible.')
+      setError(messageErreur(e) ?? 'Enregistrement impossible.')
       return
     }
 
@@ -804,16 +787,12 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
     setSaving(true)
     setError(null)
 
-    const payload: any = {
+    const payload = {
       revenue_date: date,
       label: label.trim(),
       amount: parseFloat(amount),
       source_type: sourceType.trim() || null,
       notes: notes.trim() || null,
-    }
-
-    if (!isEdit) {
-      payload.school_year_id = schoolYearId
     }
 
     try {
@@ -823,12 +802,12 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
           'Ce revenu',
         )
       } else {
-        const { error: err } = await supabase.from('other_revenues').insert(payload)
+        const { error: err } = await supabase.from('other_revenues').insert({ ...payload, school_year_id: schoolYearId })
         if (err) throw new Error(err.message)
       }
-    } catch (e: any) {
+    } catch (e) {
       setSaving(false)
-      setError(e?.message ?? 'Enregistrement impossible.')
+      setError(messageErreur(e) ?? 'Enregistrement impossible.')
       return
     }
 
