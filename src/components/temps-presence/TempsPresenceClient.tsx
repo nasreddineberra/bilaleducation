@@ -1024,7 +1024,10 @@ export default function TempsPresenceClient({
                             !isSelected && (ferme ? 'hover:bg-amber-100' : 'hover:bg-warm-100'),
                           )}
                         >
-                          <div className="flex items-start gap-1">
+                          {/* 20 px au moins, quel que soit le jour (le numero seul n'en fait que
+                              16, celui du jour 20) : les barres sont posees a 24 px du haut de
+                              la case (4 + 20), l'ecart de 6 px avant les pastilles en depend. */}
+                          <div className="flex items-start gap-1 min-h-5">
                             <span className={clsx(
                               'text-xs font-medium shrink-0',
                               // Marqueur du jour : meme ambre que l'emploi du temps.

@@ -9882,3 +9882,6 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   classe (`prevenirFamilles`, sorte `remplacee`) : « assurée par un enseignant remplaçant », sans motif, sans
   l'absent, sans le remplacant (il peut changer). Une seance annoncee annulee qui passe a remplacee ne recoit que
   « maintenue ». Rien n'est note en base pour cet envoi.
+- **Ecart barres / pastilles** (capture du 29/10) : 2 px au lieu de 6. Le numero du jour fait 16 px (20 px seulement
+  pour le jour courant, pastille ronde) alors que les barres sont posees a 24 px (4 + 20) : la ligne du numero prend
+  `min-h-5` dans toutes les cases.
