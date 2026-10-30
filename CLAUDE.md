@@ -37,7 +37,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~333 avertissements (325 any au 29/10)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~243 avertissements (226 any au 30/10)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -394,8 +394,11 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        infobulle de classe avec niveau, historique, impayes anterieurs), Synthese, Vue globale, ouverture d'un
        paiement sans enregistrer, tableaux de bord comptable et direction.
      - Absences (messagerie configuree) : annulation annoncee puis retablissement, remplacement annonce.
-   - **Ensuite** : sortie des `any` lot 5 (eleves, parents, affectation : ~66 dans
-     `app/dashboard/{students,parents,affectation}`), voir le point 4. Plan a presenter avant de coder.
+     - Sortie des `any` lot 5 (30/10) : fiche eleve (5 onglets, fratrie, document, avertissement, depart), fiche
+       parent avec cours adulte, affectation enfants et adultes (correction, depart).
+   - **A decider** : titulaire affiche sans `titulaireActuel` (ancien titulaire possible) dans la fiche eleve, la
+     fiche parent, le depliant des enfants (liste des parents) et l'affectation : lot de correction a part ?
+   - **Ensuite** : sortie des `any`, dossier suivant (voir le point 4). Plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
@@ -409,10 +412,11 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
-   (325 au 29/10) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
+   (226 au 30/10) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
    (`lib/dashboard`), lot 3 FAIT (`lib/closure` : lignes d'archive typees par leurs tables, colonnes jsonb de
    l'historique dans `json.ts`), lot 4 FAIT (financements : lectures de Reglements dans
-   `lib/financements/reglements.ts`, types des ecrans tires de ses requetes), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
+   `lib/financements/reglements.ts`, types des ecrans tires de ses requetes), lot 5 FAIT (eleves, parents,
+   affectation : `lib/students/fiche.ts`, `lib/parents/fiche.ts`), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
    defaut jamais NULL (quand toutes les ecritures seront typees).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de

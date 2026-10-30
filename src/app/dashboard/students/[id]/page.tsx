@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import StudentDetail from '@/components/students/StudentDetail'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { LIBELLES_REGLE, REGLE_PAR_DEFAUT, type RegleAjustement } from '@/lib/financements/compute'
+import { chargerFicheEleve } from '@/lib/students/fiche'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -13,14 +13,6 @@ interface Props {
   // filtre, page) sous un prefixe reserve. Voir `lib/navigation/retour`.
   searchParams: Promise<{ from?: string; lq?: string; lf?: string; lp?: string }>
 }
-
-const PARENTS_SELECT = [
-  'id',
-  'tutor1_last_name', 'tutor1_first_name', 'tutor1_relationship',
-  'tutor1_address', 'tutor1_city', 'tutor1_postal_code', 'tutor1_phone', 'tutor1_email',
-  'tutor2_last_name', 'tutor2_first_name', 'tutor2_relationship',
-  'tutor2_address', 'tutor2_city', 'tutor2_postal_code', 'tutor2_phone', 'tutor2_email',
-].join(', ')
 
 export default async function EditStudentPage({ params, searchParams }: Props) {
   const { id } = await params
@@ -47,141 +39,9 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   const ROLES_ECRITURE = ['admin', 'direction', 'responsable_pedagogique', 'secretaire']
   const lectureSeule = !ROLES_ECRITURE.includes(effectiveRole(profil) ?? '')
 
-  // Données identité + parents
-  const [{ data: student }, { data: parents }] = await Promise.all([
-    supabase.from('students').select('*').eq('id', id).single(),
-    supabase
-      .from('parents')
-      .select(PARENTS_SELECT)
-      .order('tutor1_last_name')
-      .order('tutor1_first_name'),
-  ])
-
-  if (!student) notFound()
-
-  // Données scolarité : inscriptions avec classe + année scolaire
-  const { data: enrollments } = await supabase
-    .from('enrollments')
-    .select('id, class_id, enrollment_date, status, date_depart, classes(id, name, level, academic_year, day_of_week, start_time, end_time, cotisation_types(label))')
-    .eq('student_id', id)
-    .order('enrollment_date', { ascending: false })
-
-  // Frères / Sœurs (même parent_id)
-  let siblings: any[] = []
-  if (student.parent_id) {
-    const { data } = await supabase
-      .from('students')
-      .select('id, last_name, first_name, gender, date_of_birth, is_active, enrollments(class_id, classes(id, name, day_of_week, start_time, end_time))')
-      .eq('parent_id', student.parent_id)
-      .neq('id', id)
-      .order('date_of_birth')
-    siblings = (data ?? []) as any[]
-  }
-
-  // Récupérer les class_ids (élève + frères/sœurs) pour les requêtes suivantes
-  const classIds = (enrollments ?? []).map((e: any) => e.class_id)
-  const siblingClassIds = siblings.flatMap((s: any) => s.enrollments?.map((e: any) => e.class_id) ?? [])
-  const allClassIds = [...new Set([...classIds, ...siblingClassIds])]
-
-  // Professeur principal de chaque classe
-  type CTRow = { class_id: string; teachers: { civilite: string | null; first_name: string; last_name: string } | null }
-  let mainTeachers: CTRow[] = []
-  if (allClassIds.length > 0) {
-    const { data } = await supabase
-      .from('class_teachers')
-      .select('class_id, teachers(civilite, first_name, last_name)')
-      .eq('is_main_teacher', true)
-      .in('class_id', allClassIds) as { data: CTRow[] | null }
-    mainTeachers = data ?? []
-  }
-
-  // Périodes (onglets Scolarité et Discipline).
-  //
-  // Les requêtes `evaluations`, `grades` et `absences` qui vivaient ici ont été
-  // SUPPRIMÉES : elles ne servaient qu'à recalculer la moyenne et l'assiduité de
-  // l'onglet Scolarité, que le bulletin archivé porte désormais lui-même. Trois
-  // tables interrogées en moins, et plus aucun risque de voir l'écran annoncer
-  // un chiffre différent de celui reçu par la famille.
-  const { data: periodRows } = await supabase
-    .from('periods')
-    .select('id, label, order_index, is_current, school_years(label)')
-    .order('order_index')
-
-  // Absences détaillées (pour onglet Discipline)
-  const { data: absencesFull } = classIds.length > 0
-    ? await supabase
-        .from('absences')
-        .select('id, class_id, period_id, absence_date, absence_type, comment, is_justified')
-        .eq('student_id', id)
-        .order('absence_date', { ascending: false })
-    : { data: [] }
-
-  // Avertissements (pour onglet Discipline)
-  type WarningRow = {
-    id: string; class_id: string; period_id: string; warning_date: string
-    severity: string; motif: string; issued_by: string | null; created_at: string
-    student_warning_attachments: { id: string; file_url: string; file_name: string }[]
-  }
-  let studentWarnings: WarningRow[] = []
-  if (classIds.length > 0) {
-    const { data } = await supabase
-      .from('student_warnings')
-      .select('id, class_id, period_id, warning_date, severity, motif, issued_by, created_at, student_warning_attachments(id, file_url, file_name)')
-      .eq('student_id', id)
-      .order('warning_date', { ascending: false })
-    studentWarnings = (data ?? []) as WarningRow[]
-  }
-
-  // Bulletins archivés
-  const { data: bulletinArchives } = await supabase
-    .from('bulletin_archives')
-    .select('class_id, period_id, file_path, moyenne_generale, absences_count, absences_unjustified, retards_count')
-    .eq('student_id', id)
-
-  // Année scolaire en cours (pour filtrer onglet Discipline)
-  const { data: currentYear } = await supabase
-    .from('school_years')
-    .select('label, start_date, end_date')
-    .eq('is_current', true)
-    .single()
-  const currentYearLabel = currentYear?.label ?? ''
-
-  // « Declarer un depart » : seulement pour un eleve affecte cette annee, et
-  // seulement s'il a des donnees qui bloquent son retrait (meme regle que la
-  // base, `fn_eleve_a_donnees`). Sans donnees, le retrait se fait dans
-  // Affectations : le bouton est alors grise.
-  const enCours = (enrollments ?? []).find((e: any) => e.status === 'active' && e.classes?.academic_year === currentYearLabel)
-  let depart = null
-  if (enCours && !lectureSeule && currentYear) {
-    const [{ data: aDonnees }, { data: etab }] = await Promise.all([
-      supabase.rpc('fn_eleve_a_donnees', { p_student_id: id, p_class_id: enCours.class_id }),
-      supabase.from('etablissements').select('regle_ajustement').maybeSingle(),
-    ])
-    // Periodes TERMINEES (avant la periode en cours) sans bulletin archive :
-    // l'avertissement de la fenetre, non bloquant (decision du 26/10).
-    const periodesAnnee = ((periodRows ?? []) as any[]).filter(p => p.school_years?.label === currentYearLabel)
-    const rangCourant = periodesAnnee.find(p => p.is_current)?.order_index ?? -1
-    const archivees = new Set(((bulletinArchives ?? []) as any[]).filter(b => b.class_id === enCours.class_id).map(b => b.period_id))
-    depart = {
-      classe:     (enCours.classes as any)?.name ?? '',
-      aDonnees:   !!aDonnees,
-      regle:      LIBELLES_REGLE[((etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement)],
-      rentree:    currentYear.start_date,
-      fin:        currentYear.end_date,
-      bulletinsManquants: periodesAnnee
-        .filter(p => p.order_index < rangCourant && !archivees.has(p.id))
-        .sort((a, b) => a.order_index - b.order_index)
-        .map(p => p.label as string),
-    }
-  }
-
-  // Documents administratifs (onglet Documents)
-  const [{ data: docTypeConfigs }, { data: studentDocs }, { data: history }] = await Promise.all([
-    supabase.from('document_type_configs').select('id, category, doc_key, label, is_required, order_index').order('order_index'),
-    supabase.from('student_documents').select('id, doc_type_key, category, file_url, file_name, expires_at, created_at').eq('student_id', id),
-    // Historique archivé (snapshots de clôture d'année), plus récent en premier.
-    supabase.from('student_year_history').select('*').eq('student_id', id).order('year_label', { ascending: false }),
-  ])
+  // Lectures de la fiche : `lib/students/fiche.ts` (les types de l'ecran en derivent).
+  const fiche = await chargerFicheEleve(supabase, id, lectureSeule)
+  if (!fiche) notFound()
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -195,23 +55,10 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
       </Link>
 
       <StudentDetail
+        {...fiche}
         lectureSeule={lectureSeule}
-        student={student}
-        parents={(parents ?? []) as any[]}
         backHref={backHref}
-        etablissementId={student.etablissement_id}
-        enrollments={(enrollments ?? []) as any[]}
-        periods={(periodRows ?? []) as any[]}
-        absencesFull={(absencesFull ?? []) as any[]}
-        studentWarnings={studentWarnings.map(w => ({ ...w, attachments: w.student_warning_attachments })) as any[]}
-        bulletinArchives={(bulletinArchives ?? []) as any[]}
-        mainTeachers={mainTeachers as any[]}
-        docTypeConfigs={(docTypeConfigs ?? []) as any[]}
-        studentDocuments={(studentDocs ?? []) as any[]}
-        siblings={siblings as any[]}
-        currentYearLabel={currentYearLabel}
-        history={(history ?? []) as any[]}
-        depart={depart}
+        etablissementId={fiche.student.etablissement_id}
       />
 
     </div>

@@ -44,13 +44,13 @@ async function currentYearEnrollment(supabase: Awaited<ReturnType<typeof createC
     .is('effective_until', null)
     .in('class_id', classIds)
   const teacherByClass = new Map<string, { civilite: string | null; first_name: string; last_name: string }>()
-  for (const ct of (cts ?? []) as any[]) {
+  for (const ct of cts ?? []) {
     if (ct.teachers) teacherByClass.set(ct.class_id, ct.teachers)
   }
 
   // Construire le libellé tooltip par classe
   const tooltipByClass = new Map<string, string>()
-  for (const c of classes as any[]) {
+  for (const c of classes) {
     const parts: string[] = []
     const t = teacherByClass.get(c.id)
     if (t) parts.push(`${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`.trim())

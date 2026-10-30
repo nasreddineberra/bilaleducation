@@ -3,21 +3,9 @@
 import { FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
+import type { FicheEleve } from '@/lib/students/fiche'
 
-interface HistoryRow {
-  id: string
-  year_label: string
-  class_name: string | null
-  level: string | null
-  cotisation_label: string | null
-  moyenne_generale: number | null
-  absences_justified: number
-  absences_unjustified: number
-  financial_status: string | null
-  total_due: number | null
-  total_paid: number | null
-  bulletin_refs: { period_label: string; archive_id: string; file_path: string }[]
-}
+type HistoryRow = FicheEleve['history'][number]
 
 // Pastilles d'etat de la charte (`Puce`).
 const FIN_STATUS: Record<string, { label: string; ton: Ton }> = {

@@ -116,9 +116,7 @@ export default async function StudentsPage({
   // Le libellé de classe passe par le helper PARTAGÉ `classInfoOf` (un seul format
   // dans l'app, et le jour est traduit — l'ancienne copie locale affichait « monday »).
   const studentsWithClass = (students ?? []).map((s) => {
-    const { enrollments, ...rest } = s as typeof s & {
-      enrollments?: { status: string; classes?: any | null }[]
-    }
+    const { enrollments, ...rest } = s
     const active = Array.isArray(enrollments)
       ? enrollments.find((e) => e.status === 'active')
       : null

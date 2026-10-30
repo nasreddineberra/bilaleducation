@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Trash2, Paperclip, X, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WarningSeverity } from '@/types/database'
+import type { FicheEleve } from '@/lib/students/fiche'
 import { FloatSelect, FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
@@ -16,35 +17,11 @@ import { ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AbsenceRow = {
-  id: string
-  class_id: string
-  period_id: string
-  absence_date: string
-  absence_type: 'absence' | 'retard'
-  comment: string | null
-  is_justified: boolean
-}
+type AbsenceRow = FicheEleve['absencesFull'][number]
 
-type WarningRow = {
-  id: string
-  class_id: string
-  period_id: string
-  warning_date: string
-  severity: WarningSeverity
-  motif: string
-  issued_by: string | null
-  created_at: string
-  attachments: { id: string; file_url: string; file_name: string }[]
-}
+type WarningRow = FicheEleve['studentWarnings'][number]
 
-type PeriodRow = {
-  id: string
-  label: string
-  order_index: number
-  is_current?: boolean
-  school_years?: { label: string } | null
-}
+type PeriodRow = FicheEleve['periods'][number]
 
 type EnrollmentRow = {
   class_id: string
@@ -118,7 +95,7 @@ export default function StudentDiscipline({
   const currentPeriodIds = useMemo(() => {
     const ids = new Set<string>()
     for (const p of periods) {
-      if ((p.school_years as any)?.label === currentYearLabel) ids.add(p.id)
+      if (p.school_years?.label === currentYearLabel) ids.add(p.id)
     }
     return ids
   }, [periods, currentYearLabel])

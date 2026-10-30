@@ -22,6 +22,9 @@ import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Student, Parent, Gender } from '@/types/database'
+import type { FicheEleve } from '@/lib/students/fiche'
+import type { PostgrestError } from '@supabase/supabase-js'
+import { messageErreur } from '@/lib/erreur'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ParentOption {
@@ -54,20 +57,9 @@ const RELATIONSHIP_LABEL: Record<string, string> = {
 const relLabel = (rel?: string | null, fallback = 'Tuteur') =>
   rel ? (RELATIONSHIP_LABEL[rel] ?? rel) : fallback
 
-type SiblingRow = {
-  id: string
-  last_name: string
-  first_name: string
-  gender: string | null
-  date_of_birth: string
-  is_active: boolean
-  enrollments: { class_id: string; classes: { id: string; name: string; day_of_week: string | null; start_time: string | null; end_time: string | null } | null }[]
-}
+type SiblingRow = FicheEleve['siblings'][number]
 
-type MainTeacherRow = {
-  class_id: string
-  teachers: { civilite: string | null; first_name: string; last_name: string } | null
-}
+type MainTeacherRow = FicheEleve['mainTeachers'][number]
 
 interface StudentFormProps {
   student?: Student
@@ -338,7 +330,9 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
       router.push(backHref)
       router.refresh()
-    } catch (err: any) {
+    } catch (e: unknown) {
+      // Levee ici : une `Error` (codes internes ci-dessus) ou une erreur PostgREST.
+      const err = e as Partial<PostgrestError> | null
       if (photoEnvoyee) await retirerPhoto(createClient(), photoEnvoyee)
       // Le controle ci-dessus a deja ecarte le doublon d'identite ; on peut
       // encore arriver ici si deux saisies aboutissent en meme temps. L'index
@@ -961,8 +955,8 @@ function PhotoField({ photoUrl, nouvellePhoto, onNouvellePhoto, onSupprimer }: P
       }
       onNouvellePhoto(blob)
       fermerRecadrage()
-    } catch (err: any) {
-      setUploadError(err?.message ?? 'Image illisible. Essayez une autre image.')
+    } catch (err: unknown) {
+      setUploadError(messageErreur(err) ?? 'Image illisible. Essayez une autre image.')
     } finally {
       setIsUploading(false)
     }

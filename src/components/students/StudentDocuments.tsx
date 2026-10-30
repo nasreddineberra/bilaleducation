@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Trash2, Eye } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
+import type { FicheEleve } from '@/lib/students/fiche'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
@@ -15,24 +16,9 @@ import { ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type DocTypeRow = {
-  id: string
-  category: DocumentCategory
-  doc_key: string
-  label: string
-  is_required: boolean
-  order_index: number
-}
+type DocTypeRow = FicheEleve['docTypeConfigs'][number]
 
-type DocRow = {
-  id: string
-  doc_type_key: string
-  category: DocumentCategory
-  file_url: string
-  file_name: string
-  expires_at: string | null
-  created_at: string
-}
+type DocRow = FicheEleve['studentDocuments'][number]
 
 interface Props {
   /** Fiche en lecture seule (enseignant). La RLS refuse desormais l'ecriture

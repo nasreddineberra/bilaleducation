@@ -10,6 +10,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import { useToast } from '@/lib/toast-context'
 import { declarerDepartEleve } from '@/app/dashboard/students/actions'
+import type { ContexteDepart, FicheEleve } from '@/lib/students/fiche'
 
 /**
  * SCOLARITÉ — un HISTORIQUE, année après année.
@@ -33,46 +34,14 @@ import { declarerDepartEleve } from '@/app/dashboard/students/actions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EnrollmentRow = {
-  id: string
-  class_id: string
-  enrollment_date: string
-  status: string
-  date_depart?: string | null
-  classes: {
-    id: string
-    name: string
-    level: string
-    academic_year: string
-    day_of_week: string | null
-    start_time: string | null
-    end_time: string | null
-    cotisation_types: { label: string } | null
-  } | null
-}
+type EnrollmentRow = FicheEleve['enrollments'][number]
 
-type PeriodRow = {
-  id: string
-  label: string
-  order_index: number
-  school_years: { label: string } | null
-}
+type PeriodRow = FicheEleve['periods'][number]
 
 /** Ligne d'archive : le fichier ET les chiffres imprimés sur le document. */
-type BulletinArchiveRow = {
-  class_id: string
-  period_id: string
-  file_path: string
-  moyenne_generale: number | null
-  absences_count: number
-  absences_unjustified: number
-  retards_count: number
-}
+type BulletinArchiveRow = FicheEleve['bulletinArchives'][number]
 
-type MainTeacherRow = {
-  class_id: string
-  teachers: { civilite: string | null; first_name: string; last_name: string } | null
-}
+type MainTeacherRow = FicheEleve['mainTeachers'][number]
 
 type WarningRow = {
   period_id: string
@@ -83,17 +52,6 @@ type WarningRow = {
  * Depart en cours d'annee, prepare par la page (`students/[id]/page.tsx`).
  * Present seulement pour un eleve affecte a une classe de l'annee en cours.
  */
-export interface ContexteDepart {
-  classe: string
-  /** Notes, absences ou bulletins : le retrait est bloque, le depart possible. */
-  aDonnees: boolean
-  /** Libelle de la regle de l'etablissement (« Au prorata »...). */
-  regle: string
-  rentree: string | null
-  fin: string | null
-  /** Periodes terminees sans bulletin archive (avertissement non bloquant). */
-  bulletinsManquants: string[]
-}
 
 interface Props {
   studentId: string
@@ -184,7 +142,7 @@ export default function StudentScolarite({
   const periodsByYear = useMemo(() => {
     const map = new Map<string, PeriodRow[]>()
     for (const p of periods) {
-      const year = (p.school_years as any)?.label ?? 'Inconnue'
+      const year = p.school_years?.label ?? 'Inconnue'
       if (!map.has(year)) map.set(year, [])
       map.get(year)!.push(p)
     }
@@ -196,7 +154,7 @@ export default function StudentScolarite({
   // d'une archive.
   const warningsByYear = useMemo(() => {
     const periodToYear = new Map<string, string>()
-    for (const p of periods) periodToYear.set(p.id, (p.school_years as any)?.label ?? 'Inconnue')
+    for (const p of periods) periodToYear.set(p.id, p.school_years?.label ?? 'Inconnue')
     const map = new Map<string, number>()
     for (const w of warnings) {
       const y = periodToYear.get(w.period_id) ?? 'Inconnue'
@@ -268,9 +226,11 @@ export default function StudentScolarite({
               {/* Bandeau : annee et statut ; depart de l'annee en cours a droite */}
               <div className="encadre-titre gap-2">
                 <h2 className="text-xs font-bold uppercase tracking-widest">{year}</h2>
-                <Puce ton={STATUS_TON[enrollment.status] ?? 'neutre'}>
-                  {STATUS_LABEL[enrollment.status] ?? enrollment.status}
-                </Puce>
+                {enrollment.status && (
+                  <Puce ton={STATUS_TON[enrollment.status] ?? 'neutre'}>
+                    {STATUS_LABEL[enrollment.status] ?? enrollment.status}
+                  </Puce>
+                )}
                 {depart && enrollment.status === 'active' && cls.name === depart.classe && (
                   <span className="ml-auto">
                     {depart.aDonnees ? (
@@ -297,7 +257,7 @@ export default function StudentScolarite({
                   {/* `enrollments.enrollment_date` date l'AFFECTATION a la classe.
                       Dans cette application « inscrit » veut dire ACTIF : appeler
                       cette date « Inscrit le » melangeait les deux notions. */}
-                  Affecté le {dateFr(enrollment.enrollment_date)}
+                  {enrollment.enrollment_date && <>Affecté le {dateFr(enrollment.enrollment_date)}</>}
                   {enrollment.status === 'withdrawn' && enrollment.date_depart && <> · Parti le {dateFr(enrollment.date_depart)}</>}
                 </span>
               </div>

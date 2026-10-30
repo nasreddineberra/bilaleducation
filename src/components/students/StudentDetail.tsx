@@ -10,50 +10,17 @@ import StudentScolarite from './StudentScolarite'
 import StudentDiscipline from './StudentDiscipline'
 import StudentDocuments from './StudentDocuments'
 import StudentHistory from './StudentHistory'
-import type { Student } from '@/types/database'
+import type { FicheEleve } from '@/lib/students/fiche'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
-import type { ContexteDepart } from './StudentScolarite'
 
-interface ParentOption {
-  id: string
-  tutor1_last_name: string
-  tutor1_first_name: string
-  tutor1_relationship?: string | null
-  tutor1_address?: string | null
-  tutor1_city?: string | null
-  tutor1_postal_code?: string | null
-  tutor1_phone?: string | null
-  tutor1_email?: string | null
-  tutor2_last_name?: string | null
-  tutor2_first_name?: string | null
-  tutor2_relationship?: string | null
-  tutor2_address?: string | null
-  tutor2_city?: string | null
-  tutor2_postal_code?: string | null
-  tutor2_phone?: string | null
-  tutor2_email?: string | null
-}
-
-interface Props {
-  student: Student
-  parents: ParentOption[]
+// Donnees de la fiche : celles de `chargerFicheEleve`, sans recopie.
+type Props = Omit<FicheEleve, 'depart'> & {
   backHref: string
   etablissementId: string
-  enrollments: any[]
-  periods: any[]
-  absencesFull: any[]
-  studentWarnings: any[]
-  bulletinArchives: any[]
-  mainTeachers: any[]
-  docTypeConfigs: any[]
-  studentDocuments: any[]
-  siblings: any[]
-  currentYearLabel: string
-  history: any[]
   /** Fiche en lecture seule : l'ecriture de `students` n'est pas ouverte a ce role. */
   lectureSeule?: boolean
   /** « Declarer un depart » : `null` si l'eleve n'est affecte a aucune classe cette annee. */
-  depart?: ContexteDepart | null
+  depart?: FicheEleve['depart']
 }
 
 const TABS = [
@@ -98,7 +65,7 @@ export default function StudentDetail({
 
   // ── En-tête de fiche (contexte permanent) ──
   const activeClassName =
-    enrollments.find((e: any) => e.status === 'active')?.classes?.name ?? null
+    enrollments.find(e => e.status === 'active')?.classes?.name ?? null
   const initiales = `${(student.last_name?.[0] ?? '').toUpperCase()}${(student.first_name?.[0] ?? '').toUpperCase()}`
   const genderRing = student.gender === 'male'
     ? 'ring-2 ring-blue-500'
@@ -108,11 +75,11 @@ export default function StudentDetail({
 
   // Inscription active de l'annee en cours : bloque le switch ACTIF/INACTIF.
   // On construit le libelle complet de la classe pour l'infobulle (format standard).
-  const activeEnrollment = (enrollments as any[]).find(
-    (e: any) => e.status === 'active' && e.classes?.academic_year === currentYearLabel
+  const activeEnrollment = enrollments.find(
+    e => e.status === 'active' && e.classes?.academic_year === currentYearLabel
   )
   const activeTeacher = (() => {
-    const tt = (mainTeachers as any[]).find((m: any) => m.class_id === activeEnrollment?.class_id)?.teachers
+    const tt = mainTeachers.find(m => m.class_id === activeEnrollment?.class_id)?.teachers
     return tt ? `${tt.civilite ? tt.civilite + ' ' : ''}${tt.last_name} ${tt.first_name}`.trim() : ''
   })()
   const activeClassInfo = activeEnrollment ? classInfoWithTeacher(activeEnrollment.classes, activeTeacher) : ''

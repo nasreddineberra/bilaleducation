@@ -31,7 +31,7 @@ export default async function AffectationPage() {
         .order('name')
     : { data: [] }
 
-  const classIds = (classes ?? []).map((c: any) => c.id)
+  const classIds = (classes ?? []).map(c => c.id)
 
   const [
     { data: students },
@@ -54,7 +54,11 @@ export default async function AffectationPage() {
   ])
 
   // Exclure les classes de type adulte
-  const apprenantClasses = (classes ?? []).filter((c: any) => !c.cotisation_types?.is_adult)
+  // `max_students` est NULLABLE en base (defaut 25) : un NULL ferait paraitre la
+  // classe pleine (`n >= null` vaut `n >= 0`). Meme repli que la liste des classes.
+  const apprenantClasses = (classes ?? [])
+    .filter(c => !c.cotisation_types?.is_adult)
+    .map(c => ({ ...c, max_students: c.max_students ?? 25 }))
 
   if (apprenantClasses.length === 0) {
     return (
@@ -68,7 +72,7 @@ export default async function AffectationPage() {
   return (
     <div className="h-full animate-fade-in">
       <AffectationClient
-        classes={apprenantClasses as any[]}
+        classes={apprenantClasses}
         students={students ?? []}
         enrollments={enrollments ?? []}
         currentYearId={yearId}

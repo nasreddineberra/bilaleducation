@@ -11,22 +11,10 @@ import Tooltip from '@/components/ui/Tooltip'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import { useToast } from '@/lib/toast-context'
 import { declarerDepartAdulte } from '@/app/dashboard/parents/actions'
+import type { Tables } from '@/types/supabase'
+import type { ScolariteAdulte } from '@/lib/parents/fiche'
 
-interface AdultRow {
-  id: string
-  year_label: string
-  last_name: string
-  first_name: string
-  tutor_number: number | null
-  class_name: string | null
-  level: string | null
-  cotisation_label: string | null
-  moyenne_generale: number | null
-  financial_status: string | null
-  total_due: number | null
-  total_paid: number | null
-  bulletin_refs: { period_label: string; archive_id: string; file_path: string }[]
-}
+type AdultRow = Tables<'student_year_history'>
 
 // Pastilles d'etat de la charte (`Puce`), comme l'Historique de l'apprenant.
 const FIN_STATUS: Record<string, { label: string; ton: Ton }> = {
@@ -46,35 +34,7 @@ function fmtEur(n: number | null): string {
  * Structure IDENTIQUE à l'onglet Scolarité de l'apprenant — informations de classe
  * au niveau de l'année, puis une colonne par période.
  */
-interface CurrentRow {
-  key: string
-  year_label: string
-  status: string
-  last_name: string
-  first_name: string
-  tutor_number: number
-  class_name: string | null
-  level: string | null
-  cotisation_label: string | null
-  teacher_name: string | null
-  schedule: string | null
-  enrollment_date: string
-  date_depart: string | null
-  class_id: string
-  /** `null` : pas de bouton ; `false` : grise (aucune donnee) ; `true` : possible. */
-  peutPartir: boolean | null
-  periods: {
-    id: string
-    label: string
-    avg: number | null
-    /** false = periode NON archivee : rien a afficher, et surtout pas un zero. */
-    archive: boolean
-    bulletinPath: string | null
-    abs: number
-    absNJ: number
-    retards: number
-  }[]
-}
+type CurrentRow = ScolariteAdulte
 
 const STATUS_LABEL: Record<string, string> = { active: 'Actif', withdrawn: 'Parti' }
 const STATUS_TON: Record<string, Ton> = { active: 'ok', withdrawn: 'danger' }

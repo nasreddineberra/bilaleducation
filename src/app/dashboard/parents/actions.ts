@@ -190,7 +190,7 @@ export async function updateParentRecord(
         .from('parent_class_enrollments')
         .select('tutor_number, classes!inner(cotisation_types:cotisation_type_id(is_adult))')
         .eq('parent_id', parentId).eq('status', 'active').in('tutor_number', check)
-      const stillEnrolled = (enr ?? []).some((r: any) => r.classes?.cotisation_types?.is_adult)
+      const stillEnrolled = (enr ?? []).some(r => r.classes.cotisation_types?.is_adult)
       if (stillEnrolled) {
         return { error: 'Ce tuteur est inscrit à un cours adulte. Retirez-le d’abord de la classe avant de décocher « Inscrit aux cours adultes ».' }
       }
@@ -298,8 +298,8 @@ async function adultEnrolledMap(supabase: Awaited<ReturnType<typeof createClient
     .select('parent_id, tutor_number, classes!inner(name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
     .eq('status', 'active')
   const m = new Map<string, string>()
-  for (const r of (data ?? []) as any[]) {
-    if (!r.classes?.cotisation_types?.is_adult) continue
+  for (const r of data ?? []) {
+    if (!r.classes.cotisation_types?.is_adult) continue
     const info = [r.classes.name, classInfoOf(r.classes)].filter(Boolean).join(' · ')
     m.set(`${r.parent_id}-${r.tutor_number}`, info)
   }
@@ -318,7 +318,7 @@ export async function getParentsForAdultModal(): Promise<{ error?: string; famil
     adultEnrolledMap(supabase),
   ])
 
-  const families: ParentAdultRow[] = (parents ?? []).map((p: any) => ({
+  const families: ParentAdultRow[] = (parents ?? []).map((p): ParentAdultRow => ({
     id:              p.id,
     tutor1Name:      `${p.tutor1_last_name ?? ''} ${p.tutor1_first_name ?? ''}`.trim(),
     tutor1Adult:     !!p.tutor1_adult_courses,

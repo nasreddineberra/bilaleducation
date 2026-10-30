@@ -7,6 +7,8 @@ import { User, GraduationCap } from 'lucide-react'
 import ParentForm from './ParentForm'
 import ParentAdultHistory from './ParentAdultHistory'
 import type { Parent } from '@/types/database'
+import type { Tables } from '@/types/supabase'
+import type { ScolariteAdulte } from '@/lib/parents/fiche'
 
 const TABS = [
   { key: 'identite',         label: 'Identité',         icon: User },
@@ -20,8 +22,8 @@ interface Props {
   backHref?: string
   tutor1AdultEnrolled: boolean
   tutor2AdultEnrolled: boolean
-  adultHistory: any[]
-  adultCurrent: any[]
+  adultHistory: Tables<'student_year_history'>[]
+  adultCurrent: ScolariteAdulte[]
   adultsNonAffectes: { tutor_number: number; last_name: string; first_name: string }[]
   /** Regle et bornes de l'annee pour « Declarer un depart » (`null` sans cours adulte cette annee). */
   contexteDepart?: { regle: string; rentree: string | null; fin: string | null } | null

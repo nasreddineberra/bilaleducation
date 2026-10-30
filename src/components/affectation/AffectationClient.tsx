@@ -21,7 +21,7 @@ const POOL_PAGE_SIZE = 20
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TeacherInfo { civilite: string | null; first_name: string; last_name: string }
-interface ClassTeacherRow { is_main_teacher: boolean; subject: string | null; teachers: TeacherInfo | null }
+interface ClassTeacherRow { is_main_teacher: boolean | null; subject: string | null; teachers: TeacherInfo | null }
 
 interface ClassRow {
   id:           string

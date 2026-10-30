@@ -47,7 +47,11 @@ export default async function AffectationAdultesPage() {
   ])
 
   // Garder uniquement les classes adultes
-  const adultClasses = (classes ?? []).filter((c: any) => c.cotisation_types?.is_adult === true)
+  // `max_students` est NULLABLE en base (defaut 25) : un NULL ferait paraitre la
+  // classe pleine (`n >= null` vaut `n >= 0`). Meme repli que la liste des classes.
+  const adultClasses = (classes ?? [])
+    .filter(c => c.cotisation_types?.is_adult === true)
+    .map(c => ({ ...c, max_students: c.max_students ?? 25 }))
 
   if (adultClasses.length === 0) {
     return (
@@ -61,9 +65,9 @@ export default async function AffectationAdultesPage() {
   return (
     <div className="h-full animate-fade-in">
       <AffectationAdultesClient
-        classes={adultClasses as any[]}
-        parents={(parents ?? []) as any[]}
-        enrollments={(enrollments ?? []) as any[]}
+        classes={adultClasses}
+        parents={parents ?? []}
+        enrollments={enrollments ?? []}
       />
     </div>
   )

@@ -3,14 +3,7 @@ import Link from 'next/link'
 import { ChevronLeft, AlertCircle } from 'lucide-react'
 import StudentForm from '@/components/students/StudentForm'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
-
-const PARENTS_SELECT = [
-  'id',
-  'tutor1_last_name', 'tutor1_first_name', 'tutor1_relationship',
-  'tutor1_address', 'tutor1_city', 'tutor1_postal_code', 'tutor1_phone', 'tutor1_email',
-  'tutor2_last_name', 'tutor2_first_name', 'tutor2_relationship',
-  'tutor2_address', 'tutor2_city', 'tutor2_postal_code', 'tutor2_phone', 'tutor2_email',
-].join(', ')
+import { SELECTION_PARENTS } from '@/lib/students/fiche'
 
 export default async function NewStudentPage() {
   const supabase = await createClient()
@@ -21,7 +14,7 @@ export default async function NewStudentPage() {
   const [{ data: parents }, { data: lastStudents }, { data: etablissement }, base] = await Promise.all([
     supabase
       .from('parents')
-      .select(PARENTS_SELECT)
+      .select(SELECTION_PARENTS)
       .order('tutor1_last_name')
       .order('tutor1_first_name'),
 
@@ -80,7 +73,7 @@ export default async function NewStudentPage() {
           </Link>
         </div>
       ) : (
-        <StudentForm parents={(parents ?? []) as any[]} defaultStudentNumber={defaultStudentNumber} etablissementId={etablissement?.id} />
+        <StudentForm parents={parents ?? []} defaultStudentNumber={defaultStudentNumber} etablissementId={etablissement?.id} />
       )}
 
     </div>

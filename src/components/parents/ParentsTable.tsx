@@ -84,10 +84,10 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
             .select('student_id, classes:class_id(name, class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
             .in('student_id', studentIds)
             .eq('status', 'active')
-          for (const e of (enrollments ?? []) as any[]) {
+          for (const e of enrollments ?? []) {
             const cls = e.classes
             if (!cls) continue
-            const mainTeacher = cls.class_teachers?.find((ct: any) => ct.is_main_teacher)?.teachers
+            const mainTeacher = cls.class_teachers.find(ct => ct.is_main_teacher)?.teachers
             const teacherLabel = mainTeacher
               ? `${mainTeacher.civilite ? mainTeacher.civilite + ' ' : ''}${mainTeacher.last_name} ${mainTeacher.first_name}`
               : null

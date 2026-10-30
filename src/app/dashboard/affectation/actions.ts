@@ -58,7 +58,7 @@ async function libellesPeriodes(supabase: Awaited<ReturnType<typeof createClient
   const map = new Map<string, string>()
   if (ids.length === 0) return map
   const { data } = await supabase.from('periods').select('id, label').in('id', ids)
-  for (const p of (data ?? []) as any[]) map.set(p.id, p.label)
+  for (const p of data ?? []) map.set(p.id, p.label)
   return map
 }
 
@@ -69,7 +69,7 @@ async function diagnostiquerEleves(supabase: Client, classId: string, ids: strin
   if (ids.length === 0) return out
 
   const { data: st } = await supabase.from('students').select('id, last_name, first_name').in('id', ids)
-  const noms = new Map((st ?? []).map((s: any) => [s.id, `${s.last_name} ${s.first_name}`]))
+  const noms = new Map((st ?? []).map((s) => [s.id, `${s.last_name} ${s.first_name}`]))
   const get = (id: string): DiagRetrait => {
     let d = out.get(id)
     if (!d) {
@@ -80,11 +80,11 @@ async function diagnostiquerEleves(supabase: Client, classId: string, ids: strin
   }
 
   const { data: evals } = await supabase.from('evaluations').select('id').eq('class_id', classId)
-  const evalIds = (evals ?? []).map((e: any) => e.id)
+  const evalIds = (evals ?? []).map((e) => e.id)
   if (evalIds.length > 0) {
     const { data } = await supabase.from('grades').select('student_id, evaluation_id, score, comment, is_absent').in('student_id', ids).in('evaluation_id', evalIds)
     const parEleve = new Map<string, Set<string>>()
-    for (const r of (data ?? []) as any[]) {
+    for (const r of data ?? []) {
       if (!noteReelle(r)) continue
       get(r.student_id).notes++
       if (!parEleve.has(r.student_id)) parEleve.set(r.student_id, new Set())
@@ -94,7 +94,7 @@ async function diagnostiquerEleves(supabase: Client, classId: string, ids: strin
   }
 
   const { data: abs } = await supabase.from('absences').select('student_id, absence_type').eq('class_id', classId).in('student_id', ids)
-  for (const r of (abs ?? []) as any[]) {
+  for (const r of abs ?? []) {
     const d = get(r.student_id)
     if (r.absence_type === 'retard') d.retards++
     else d.absences++
@@ -102,9 +102,9 @@ async function diagnostiquerEleves(supabase: Client, classId: string, ids: strin
 
   const { data: appr } = await supabase.from('bulletin_appreciations').select('student_id, period_id').eq('class_id', classId).in('student_id', ids)
   const { data: arch } = await supabase.from('bulletin_archives').select('student_id, period_id').eq('class_id', classId).in('student_id', ids)
-  const periodes = await libellesPeriodes(supabase, [...new Set([...(appr ?? []), ...(arch ?? [])].map((r: any) => r.period_id).filter(Boolean))])
-  for (const r of (appr ?? []) as any[]) get(r.student_id).appreciations.push(periodes.get(r.period_id) ?? 'période inconnue')
-  for (const r of (arch ?? []) as any[]) get(r.student_id).archives.push(periodes.get(r.period_id) ?? 'période inconnue')
+  const periodes = await libellesPeriodes(supabase, [...new Set([...(appr ?? []), ...(arch ?? [])].map(r => r.period_id).filter(Boolean))])
+  for (const r of appr ?? []) get(r.student_id).appreciations.push(periodes.get(r.period_id) ?? 'période inconnue')
+  for (const r of arch ?? []) get(r.student_id).archives.push(periodes.get(r.period_id) ?? 'période inconnue')
 
   return out
 }
@@ -117,26 +117,26 @@ async function diagnostiquerTuteurs(supabase: Client, classId: string, keys: str
 
   const { data: ps } = await supabase.from('parents')
     .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name').in('id', parentIds)
-  const pmap = new Map((ps ?? []).map((p: any) => [p.id, p]))
+  const pmap = new Map((ps ?? []).map((p) => [p.id, p]))
   const get = (k: string): DiagRetrait => {
     let d = out.get(k)
     if (!d) {
       const { parent_id, tutor_number } = lireCleAdulte(k)
-      const p: any = pmap.get(parent_id)
+      const p = pmap.get(parent_id)
       const nom = !p ? k : tutor_number === 2 ? `${p.tutor2_last_name} ${p.tutor2_first_name}` : `${p.tutor1_last_name} ${p.tutor1_first_name}`
       d = { nom, notes: 0, evaluations: 0, absences: 0, retards: 0, archives: [], appreciations: [] }
       out.set(k, d)
     }
     return d
   }
-  const cle = (r: any) => `${r.parent_id}-${r.tutor_number}`
+  const cle = (r: { parent_id: string; tutor_number: number }) => `${r.parent_id}-${r.tutor_number}`
 
   const { data: evals } = await supabase.from('evaluations').select('id').eq('class_id', classId)
-  const evalIds = (evals ?? []).map((e: any) => e.id)
+  const evalIds = (evals ?? []).map((e) => e.id)
   if (evalIds.length > 0) {
     const { data } = await supabase.from('adult_grades').select('parent_id, tutor_number, evaluation_id, score, comment, is_absent').in('parent_id', parentIds).in('evaluation_id', evalIds)
     const parTuteur = new Map<string, Set<string>>()
-    for (const r of (data ?? []) as any[]) {
+    for (const r of data ?? []) {
       const k = cle(r)
       if (!wanted.has(k) || !noteReelle(r)) continue
       get(k).notes++
@@ -148,9 +148,9 @@ async function diagnostiquerTuteurs(supabase: Client, classId: string, keys: str
 
   const { data: appr } = await supabase.from('adult_bulletin_appreciations').select('parent_id, tutor_number, period_id').eq('class_id', classId).in('parent_id', parentIds)
   const { data: arch } = await supabase.from('adult_bulletin_archives').select('parent_id, tutor_number, period_id').eq('class_id', classId).in('parent_id', parentIds)
-  const periodes = await libellesPeriodes(supabase, [...new Set([...(appr ?? []), ...(arch ?? [])].map((r: any) => r.period_id).filter(Boolean))])
-  for (const r of (appr ?? []) as any[]) if (wanted.has(cle(r))) get(cle(r)).appreciations.push(periodes.get(r.period_id) ?? 'période inconnue')
-  for (const r of (arch ?? []) as any[]) if (wanted.has(cle(r))) get(cle(r)).archives.push(periodes.get(r.period_id) ?? 'période inconnue')
+  const periodes = await libellesPeriodes(supabase, [...new Set([...(appr ?? []), ...(arch ?? [])].map(r => r.period_id).filter(Boolean))])
+  for (const r of appr ?? []) if (wanted.has(cle(r))) get(cle(r)).appreciations.push(periodes.get(r.period_id) ?? 'période inconnue')
+  for (const r of arch ?? []) if (wanted.has(cle(r))) get(cle(r)).archives.push(periodes.get(r.period_id) ?? 'période inconnue')
 
   return out
 }

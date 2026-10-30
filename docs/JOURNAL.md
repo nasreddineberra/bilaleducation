@@ -9980,3 +9980,21 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   Synthese : depenses et revenus typees par leurs tables (`Pick<Tables<...>>`), charges utiles sans `any`.
   Infobulle Recharts typee.
 - Bilan : 325 `any` (lint 0 erreur), 178 tests, build OK, aucune migration.
+
+## 30/10 · Sortie des `any`, lot 5 (eleves, parents, affectation)
+
+- **Fiche eleve** : les lectures de la page passent dans `lib/students/fiche.ts` (`chargerFicheEleve`, selections
+  `as const`, `SELECTION_PARENTS` partagee avec la creation) ; `StudentDetail` et ses onglets (Scolarite, Discipline,
+  Documents, Historique, formulaire) tirent leurs types de `FicheEleve` (copies locales retirees). `ContexteDepart`
+  vit dans ce module.
+- **Fiche parent** : `buildAdultCurrent` devient `chargerScolariteAdulte` (`lib/parents/fiche.ts`, client type) ;
+  `ParentDetail` et `ParentAdultHistory` typent par `ScolariteAdulte` et `Tables<'student_year_history'>`.
+- **Affectation, actions, liste des parents** : types tires des requetes ; `catch` du formulaire eleve en `unknown`
+  (`messageErreur`, erreur PostgREST en `Partial<PostgrestError>`). Controle vu ROUGE (colonne retiree d'une selection).
+- **Defauts trouves** (colonnes NULLABLES jamais NULL en pratique) : statut ou date d'affectation NULL n'affichent plus
+  rien de casse (onglet Scolarite) ; `classes.max_students` NULL faisait paraitre la classe PLEINE en affectation
+  (`n >= null` vaut `n >= 0`) : repli sur le defaut de la base (25), comme la liste des classes. Mesure : 0 classe sur 4.
+- **Signale, non traite** : le professeur principal est pris sans `titulaireActuel` (un ancien titulaire peut
+  s'afficher) dans la fiche eleve (infobulle, fratrie), la fiche parent (cours adulte), le depliant des enfants de la
+  liste des parents et les deux ecrans d'affectation.
+- Bilan : 226 `any` (lint 0 erreur), 178 tests, build OK, aucune migration.
