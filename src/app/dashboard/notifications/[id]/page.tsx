@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import NotificationDetailClient from '@/components/notifications/NotificationDetailClient'
 import RafraichirBadge from '@/components/notifications/RafraichirBadge'
+import { chargerNotification } from '@/lib/communications/notifications'
 
 export default async function NotificationDetailPage({
   params,
@@ -19,15 +20,9 @@ export default async function NotificationDetailPage({
   const h = await headers()
   const etablissementId = h.get('x-etablissement-id') ?? ''
 
-  // Message
-  const { data: message } = await supabase
-    .from('announcements')
-    .select('id, title, body_html, content, channel, announcement_type, published_at, sent_at, sender_email, profiles:published_by(first_name, last_name, email)')
-    .eq('id', id)
-    .eq('etablissement_id', etablissementId)
-    .single()
-
-  if (!message) return notFound()
+  // Message et pieces jointes (`lib/communications/notifications.ts`)
+  const detail = await chargerNotification(supabase, id, etablissementId)
+  if (!detail) return notFound()
 
   // Annee en cours : nomme le ciblage « Parents {annee} » (aligne sur l'historique).
   const { data: currentYear } = await supabase
@@ -36,17 +31,6 @@ export default async function NotificationDetailPage({
     .eq('etablissement_id', etablissementId)
     .eq('is_current', true)
     .maybeSingle()
-
-  // Pieces jointes. Le bucket est prive : l'URL est signee au clic, pour 60 s
-  // (`ouvrirPieceJointe`), jamais au rendu de la page.
-  const { data: attachments } = await supabase
-    .from('announcement_attachments')
-    .select('id, file_path, file_name, file_size')
-    .eq('announcement_id', id)
-
-  const piecesJointes = ((attachments ?? []) as any[]).map(a => ({
-    id: a.id, file_name: a.file_name, file_size: a.file_size, file_path: a.file_path ?? null,
-  }))
 
   // Marquer comme lu si rid fourni. `.select('id')` dit si une ligne a
   // reellement basculé : c'est ce qui déclenche (une seule fois) le recalcul
@@ -79,8 +63,7 @@ export default async function NotificationDetailPage({
       <RafraichirBadge actif={vientDEtreMarquee} />
 
       <NotificationDetailClient
-        message={message as any}
-        attachments={piecesJointes}
+        {...detail}
         yearLabel={currentYear?.label ?? null}
       />
     </div>

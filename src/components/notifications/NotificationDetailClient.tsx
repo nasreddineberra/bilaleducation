@@ -6,33 +6,13 @@ import { Paperclip } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { ouvrirPieceJointe } from '@/lib/communications/piece-jointe'
 import { Puce } from '@/components/dashboard/tdb'
+import type { DetailNotification } from '@/lib/communications/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MessageRow = {
-  id: string
-  title: string
-  body_html: string | null
-  content: string
-  channel: string | null
-  announcement_type: string | null
-  published_at: string | null
-  sent_at: string | null
-  sender_email: string | null
-  profiles: { first_name: string; last_name: string; email: string } | null
-}
-
-type Attachment = {
-  id: string
-  file_name: string
-  file_size: number | null
-  /** Chemin dans le bucket prive ; l'URL est signee au clic. */
-  file_path: string | null
-}
-
 interface Props {
-  message: MessageRow
-  attachments: Attachment[]
+  message: DetailNotification['message']
+  attachments: DetailNotification['attachments']
   /** Annee en cours : nomme le ciblage « Parents {annee} » (aligne sur l'historique). */
   yearLabel: string | null
 }

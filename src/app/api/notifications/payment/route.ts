@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true })
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error('Erreur notification paiement', e)
     return NextResponse.json({ error: 'Une erreur est survenue.' }, { status: 500 })
   }

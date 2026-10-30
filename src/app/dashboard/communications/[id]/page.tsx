@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import MessageDetailClient from '@/components/communications/MessageDetailClient'
+import { chargerMessage } from '@/lib/communications/donnees'
 
 export default async function MessageDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -11,53 +12,9 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
   const h = await headers()
   const etablissementId = h.get('x-etablissement-id') ?? ''
 
-  // Message
-  const { data: message } = await supabase
-    .from('announcements')
-    .select('*, profiles:published_by(first_name, last_name, email), classes:target_class_id(name, day_of_week, start_time, end_time, cotisation_types(label))')
-    .eq('id', id)
-    .eq('etablissement_id', etablissementId)
-    .single()
-
-  if (!message) return notFound()
-
-  // Infos de la classe ciblee (enseignant principal), pour un message « classe ».
-  let classTeacher: { name: string; civilite: string | null } | null = null
-  if (message.target_class_id) {
-    const { data: ct } = await supabase
-      .from('class_teachers')
-      .select('teachers(civilite, first_name, last_name)')
-      .eq('class_id', message.target_class_id)
-      .eq('is_main_teacher', true)
-      .maybeSingle() as { data: { teachers: { civilite: string | null; first_name: string; last_name: string } | null } | null }
-    if (ct?.teachers) {
-      // NOM avant Prenom : regle de l'application.
-      classTeacher = { name: `${ct.teachers.last_name} ${ct.teachers.first_name}`, civilite: ct.teachers.civilite }
-    }
-  }
-
-  // Destinataires parents
-  const { data: parentRecipients } = await supabase
-    .from('announcement_recipients')
-    .select('id, email, email_status, is_read, parent_id, parents:parent_id(tutor1_last_name, tutor1_first_name)')
-    .eq('announcement_id', id)
-
-  // Destinataires staff
-  const { data: staffRecipients } = await supabase
-    .from('announcement_staff_recipients')
-    .select('id, email, email_status, is_read, profile_id, profiles:profile_id(first_name, last_name, role)')
-    .eq('announcement_id', id)
-
-  // Pieces jointes. Le bucket est prive : l'URL est signee au clic, pour 60 s
-  // (`ouvrirPieceJointe`), jamais au rendu de la page.
-  const { data: attachments } = await supabase
-    .from('announcement_attachments')
-    .select('id, file_path, file_name, file_size')
-    .eq('announcement_id', id)
-
-  const piecesJointes = ((attachments ?? []) as any[]).map(a => ({
-    id: a.id, file_name: a.file_name, file_size: a.file_size, file_path: a.file_path ?? null,
-  }))
+  // Message, destinataires et pieces jointes (`lib/communications/donnees.ts`)
+  const detail = await chargerMessage(supabase, id, etablissementId)
+  if (!detail) return notFound()
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -72,13 +29,7 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
         Retour à la liste
       </Link>
 
-      <MessageDetailClient
-        message={message as any}
-        classTeacher={classTeacher}
-        parentRecipients={(parentRecipients ?? []) as any[]}
-        staffRecipients={(staffRecipients ?? []) as any[]}
-        attachments={piecesJointes}
-      />
+      <MessageDetailClient {...detail} />
     </div>
   )
 }

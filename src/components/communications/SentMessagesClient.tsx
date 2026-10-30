@@ -6,30 +6,12 @@ import Link from 'next/link'
 import { FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
+import type { MessageEnvoye } from '@/lib/communications/donnees'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ClassTeacher = {
-  is_main_teacher: boolean
-  teachers: { civilite: string | null; first_name: string; last_name: string } | null
-}
-
-type MessageRow = {
-  id: string
-  title: string
-  announcement_type: string | null
-  target_class_id: string | null
-  channel: string | null
-  recipient_count: number | null
-  published_at: string | null
-  sent_at: string | null
-  published_by: string | null
-  profiles: { first_name: string; last_name: string } | null
-  classes: { name: string; class_teachers?: ClassTeacher[] } | null
-}
-
 interface Props {
-  messages: MessageRow[]
+  messages: MessageEnvoye[]
   /** Annee en cours : libelle dynamique « Parents {annee} » (comme l'ecran d'envoi). */
   yearLabel: string | null
 }
@@ -113,12 +95,9 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
   const classOptions = useMemo(() => {
     const map = new Map<string, string>()
     for (const m of messages) {
-      if (m.announcement_type !== 'class' || !m.target_class_id || !m.classes?.name) continue
-      const main = m.classes.class_teachers?.find(t => t.is_main_teacher)
-      const teacher = main?.teachers
-        ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
-        : null
-      map.set(m.target_class_id, [m.classes.name, teacher, (m.classes as any).cotisation_types?.label].filter(Boolean).join(' · '))
+      if (m.announcement_type !== 'class' || !m.target_class_id || !m.classe?.name) continue
+      // Historique : titulaires « initial puis remplacant » (decision du 30/10).
+      map.set(m.target_class_id, [m.classe.name, m.classe.titulaires, m.classe.cotisation].filter(Boolean).join(' · '))
     }
     return [...map.entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label))
   }, [messages])
@@ -221,7 +200,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
                     <td className="list-td">
                       <Puce ton="neutre">
                         {typeLabel(m.announcement_type ?? '')}
-                        {m.classes?.name ? ` · ${m.classes.name}` : ''}
+                        {m.classe?.name ? ` · ${m.classe.name}` : ''}
                       </Puce>
                     </td>
                     <td className="list-td text-warm-700 tabular-nums">{m.recipient_count ?? '·'}</td>

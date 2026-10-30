@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import SentMessagesClient from '@/components/communications/SentMessagesClient'
+import { chargerMessagesEnvoyes } from '@/lib/communications/donnees'
 
 export default async function CommunicationsPage() {
   const supabase = await createClient()
@@ -31,17 +32,8 @@ export default async function CommunicationsPage() {
   // Ce qui reste ferme : les deux ecrans d'ENVOI (`new`, `staff`), qui gardent
   // leurs gardes propres. L'enseignant ne communique que les devoirs.
 
-  // Messages envoyes
-  const query = supabase
-    .from('announcements')
-    .select('id, title, announcement_type, target_class_id, channel, recipient_count, published_at, sent_at, published_by, profiles:published_by(first_name, last_name), classes:target_class_id(name, cotisation_types(label), class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
-    .eq('etablissement_id', etablissementId)
-    .eq('is_published', true)
-    .order('published_at', { ascending: false })
-
-
-  const { data } = await query
-  const messages = (data ?? []) as any[]
+  // Messages envoyes (`lib/communications/donnees.ts`)
+  const messages = await chargerMessagesEnvoyes(supabase, etablissementId)
 
   // Annee en cours : libelle dynamique « Parents {annee} » (comme l'ecran d'envoi).
   const { data: schoolYear } = await supabase

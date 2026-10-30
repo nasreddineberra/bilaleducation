@@ -15,43 +15,12 @@ import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import type { Notification, NotificationAnnonce } from '@/lib/communications/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AnnouncementNotif = {
-  id: string
-  is_read: boolean
-  read_at: string | null
-  created_at: string
-  source: 'announcement'
-  recipientType: 'staff' | 'parent'
-  announcements: {
-    id: string
-    title: string
-    body_html: string | null
-    content: string
-    channel: string | null
-    announcement_type: string | null
-    published_at: string | null
-    sent_at: string | null
-    profiles: { first_name: string; last_name: string } | null
-  } | null
-}
-
-type AutoNotif = {
-  id: string
-  type: 'absence' | 'retard' | 'payment' | 'announcement'
-  title: string
-  body: string
-  metadata: Record<string, any>
-  is_read: boolean
-  read_at: string | null
-  created_at: string
-  source: 'auto'
-  recipientType: 'parent'
-}
-
-type NotifRow = AnnouncementNotif | AutoNotif
+type AnnouncementNotif = NotificationAnnonce
+type NotifRow = Notification
 
 interface Props {
   notifications: NotifRow[]

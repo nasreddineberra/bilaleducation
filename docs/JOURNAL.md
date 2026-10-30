@@ -10040,3 +10040,22 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   - Jour des cartes en anglais brut -> `seanceDeClasse`.
   - Fenetre de lecture de l'enseignant calculee par `toISOString` (UTC) -> jour de Paris (`horodatageParis`).
 - Bilan : 185 tests, lint 0 erreur (199 avertissements), build OK, aucune migration.
+
+## 30/10 · Sortie des `any`, lot 7 : communications et notifications
+
+- Lectures dans `lib/communications/donnees.ts` (liste, detail, ecran d'envoi) et `lib/communications/notifications.ts`
+  (liste et detail) ; 6 composants tirent leurs types de ces requetes (copies a la main supprimees). Action d'envoi et
+  routes `api/notifications` typees (`catch` -> `messageErreur`, enseignant de l'email de devoir -> `nomCompletEnseignant`).
+- Jointure `classes:classes!target_class_id(...)` : le raccourci `classes:target_class_id(...)` ne se type pas quand il
+  porte une relation imbriquee (`class_teachers`). Verifie en lecture seule : PostgREST accepte l'indice (un indice
+  bidon leve PGRST200).
+- **Defauts trouves en typant** :
+  - Detail d'un message de classe : titulaire lu en `.maybeSingle()` sur `is_main_teacher` -> erreur muette (ligne
+    « Enseignant » absente) des qu'une classe a change de titulaire.
+  - Messages envoyes (filtre par classe, detail) : premier titulaire venu -> HISTORIQUE, `libelleTitulaires`
+    (« initial puis remplacant »), a confirmer par l'utilisateur.
+  - Ecran d'envoi (select classe) : ancien titulaire possible -> `titulaireActuel` (temps reel).
+  - Horaire du detail et de l'ecran d'envoi en anglais brut -> `seanceDeClasse`.
+  - Aucun effet en production au 30/10 (aucun changement de titulaire, aucun message en base).
+- Bilan : 153 `any` au lint (191 au debut du lot), lint 0 erreur (161 avertissements), 185 tests, build OK, aucune
+  migration.

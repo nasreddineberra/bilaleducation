@@ -13,6 +13,9 @@ import FormModal from '@/components/ui/FormModal'
 import { sanitize } from '@/lib/security/sanitize'
 import { sendParentMessage } from '@/app/dashboard/communications/actions'
 import { pluriel } from '@/lib/texte/pluriel'
+import { messageErreur } from '@/lib/erreur'
+import type { ClasseMessage, ParentMessage } from '@/lib/communications/donnees'
+import { seanceDeClasse } from '@/components/dashboard/classInfo'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -21,19 +24,8 @@ const MAX_ATTACHMENTS_BYTES = 1024 * 1024   // 1 Mo, tous fichiers confondus
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ClassRow = {
-  id: string; name: string; level: string
-  day_of_week: string | null; start_time: string | null; end_time: string | null
-  main_teacher_name: string | null; main_teacher_civilite: string | null
-  cotisation_label: string | null
-  is_adult: boolean
-}
-
-type ParentRow = {
-  id: string
-  tutor1_last_name: string; tutor1_first_name: string; tutor1_email: string | null
-  tutor2_last_name: string | null; tutor2_first_name: string | null; tutor2_email: string | null
-}
+type ClassRow = ClasseMessage
+type ParentRow = ParentMessage
 
 /** tutorNumber null = on sert le foyer ; 1|2 = classe adulte, seul ce tuteur. */
 type Participant = { parentId: string; tutorNumber: number | null }
@@ -315,8 +307,8 @@ export default function NewMessageClient({
       setTargetType(null)
       setSelectedClassId(null)
       setSelectedParentIds(new Set())
-    } catch (err: any) {
-      toast.error(err.message ?? "Erreur lors de l'envoi")
+    } catch (err: unknown) {
+      toast.error(messageErreur(err) ?? "Erreur lors de l'envoi")
     } finally {
       setSending(false)
     }
@@ -468,12 +460,9 @@ export default function NewMessageClient({
                   <option value="" disabled hidden></option>
                   {classes.map(c => {
                     // Regle d'affichage select classe : CODE · Civilite NOM Prenom · COTISATION.
-                    const teacher = c.main_teacher_name
-                      ? [c.main_teacher_civilite, c.main_teacher_name].filter(Boolean).join(' ')
-                      : null
                     return (
                       <option key={c.id} value={c.id}>
-                        {[c.name, teacher, c.cotisation_label].filter(Boolean).join(' · ')}
+                        {[c.name, c.titulaire, c.cotisation_label].filter(Boolean).join(' · ')}
                       </option>
                     )
                   })}
@@ -483,9 +472,7 @@ export default function NewMessageClient({
                     <div className="flex gap-1.5">
                       <dt className="text-warm-700 shrink-0">Enseignant</dt>
                       <dd className="text-warm-700 truncate">
-                        {selectedClass.main_teacher_name
-                          ? [selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')
-                          : 'Non affecté'}
+                        {selectedClass.titulaire ?? 'Non affecté'}
                       </dd>
                     </div>
                     <div className="flex gap-1.5">
@@ -495,9 +482,7 @@ export default function NewMessageClient({
                     <div className="flex gap-1.5">
                       <dt className="text-warm-700 shrink-0">Horaire</dt>
                       <dd className="text-warm-700 truncate">
-                        {selectedClass.day_of_week && selectedClass.start_time && selectedClass.end_time
-                          ? `${selectedClass.day_of_week} ${selectedClass.start_time.slice(0, 5)}-${selectedClass.end_time.slice(0, 5)}`
-                          : 'Non renseigné'}
+                        {seanceDeClasse(selectedClass) || 'Non renseigné'}
                       </dd>
                     </div>
                   </dl>

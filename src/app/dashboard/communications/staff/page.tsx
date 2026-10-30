@@ -50,7 +50,7 @@ export default async function StaffMessagePage() {
     <div className="animate-fade-in">
       <StaffMessageClient
         role={role}
-        staffMembers={(staffMembers ?? []) as any[]}
+        staffMembers={staffMembers ?? []}
         etablissementId={etablissementId}
         smtpConfigured={smtpConfigured}
         signatureHtml={signatureHtml}

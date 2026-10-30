@@ -93,7 +93,7 @@ async function getEnrolledParentIds(
     .in('class_id', classIds)
     .eq('status', 'active')
 
-  for (const e of ((enrollments ?? []) as any[])) {
+  for (const e of enrollments ?? []) {
     const pid = e.students?.parent_id
     if (pid) ids.add(pid)
   }
@@ -105,7 +105,7 @@ async function getEnrolledParentIds(
     .in('class_id', classIds)
     .eq('status', 'active')
 
-  for (const a of ((adultEnrollments ?? []) as any[])) {
+  for (const a of adultEnrollments ?? []) {
     if (a.parent_id) ids.add(a.parent_id)
   }
 
@@ -124,7 +124,7 @@ async function resolveClassRecipients(
     .eq('id', classId)
     .single()
 
-  const isAdult = !!(cls as any)?.cotisation_types?.is_adult
+  const isAdult = !!cls?.cotisation_types?.is_adult
 
   if (isAdult) {
     const { data: rows } = await supabase
@@ -133,13 +133,12 @@ async function resolveClassRecipients(
       .eq('class_id', classId)
       .eq('status', 'active')
 
-    return ((rows ?? []) as any[])
-      .filter(r => r.parents)
-      .map(r => {
-        // Le message concerne le cours de CE tuteur : on ne sert que son adresse.
-        const email = r.tutor_number === 1 ? r.parents.tutor1_email : r.parents.tutor2_email
-        return { parentId: r.parent_id, emails: [email].filter(Boolean) as string[] }
-      })
+    return (rows ?? []).flatMap(r => {
+      if (!r.parents) return []
+      // Le message concerne le cours de CE tuteur : on ne sert que son adresse.
+      const email = r.tutor_number === 1 ? r.parents.tutor1_email : r.parents.tutor2_email
+      return [{ parentId: r.parent_id, emails: email ? [email] : [] }]
+    })
   }
 
   const { data: rows } = await supabase
@@ -149,7 +148,7 @@ async function resolveClassRecipients(
     .eq('status', 'active')
 
   const map = new Map<string, Recipient>()
-  for (const r of ((rows ?? []) as any[])) {
+  for (const r of rows ?? []) {
     const parent = r.students?.parents
     if (!parent) continue
     map.set(parent.id, { parentId: parent.id, emails: householdEmails(parent) })

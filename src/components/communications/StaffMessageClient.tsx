@@ -15,6 +15,7 @@ import { libelleRole, tonRole } from '@/lib/auth/role-labels'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
 import { pluriel } from '@/lib/texte/pluriel'
+import { messageErreur } from '@/lib/erreur'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -222,8 +223,8 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
 
       setSubject(''); setBodyHtml(signatureHtml); setAttachments([])
       setSelectedRoles(new Set()); setSelectedIds(new Set())
-    } catch (err: any) {
-      toast.error(err.message ?? "Erreur lors de l'envoi")
+    } catch (err: unknown) {
+      toast.error(messageErreur(err) ?? "Erreur lors de l'envoi")
     } finally {
       setSending(false)
     }

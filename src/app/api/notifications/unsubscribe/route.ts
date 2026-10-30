@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la désinscription.' }, { status: 500 })
     }
     return NextResponse.json({ ok: true })
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error('Erreur désinscription push', e)
     return NextResponse.json({ error: 'Une erreur est survenue.' }, { status: 500 })
   }

@@ -10,6 +10,9 @@ import { coque, p } from '@/lib/email/shell.mjs'
 import { marqueEcole } from '@/lib/email/marque-ecole'
 import { accordGenre } from '@/lib/texte/genre'
 
+/** Absence transmise par l'ecran d'appel (corps de la requete, non fiable : relu en base pour l'eleve et la classe). */
+type AbsenceRecue = { id: string; student_id: string; class_id: string | null; absence_type: string; absence_date: string }
+
 export async function POST(req: NextRequest) {
   // Protection CSRF
   const csrf = checkCsrf(req)
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
     // L'établissement vient du PROFIL de l'appelant, jamais du corps de la
     // requête : il y était fourni par le client, qui pouvait donc désigner un
     // autre établissement et déclencher des envois chez lui.
-    const { absences } = await req.json()
+    const { absences } = await req.json() as { absences?: AbsenceRecue[] }
     if (!absences?.length) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
     }
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
 
       if (!student) continue
 
-      const classId = absences.find((a: any) => a.student_id === studentId)?.class_id
+      const classId = absences.find((a: AbsenceRecue) => a.student_id === studentId)?.class_id
       let className = ''
       if (classId) {
         const { data: cls } = await supabase.from('classes').select('name')
@@ -114,7 +117,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true })
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error('Erreur notification absence', e)
     return NextResponse.json({ error: 'Une erreur est survenue.' }, { status: 500 })
   }

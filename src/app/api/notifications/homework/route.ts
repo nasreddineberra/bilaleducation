@@ -6,6 +6,8 @@ import { requireRole } from '@/lib/auth/requireRole'
 import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { marqueEcole } from '@/lib/email/marque-ecole'
 import { sanitize } from '@/lib/security/sanitize'
+import { messageErreur } from '@/lib/erreur'
+import { nomCompletEnseignant } from '@/lib/teachers/nom'
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,14 +37,11 @@ export async function POST(req: NextRequest) {
 
     if (!hw) return NextResponse.json({ error: 'Devoir introuvable' }, { status: 404 })
 
-    const isAdult = !!(hw.classes as any)?.cotisation_types?.is_adult
+    const isAdult = !!hw.classes?.cotisation_types?.is_adult
 
     // 2. Format
-    const className = (hw.classes as any)?.name ?? ''
-    const teacherInfo = hw.teachers as any
-    const teacherLabel = teacherInfo
-      ? `${teacherInfo.civilite ? teacherInfo.civilite + ' ' : ''}${teacherInfo.last_name} ${teacherInfo.first_name}`
-      : ''
+    const className = hw.classes?.name ?? ''
+    const teacherLabel = nomCompletEnseignant(hw.teachers)
     const dueFormatted = formatJourLongFr(hw.due_date)
 
     const HW_TYPE_LABELS: Record<string, string> = {
@@ -80,10 +79,10 @@ export async function POST(req: NextRequest) {
         .eq('class_id', hw.class_id)
         .eq('status', 'active')
 
-      for (const p of (participants ?? []) as any[]) {
-        const t = p.tutor_number === 1 ? 1 : 2
-        const email = p.parents?.[`tutor${t}_email`]
-        const nom = `${p.parents?.[`tutor${t}_last_name`] ?? ''} ${p.parents?.[`tutor${t}_first_name`] ?? ''}`.trim()
+      for (const p of participants ?? []) {
+        const t2 = p.tutor_number === 2
+        const email = t2 ? p.parents?.tutor2_email : p.parents?.tutor1_email
+        const nom = `${(t2 ? p.parents?.tutor2_last_name : p.parents?.tutor1_last_name) ?? ''} ${(t2 ? p.parents?.tutor2_first_name : p.parents?.tutor1_first_name) ?? ''}`.trim()
         recipients.push({
           parent_id: p.parent_id,
           tutor_number: p.tutor_number,
@@ -100,7 +99,7 @@ export async function POST(req: NextRequest) {
         .eq('status', 'active')
 
       const parFoyer = new Map<string, string[]>()
-      for (const e of (enrollments as any[] ?? [])) {
+      for (const e of enrollments ?? []) {
         const st = e.students
         if (!st?.parent_id) continue
         const liste = parFoyer.get(st.parent_id) ?? []
@@ -175,8 +174,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, sent })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[notifications/homework]', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: messageErreur(err) ?? 'Une erreur est survenue.' }, { status: 500 })
   }
 }

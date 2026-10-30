@@ -6,45 +6,12 @@ import { SearchField } from '@/components/ui/FloatFields'
 import { sanitize } from '@/lib/security/sanitize'
 import { ouvrirPieceJointe } from '@/lib/communications/piece-jointe'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
+import { seanceDeClasse } from '@/components/dashboard/classInfo'
+import type { DetailMessage } from '@/lib/communications/donnees'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MessageRow = {
-  id: string; title: string; body_html: string | null; content: string
-  announcement_type: string | null; channel: string | null
-  recipient_count: number | null; published_at: string | null; sent_at: string | null
-  sender_email: string | null
-  profiles: { first_name: string; last_name: string; email: string } | null
-  classes: {
-    name: string
-    day_of_week: string | null; start_time: string | null; end_time: string | null
-    cotisation_types: { label: string | null } | null
-  } | null
-}
-
-type ParentRecipient = {
-  id: string; email: string | null; email_status: string | null; is_read: boolean
-  parents: { tutor1_last_name: string; tutor1_first_name: string } | null
-}
-
-type StaffRecipient = {
-  id: string; email: string | null; email_status: string | null; is_read: boolean
-  profiles: { first_name: string; last_name: string; role: string } | null
-}
-
-type Attachment = {
-  id: string; file_name: string; file_size: number | null
-  /** Chemin dans le bucket prive ; l'URL est signee au clic. */
-  file_path: string | null
-}
-
-interface Props {
-  message: MessageRow
-  classTeacher: { name: string; civilite: string | null } | null
-  parentRecipients: ParentRecipient[]
-  staffRecipients: StaffRecipient[]
-  attachments: Attachment[]
-}
+type Props = DetailMessage
 
 const TYPE_LABELS: Record<string, string> = {
   all_active: 'Parents (élèves inscrits)',
@@ -73,7 +40,7 @@ function formatDate(d: string | null): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function MessageDetailClient({ message, classTeacher, parentRecipients, staffRecipients, attachments }: Props) {
+export default function MessageDetailClient({ message, parentRecipients, staffRecipients, attachments }: Props) {
   const [search, setSearch] = useState('')
   // Pieces jointes dont la signature a echoue : affichees « indisponible ».
   const [indisponibles, setIndisponibles] = useState<Set<string>>(new Set())
@@ -108,13 +75,9 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
     return allRecipients.filter(r => `${r.name} ${r.email}`.toLowerCase().includes(q))
   }, [allRecipients, search])
 
-  const cls = message.classes
-  const schedule = cls?.day_of_week && cls.start_time && cls.end_time
-    ? `${cls.day_of_week} ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}`
-    : null
-  const teacherLabel = classTeacher
-    ? [classTeacher.civilite, classTeacher.name].filter(Boolean).join(' ')
-    : null
+  const cls = message.classe
+  // Jour en francais (s'affichait en anglais brut : « monday »).
+  const schedule = cls ? seanceDeClasse(cls) : ''
 
   // Ligne de meta compacte : « clef valeur » separes par des points.
   const meta: { k: string; v: string }[] = [
@@ -127,8 +90,9 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
   ]
   if (cls) {
     meta.push({ k: 'Classe', v: cls.name })
-    if (teacherLabel) meta.push({ k: 'Enseignant', v: teacherLabel })
-    if (cls.cotisation_types?.label) meta.push({ k: 'Cotisation', v: cls.cotisation_types.label })
+    // Historique : titulaires « initial puis remplacant » (decision du 30/10).
+    if (cls.titulaires) meta.push({ k: 'Enseignant', v: cls.titulaires })
+    if (cls.cotisation) meta.push({ k: 'Cotisation', v: cls.cotisation })
     if (schedule) meta.push({ k: 'Horaire', v: schedule })
   }
 
