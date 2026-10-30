@@ -24,6 +24,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Student, Parent, Gender } from '@/types/database'
 import type { FicheEleve } from '@/lib/students/fiche'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
+import { seanceDeClasse } from '@/components/dashboard/classInfo'
 import type { PostgrestError } from '@supabase/supabase-js'
 import { messageErreur } from '@/lib/erreur'
 
@@ -75,6 +76,8 @@ interface StudentFormProps {
   activeClassName?: string | null
   /** « Civilite NOM Prenom · Cotisation · Niveau · Jour HH:MM-HH:MM » */
   activeClassInfo?: string
+  /** Annee en cours : la fratrie affiche la classe de CETTE annee (affectation active). */
+  currentYearLabel?: string
   /**
    * Fiche en LECTURE SEULE. L'ecriture de `students` est reservee a admin,
    * direction, resp. pedagogique et secretaire (matrice du 5 aout) ; l'enseignant
@@ -108,7 +111,7 @@ const clean = (v: string): string | null => v.trim() || null
 const today = new Date().toISOString().split('T')[0]
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false, activeClassName = null, activeClassInfo = '', lectureSeule = false }: StudentFormProps) {
+export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false, activeClassName = null, activeClassInfo = '', currentYearLabel = '', lectureSeule = false }: StudentFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!student
@@ -635,15 +638,15 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                   <div className="space-y-1.5">
                     {siblings.map(sib => {
                       const age = Math.floor((Date.now() - new Date(sib.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-                      const enrollment = sib.enrollments?.[0]
+                      // Classe de l'ANNEE EN COURS (affectation active), jamais une
+                      // classe passee ou quittee (decision du 30/10).
+                      const enrollment = sib.enrollments.find(e => e.status === 'active' && e.classes?.academic_year === currentYearLabel)
                       const cls = enrollment?.classes
                       const mt = titulaireActuel(mainTeachers.filter(t => t.class_id === enrollment?.class_id))
                       const teacherName = mt?.teachers
                         ? `${mt.teachers.civilite ? mt.teachers.civilite + ' ' : ''}${mt.teachers.last_name} ${mt.teachers.first_name}`
                         : null
-                      const schedule = cls?.day_of_week
-                        ? [cls.day_of_week, cls.start_time && cls.end_time ? `${cls.start_time.slice(0,5)}-${cls.end_time.slice(0,5)}` : null].filter(Boolean).join(' ')
-                        : null
+                      const schedule = cls ? seanceDeClasse(cls) : ''
                       return (
                         <div key={sib.id} className={`border rounded-lg px-3 py-2 ${sib.is_active ? 'bg-warm-50 border-warm-100' : 'bg-warm-50/60 border-warm-100'}`}>
                           <div className="flex items-center gap-2">
@@ -654,9 +657,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                               {sib.last_name} {sib.first_name}
                             </Link>
                             <span className={`text-[11px] ${sib.is_active ? 'text-warm-700' : 'text-warm-400'}`}>{age} ans</span>
-                            {!sib.is_active && (
-                              <span className="text-[10px] bg-warm-200 text-warm-700 px-1.5 py-0.5 rounded font-medium leading-none">inactif</span>
-                            )}
                             {sib.gender === 'male' ? (
                               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold leading-none">M</span>
                             ) : sib.gender === 'female' ? (
@@ -665,11 +665,15 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-700 text-[10px] font-bold leading-none">·</span>
                             )}
                           </div>
-                          {cls?.name && (
-                            <p className={`text-[11px] mt-0.5 ${sib.is_active ? 'text-warm-700' : 'text-warm-400'}`}>
-                              Classe : {cls.name}{teacherName ? ` · ${teacherName}` : ''}{schedule ? ` · ${schedule}` : ''}
-                            </p>
-                          )}
+                          {/* Inactif : la mention remplace la classe. Actif sans classe
+                              cette annee : « Non affecte », accorde au genre. */}
+                          <p className={`text-[11px] mt-0.5 ${sib.is_active ? 'text-warm-700' : 'text-warm-400'}`}>
+                            {!sib.is_active
+                              ? accordGenre(sib.gender, 'Non actif', 'Non active', 'Fiche inactive')
+                              : cls?.name
+                                ? <>Classe : {cls.name}{teacherName ? ` · ${teacherName}` : ''}{schedule ? ` · ${schedule}` : ''}</>
+                                : accordGenre(sib.gender, 'Non affecté', 'Non affectée', 'Sans classe cette année')}
+                          </p>
                         </div>
                       )
                     })}

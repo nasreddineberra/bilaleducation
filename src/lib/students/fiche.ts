@@ -25,7 +25,7 @@ export interface ContexteDepart {
 /** Foyers proposes au rattachement (fiche et creation d'un apprenant). */
 export const SELECTION_PARENTS = 'id, tutor1_last_name, tutor1_first_name, tutor1_relationship, tutor1_address, tutor1_city, tutor1_postal_code, tutor1_phone, tutor1_email, tutor2_last_name, tutor2_first_name, tutor2_relationship, tutor2_address, tutor2_city, tutor2_postal_code, tutor2_phone, tutor2_email' as const
 const INSCRIPTIONS = 'id, class_id, enrollment_date, status, date_depart, classes(id, name, level, academic_year, day_of_week, start_time, end_time, cotisation_types(label))' as const
-const FRATRIE = 'id, last_name, first_name, gender, date_of_birth, is_active, enrollments(class_id, classes(id, name, day_of_week, start_time, end_time))' as const
+const FRATRIE = 'id, last_name, first_name, gender, date_of_birth, is_active, enrollments(class_id, status, classes(id, name, academic_year, day_of_week, start_time, end_time))' as const
 const AVERTISSEMENTS = 'id, class_id, period_id, warning_date, severity, motif, issued_by, created_at, student_warning_attachments(id, file_url, file_name)' as const
 
 /** `null` si l'apprenant n'existe pas (ou n'est pas lisible pour ce role). */

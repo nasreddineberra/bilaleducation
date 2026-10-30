@@ -10013,3 +10013,13 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - **Signale, non traite** : la carte fratrie prend la PREMIERE affectation du frere ou de la soeur, sans filtre
   d'annee ni de statut (classe passee ou quittee possible).
 - Bilan : 185 tests, lint 0 erreur, build OK, aucune migration.
+
+## 30/10 · Carte fratrie de la fiche eleve
+
+- **Decision de l'utilisateur** : la carte liste TOUS les freres et soeurs enregistres (inchange) ; la classe affichee
+  est celle de l'ANNEE EN COURS (affectation active), plus la premiere affectation trouvee (classe passee ou quittee
+  possible). Mentions accordees au genre (`accordGenre`) : « Non affecte / Non affectee » (actif sans classe cette
+  annee), « Non actif / Non active » (inactif) ; tournures neutres « Sans classe cette annee » / « Fiche inactive ».
+- Jour de la seance en francais par `seanceDeClasse` (s'affichait en anglais brut : « monday »). Titulaire en poste.
+- Etiquette « inactif » a cote du nom retiree (doublon de la mention, non accordee) ; le nom reste grise.
+- Bilan : 185 tests, lint 0 erreur, build OK, aucune migration.

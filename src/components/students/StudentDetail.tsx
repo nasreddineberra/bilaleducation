@@ -151,6 +151,7 @@ export default function StudentDetail({
             hasActiveEnrollment={!!activeEnrollment}
             activeClassName={activeEnrollment?.classes?.name ?? null}
             activeClassInfo={activeClassInfo}
+            currentYearLabel={currentYearLabel}
             lectureSeule={lectureSeule}
           />
         </div>

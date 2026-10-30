@@ -398,7 +398,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        parent avec cours adulte, affectation enfants et adultes (correction, depart).
      - Titulaire (30/10) : changer le titulaire d'une classe ; temps reel = le nouveau seul, historique = « initial
        puis remplacant ».
-   - **A decider** : carte fratrie de la fiche eleve = premiere affectation, sans filtre d'annee ni de statut.
+     - Carte fratrie (30/10) : classe de l'annee en cours, mentions Non affecte et Non actif accordees au genre.
    - **Ensuite** : sortie des `any`, dossier suivant (voir le point 4). Plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
