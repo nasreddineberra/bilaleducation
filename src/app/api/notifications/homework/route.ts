@@ -6,6 +6,7 @@ import { requireRole } from '@/lib/auth/requireRole'
 import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { marqueEcole } from '@/lib/email/marque-ecole'
 import { sanitize } from '@/lib/security/sanitize'
+import { destinatairesDeLaClasse } from '@/lib/email/destinataires-classe'
 import { messageErreur } from '@/lib/erreur'
 import { nomCompletEnseignant } from '@/lib/teachers/nom'
 
@@ -64,50 +65,9 @@ export async function POST(req: NextRequest) {
     // question. Une fratrie dans la meme classe donne plusieurs noms.
     // - Classe enfant : eleves inscrits → foyer (email aux 2 tuteurs).
     // - Classe adulte : participant = le tuteur inscrit, email a lui seul.
-    type Recipient = {
-      parent_id: string
-      tutor_number?: number
-      emailsOverride?: string[]
-      concernes: string[]       // « NOM Prenom » des eleves / du participant
-    }
-    const recipients: Recipient[] = []
-
-    if (isAdult) {
-      const { data: participants } = await supabase
-        .from('parent_class_enrollments')
-        .select('parent_id, tutor_number, parents:parent_id(tutor1_email, tutor2_email, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
-        .eq('class_id', hw.class_id)
-        .eq('status', 'active')
-
-      for (const p of participants ?? []) {
-        const t2 = p.tutor_number === 2
-        const email = t2 ? p.parents?.tutor2_email : p.parents?.tutor1_email
-        const nom = `${(t2 ? p.parents?.tutor2_last_name : p.parents?.tutor1_last_name) ?? ''} ${(t2 ? p.parents?.tutor2_first_name : p.parents?.tutor1_first_name) ?? ''}`.trim()
-        recipients.push({
-          parent_id: p.parent_id,
-          tutor_number: p.tutor_number,
-          // Toujours forcé (même vide) : ne jamais retomber sur les 2 emails du foyer.
-          emailsOverride: email ? [email] : [],
-          concernes: nom ? [nom] : [],
-        })
-      }
-    } else {
-      const { data: enrollments } = await supabase
-        .from('enrollments')
-        .select('student_id, students:student_id(id, parent_id, last_name, first_name)')
-        .eq('class_id', hw.class_id)
-        .eq('status', 'active')
-
-      const parFoyer = new Map<string, string[]>()
-      for (const e of enrollments ?? []) {
-        const st = e.students
-        if (!st?.parent_id) continue
-        const liste = parFoyer.get(st.parent_id) ?? []
-        liste.push(`${st.last_name} ${st.first_name}`)
-        parFoyer.set(st.parent_id, liste)
-      }
-      for (const [parent_id, concernes] of parFoyer) recipients.push({ parent_id, concernes })
-    }
+    // Source unique `destinatairesDeLaClasse` (meme resolution que la modification
+    // et la suppression d un devoir ; la route la recopiait).
+    const recipients = await destinatairesDeLaClasse(supabase, hw.class_id, isAdult)
 
     if (recipients.length === 0) return NextResponse.json({ ok: true, sent: 0 })
 
@@ -130,7 +90,7 @@ export async function POST(req: NextRequest) {
     // 4. Un mail par foyer, qui nomme qui est concerne.
     let sent = 0
     for (const r of recipients) {
-      const qui = r.concernes.join(' · ')
+      const qui = r.nom
       const title = qui ? `Nouveau devoir · ${qui}` : `Nouveau devoir · ${className}`
       const body = `${hw.title} (${typeLabel}) · À rendre le ${dueFormatted}`
 
@@ -141,7 +101,7 @@ export async function POST(req: NextRequest) {
         apercu: body,
         corps: [
           tableauInfos(([
-            [isAdult ? 'Participant' : (r.concernes.length > 1 ? 'Élèves' : 'Élève'), qui],
+            [isAdult ? 'Participant' : (r.noms.length > 1 ? 'Élèves' : 'Élève'), qui],
             ['Classe', className],
             ['Matière', matiere],
             ['Type', typeLabel],

@@ -10122,3 +10122,16 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   `school_years` n'a pas `updated_at`, mais periodes et types d'evaluation y sont remplaces a chaque enregistrement.
 - Regle de CLAUDE.md (section 6) reecrite ; en-tete de `lib/navigation/retour.ts` mis a jour.
 - Bilan : type-check 0, lint 0, 185 tests, build OK.
+
+## 30/10 · Signales traites : email de devoir, cahier de texte, `prepareNextYear`
+
+- Email d'un nouveau devoir (`api/notifications/homework`) : passe par la source unique `destinatairesDeLaClasse`
+  (la route recopiait la resolution). La source gagne `noms` (« Eleve » / « Eleves ») et `tutor_number` (metadonnee
+  de la notification adulte) : email inchange.
+- `cahier-texte/actions.ts` : 9 conversions de type ecrites a la main retirees (`modifierDevoir`, `modifierSeance`),
+  enseignant par `nomCompletEnseignant`.
+- `prepareNextYear` supprime (accord de l'utilisateur) : plus appele depuis la refonte du passage d'annee (09/08) ; ses
+  copies de periodes et cotisations ne verifiaient pas leur ecriture. Code seul, aucune donnee touchee.
+- CLAUDE.md, point 4 : `npm audit` (0 vulnerabilite) et « email a la modification d'un devoir » (deja en place) retires.
+- Demande suivante de l'utilisateur : avant la purge, s'assurer que chaque donnee purgee a bien ete historisee.
+- Bilan : type-check 0, lint 0, 185 tests, build OK.

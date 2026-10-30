@@ -1,7 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import type { NumeroTuteur } from '@/lib/parents/participant'
 
-export type Dest = { parent_id: string; emailsOverride?: string[]; nom: string }
+export type Dest = {
+  parent_id: string
+  emailsOverride?: string[]
+  /** « NOM Prenom » des personnes concernees, reunis par « · » (une ligne du mail). */
+  nom: string
+  /** Les memes, un par personne : « Eleve » ou « Eleves » selon leur nombre. */
+  noms: string[]
+  /** Classe adulte : le tuteur inscrit (repris dans la notification). */
+  tutor_number?: NumeroTuteur
+}
 
 /**
  * Les foyers a prevenir pour une classe (devoir, seance annulee), UN PAR FOYER.
@@ -33,7 +43,7 @@ export async function destinatairesDeLaClasse(
       const t2 = p.tutor_number === 2
       const email = t2 ? p.parents?.tutor2_email : p.parents?.tutor1_email
       const nom = `${(t2 ? p.parents?.tutor2_last_name : p.parents?.tutor1_last_name) ?? ''} ${(t2 ? p.parents?.tutor2_first_name : p.parents?.tutor1_first_name) ?? ''}`.trim()
-      destinataires.push({ parent_id: p.parent_id, emailsOverride: email ? [email] : [], nom })
+      destinataires.push({ parent_id: p.parent_id, emailsOverride: email ? [email] : [], nom, noms: nom ? [nom] : [], tutor_number: p.tutor_number })
     }
   } else {
     const { data: enrollments } = await supabase
@@ -50,7 +60,7 @@ export async function destinatairesDeLaClasse(
       liste.push(`${st.last_name} ${st.first_name}`)
       parFoyer.set(st.parent_id, liste)
     }
-    for (const [parent_id, noms] of parFoyer) destinataires.push({ parent_id, nom: noms.join(' · ') })
+    for (const [parent_id, noms] of parFoyer) destinataires.push({ parent_id, nom: noms.join(' · '), noms })
   }
 
   return destinataires

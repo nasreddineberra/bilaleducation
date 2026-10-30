@@ -410,7 +410,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        (glisser-deposer) ; appel enfants et adultes (saisie, justification) ; cotisations (historique) ; notes et
        bulletins (archivage, appreciation, PDF) ; passage d'annee (audits, purge) ; ressources, types de presence,
        etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).
-   - **Ensuite** : dossier suivant du point 4 ou 5, plan a presenter avant de coder.
+   - **Ensuite** : passage d'annee, verifier que chaque donnee purgee a sa trace dans l'historique AVANT d'autoriser
+     la purge (demande du 30/10). Plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
    - Ecart note : matiere du cahier de texte « General »
@@ -422,10 +423,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    console puis import `.xlsx` ; s'il ne signe pas -> depart (export, puis effacement).
 3. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
-   (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; l'email de devoir
-   (`api/notifications/homework`) recopie la recherche des destinataires au lieu de `lib/email/destinataires-classe.ts` ;
-   creation d'une annee : copie des periodes et cotisations sans verification d'ecriture ; sortie des `any`
+4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; sortie des `any`
    TERMINEE le 30/10 (226 -> 0) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
    (`lib/dashboard`), lot 3 FAIT (`lib/closure` : lignes d'archive typees par leurs tables, colonnes jsonb de
    l'historique dans `json.ts`), lot 4 FAIT (financements : lectures de Reglements dans

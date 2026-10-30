@@ -228,7 +228,7 @@ export async function modifierDevoir(
 
   if (!hw || hw.etablissement_id !== etablissementId) return { error: 'Devoir introuvable.' }
 
-  const estAuteur = (hw.teachers as { user_id?: string } | null)?.user_id === user.id
+  const estAuteur = hw.teachers?.user_id === user.id
   if (!ENCADREMENT.includes(role)) {
     if (!estAuteur) return { error: 'Seul son auteur peut modifier ce devoir.' }
     if (joursEcoules(hw.due_date) > 0) {
@@ -254,7 +254,7 @@ export async function modifierDevoir(
     action: 'UPDATE',
     entityType: 'homework',
     entityId: id,
-    description: `Devoir modifie : « ${payload.title} » · ${(hw.classes as { name?: string } | null)?.name ?? ''} · a rendre le ${payload.due_date}`,
+    description: `Devoir modifie : « ${payload.title} » · ${hw.classes?.name ?? ''} · a rendre le ${payload.due_date}`,
   })
 
   revalidatePath('/dashboard/cahier-texte')
@@ -278,14 +278,11 @@ export async function modifierDevoir(
 
   if (!aChangeVisible) return {}
 
-  const isAdult = !!(hw.classes as { cotisation_types?: { is_adult?: boolean } } | null)?.cotisation_types?.is_adult
+  const isAdult = !!hw.classes?.cotisation_types?.is_adult
   const destinataires = await destinatairesDeLaClasse(supabase, hw.class_id, isAdult)
 
   const ecole = await marqueEcole(supabase, etablissementId)
-  const t = hw.teachers as { civilite?: string; last_name?: string; first_name?: string } | null
-  const teacherLabel = t
-    ? `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
-    : ''
+  const teacherLabel = nomCompletEnseignant(hw.teachers)
   let echecs = 0
 
   // Consignes sanitisées : voir la note de `route.ts` (notification de création).
@@ -300,7 +297,7 @@ export async function modifierDevoir(
 
   for (const d of destinataires) {
     const titre = d.nom ? `Devoir modifié · ${d.nom}` : 'Devoir modifié'
-    const corps = `${payload.title} · ${(hw.classes as { name?: string } | null)?.name ?? ''}`
+    const corps = `${payload.title} · ${hw.classes?.name ?? ''}`
 
     // L'ÉTAT ACTUEL, sans comparaison (choix utilisateur) : le devoir tel qu'il
     // est désormais. Même tableau que les emails de création et d'annulation,
@@ -312,7 +309,7 @@ export async function modifierDevoir(
         `              <div style="font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">Ce devoir a été modifié. Voici sa version à jour.</div>`,
         tableauInfos(([
           [isAdult ? 'Participant' : 'Élève', d.nom],
-          ['Classe', (hw.classes as { name?: string } | null)?.name ?? ''],
+          ['Classe', hw.classes?.name ?? ''],
           ['Titre', payload.title],
           ['À rendre le', formatJourLongFr(payload.due_date)],
           ['Enseignant', teacherLabel],
@@ -450,7 +447,7 @@ export async function modifierSeance(
 
   if (!seance || seance.etablissement_id !== etablissementId) return { error: 'Séance introuvable.' }
 
-  const estAuteur = (seance.teachers as { user_id?: string } | null)?.user_id === user.id
+  const estAuteur = seance.teachers?.user_id === user.id
   if (!ENCADREMENT.includes(role)) {
     if (!estAuteur) return { error: 'Seul son auteur peut modifier cette séance.' }
     if (joursEcoules(seance.session_date) > FENETRE_SEANCE_JOURS) {
@@ -473,7 +470,7 @@ export async function modifierSeance(
     action: 'UPDATE',
     entityType: 'class_journal',
     entityId: id,
-    description: `Seance modifiee : « ${payload.title} » · ${(seance.classes as { name?: string } | null)?.name ?? ''} · du ${payload.session_date}`,
+    description: `Seance modifiee : « ${payload.title} » · ${seance.classes?.name ?? ''} · du ${payload.session_date}`,
   })
 
   revalidatePath('/dashboard/cahier-texte')
