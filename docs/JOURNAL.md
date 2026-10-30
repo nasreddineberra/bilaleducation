@@ -9998,3 +9998,18 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   s'afficher) dans la fiche eleve (infobulle, fratrie), la fiche parent (cours adulte), le depliant des enfants de la
   liste des parents et les deux ecrans d'affectation.
 - Bilan : 226 `any` (lint 0 erreur), 178 tests, build OK, aucune migration.
+
+## 30/10 · Titulaire : temps reel contre historique
+
+- **Decision de l'utilisateur** : les ecrans en TEMPS REEL nomment le titulaire EN POSTE (`titulaireActuel`, jamais un
+  ancien) ; les ecrans RECAPITULATIF / HISTORIQUE nomment « initial puis remplacant » (premier et dernier par date
+  d'effet, ceux du milieu omis, un seul nom sans changement). Source unique : `libelleTitulaires`
+  (`lib/teachers/titulaire.ts`, teste). Proposition « partout » refusee.
+- **Temps reel** : fiche eleve (infobulle de l'en-tete, fratrie, carte de l'annee en cours), fiche parent (cours
+  adulte), depliant des enfants de la liste des parents, affectation enfants et adultes (liste, en-tete, badge). Les
+  requetes lisent desormais `effective_until` (avant : premier `is_main_teacher` venu, ancien titulaire possible).
+- **Historique** : onglet Scolarite de la fiche eleve (cartes des annees passees), colonne Titulaire de l'Historique
+  des classes (le detail garde la liste datee). Aucun cas en base au 30/10 (aucune classe n'a change de titulaire).
+- **Signale, non traite** : la carte fratrie prend la PREMIERE affectation du frere ou de la soeur, sans filtre
+  d'annee ni de statut (classe passee ou quittee possible).
+- Bilan : 185 tests, lint 0 erreur, build OK, aucune migration.

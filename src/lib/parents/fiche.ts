@@ -5,10 +5,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import type { Parent } from '@/types/database'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 
 export type ScolariteAdulte = Awaited<ReturnType<typeof chargerScolariteAdulte>>[number]
 
-const INSCRIPTIONS = 'tutor_number, class_id, status, enrollment_date, date_depart, classes!inner(id, name, level, day_of_week, start_time, end_time, academic_year, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))' as const
+const INSCRIPTIONS = 'tutor_number, class_id, status, enrollment_date, date_depart, classes!inner(id, name, level, day_of_week, start_time, end_time, academic_year, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, effective_until, teachers(civilite, first_name, last_name)))' as const
 
 const DAY_FR: Record<string, string> = {
   monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',
@@ -87,7 +88,8 @@ export async function chargerScolariteAdulte(
       }
     })
 
-    const titulaire = c.class_teachers.find(ct => ct.is_main_teacher)?.teachers ?? null
+    // Annee en cours (temps reel) : le titulaire en poste, jamais un ancien.
+    const titulaire = titulaireActuel(c.class_teachers)?.teachers ?? null
 
     return {
       key: `${parentId}-${e.tutor_number}`,

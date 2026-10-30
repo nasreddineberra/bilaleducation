@@ -9,3 +9,19 @@ export function titulaireActuel<T extends { is_main_teacher: boolean | null; eff
 ): T | undefined {
   return affectations?.find(a => a.is_main_teacher && !a.effective_until)
 }
+
+/**
+ * Titulaires d'une classe pour un RECAPITULATIF ou un HISTORIQUE : « initial
+ * puis remplacant » (decision du 30/10). Le premier et le dernier par date
+ * d'effet ; ceux du milieu ne sont pas nommes. Un seul titulaire (ou le meme au
+ * debut et a la fin) : un seul nom. Les ecrans en TEMPS REEL nomment le seul
+ * titulaire en poste (`titulaireActuel`).
+ */
+export function libelleTitulaires(titulaires: { nom: string; du: string | null }[]): string | null {
+  // Tri stable, sans date = « depuis le debut » ; la liste recue n'est pas modifiee.
+  const ordre = titulaires.filter(t => t.nom).sort((a, b) => (a.du ?? '').localeCompare(b.du ?? ''))
+  if (ordre.length === 0) return null
+  const initial = ordre[0].nom
+  const dernier = ordre[ordre.length - 1].nom
+  return initial === dernier ? initial : `${initial} puis ${dernier}`
+}

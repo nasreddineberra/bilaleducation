@@ -11,6 +11,7 @@ import StudentDiscipline from './StudentDiscipline'
 import StudentDocuments from './StudentDocuments'
 import StudentHistory from './StudentHistory'
 import type { FicheEleve } from '@/lib/students/fiche'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 
 // Donnees de la fiche : celles de `chargerFicheEleve`, sans recopie.
@@ -79,7 +80,7 @@ export default function StudentDetail({
     e => e.status === 'active' && e.classes?.academic_year === currentYearLabel
   )
   const activeTeacher = (() => {
-    const tt = mainTeachers.find(m => m.class_id === activeEnrollment?.class_id)?.teachers
+    const tt = titulaireActuel(mainTeachers.filter(m => m.class_id === activeEnrollment?.class_id))?.teachers
     return tt ? `${tt.civilite ? tt.civilite + ' ' : ''}${tt.last_name} ${tt.first_name}`.trim() : ''
   })()
   const activeClassInfo = activeEnrollment ? classInfoWithTeacher(activeEnrollment.classes, activeTeacher) : ''
@@ -167,6 +168,7 @@ export default function StudentDetail({
             bulletinArchives={bulletinArchives}
             mainTeachers={mainTeachers}
             warnings={studentWarnings}
+            currentYearLabel={currentYearLabel}
           />
         </div>
       )}

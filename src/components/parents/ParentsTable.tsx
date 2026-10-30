@@ -13,6 +13,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import { suffixeFiche } from '@/lib/navigation/retour'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent } from '@/types/database'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 
 interface ParentsTableProps {
   parents: Parent[]
@@ -81,13 +82,13 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
         if (studentIds.length > 0) {
           const { data: enrollments } = await supabase
             .from('enrollments')
-            .select('student_id, classes:class_id(name, class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
+            .select('student_id, classes:class_id(name, class_teachers(is_main_teacher, effective_until, teachers(civilite, first_name, last_name)))')
             .in('student_id', studentIds)
             .eq('status', 'active')
           for (const e of enrollments ?? []) {
             const cls = e.classes
             if (!cls) continue
-            const mainTeacher = cls.class_teachers.find(ct => ct.is_main_teacher)?.teachers
+            const mainTeacher = titulaireActuel(cls.class_teachers)?.teachers
             const teacherLabel = mainTeacher
               ? `${mainTeacher.civilite ? mainTeacher.civilite + ' ' : ''}${mainTeacher.last_name} ${mainTeacher.first_name}`
               : null

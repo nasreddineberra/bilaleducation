@@ -210,8 +210,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (cle adulte `parentId-tutorNumber`), `tonCategorie()` (support),
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
-  `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (titulaire actuel = principal
-  sans date de fin), `lib/edt/salles.ts` (salles de cours libres pour une seance),
+  `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (temps reel : `titulaireActuel` = principal
+  sans date de fin ; recapitulatif / historique : `libelleTitulaires` = « initial puis remplacant »), `lib/edt/salles.ts` (salles de cours libres pour une seance),
   `lib/edt/absences.ts` (seances touchees par une absence d'enseignant ; meme regle que la base, controle 29),
   `lib/absences-enseignants/familles.ts` (emails seance annulee / maintenue, 1 par foyer et par classe),
   `lib/email/destinataires-classe.ts` (foyers d'une classe : devoirs, seances), `lib/temps-presence/saisie.ts`
@@ -396,8 +396,9 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      - Absences (messagerie configuree) : annulation annoncee puis retablissement, remplacement annonce.
      - Sortie des `any` lot 5 (30/10) : fiche eleve (5 onglets, fratrie, document, avertissement, depart), fiche
        parent avec cours adulte, affectation enfants et adultes (correction, depart).
-   - **A decider** : titulaire affiche sans `titulaireActuel` (ancien titulaire possible) dans la fiche eleve, la
-     fiche parent, le depliant des enfants (liste des parents) et l'affectation : lot de correction a part ?
+     - Titulaire (30/10) : changer le titulaire d'une classe ; temps reel = le nouveau seul, historique = « initial
+       puis remplacant ».
+   - **A decider** : carte fratrie de la fiche eleve = premiere affectation, sans filtre d'annee ni de statut.
    - **Ensuite** : sortie des `any`, dossier suivant (voir le point 4). Plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?

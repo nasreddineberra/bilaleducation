@@ -11,6 +11,7 @@ import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import { useToast } from '@/lib/toast-context'
 import { declarerDepartEleve } from '@/app/dashboard/students/actions'
 import type { ContexteDepart, FicheEleve } from '@/lib/students/fiche'
+import { libelleTitulaires, titulaireActuel } from '@/lib/teachers/titulaire'
 
 /**
  * SCOLARITÉ — un HISTORIQUE, année après année.
@@ -65,6 +66,8 @@ interface Props {
   bulletinArchives: BulletinArchiveRow[]
   mainTeachers: MainTeacherRow[]
   warnings: WarningRow[]
+  /** Annee en cours : sa carte nomme le titulaire en poste, les annees passees « initial puis remplacant ». */
+  currentYearLabel: string
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -92,7 +95,7 @@ const DAYS_FR: Record<string, string> = {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function StudentScolarite({
-  studentId, studentName, depart, studentActive, enrollments, periods, bulletinArchives, mainTeachers, warnings,
+  studentId, studentName, depart, studentActive, enrollments, periods, bulletinArchives, mainTeachers, warnings, currentYearLabel,
 }: Props) {
   const router = useRouter()
   const toast  = useToast()
@@ -128,16 +131,19 @@ export default function StudentScolarite({
     return map
   }, [bulletinArchives])
 
-  const teacherMap = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const ct of mainTeachers) {
-      if (ct.teachers) {
-        // NOM avant prénom, règle du projet.
-        map.set(ct.class_id, [ct.teachers.civilite, ct.teachers.last_name, ct.teachers.first_name].filter(Boolean).join(' '))
-      }
+  // Titulaire d'une carte. Annee en cours (temps reel) : celui en poste. Annee
+  // passee (historique) : « initial puis remplacant » (decision du 30/10).
+  const titulaireDe = (classId: string, annee: string): string | null => {
+    const lignes = mainTeachers.filter(ct => ct.class_id === classId && ct.teachers)
+    // NOM avant prénom, règle du projet.
+    const nom = (ct: MainTeacherRow) =>
+      ct.teachers ? [ct.teachers.civilite, ct.teachers.last_name, ct.teachers.first_name].filter(Boolean).join(' ') : ''
+    if (annee === currentYearLabel) {
+      const actuel = titulaireActuel(lignes)
+      return actuel ? nom(actuel) : null
     }
-    return map
-  }, [mainTeachers])
+    return libelleTitulaires(lignes.map(ct => ({ nom: nom(ct), du: ct.effective_from })))
+  }
 
   const periodsByYear = useMemo(() => {
     const map = new Map<string, PeriodRow[]>()
@@ -202,7 +208,7 @@ export default function StudentScolarite({
       {yearGroups.map(([year, yearEnrollments]) =>
         yearEnrollments.map(enrollment => {
           const cls     = enrollment.classes!
-          const teacher = teacherMap.get(enrollment.class_id)
+          const teacher = titulaireDe(enrollment.class_id, cls.academic_year)
           const yearPeriods = (periodsByYear.get(cls.academic_year) ?? [])
             .sort((a, b) => a.order_index - b.order_index)
 

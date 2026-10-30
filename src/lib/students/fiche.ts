@@ -67,11 +67,13 @@ export async function chargerFicheEleve(
   const siblingClassIds = (siblings ?? []).flatMap(s => s.enrollments.map(e => e.class_id))
   const allClassIds = [...new Set([...classIds, ...siblingClassIds])]
 
-  // Professeur principal de chaque classe
+  // Titulaires de chaque classe, AVEC leurs dates d'effet : l'ecran en temps reel
+  // nomme le titulaire en poste (`titulaireActuel`), l'historique des annees
+  // passees « initial puis remplacant » (`libelleTitulaires`, decision du 30/10).
   const { data: mainTeachers } = allClassIds.length > 0
     ? await supabase
         .from('class_teachers')
-        .select('class_id, teachers(civilite, first_name, last_name)')
+        .select('class_id, is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)')
         .eq('is_main_teacher', true)
         .in('class_id', allClassIds)
     : { data: [] }

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { FloatButton, FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
+import { libelleTitulaires } from '@/lib/teachers/titulaire'
 import type { ArchiveCreneau as Creneau, ArchiveParticipant as Participant, ArchivePeriode as Periode } from '@/types/json'
 
 export interface ClasseArchivee {
@@ -39,9 +40,6 @@ const plage = (du: string | null, au: string | null) => {
 const libelleCreneau = (c: Creneau) =>
   [c.jour, c.debut && c.fin ? `${c.debut}-${c.fin}` : c.debut, c.salle].filter(Boolean).join(' · ')
 
-// Le titulaire « de l'annee » : celui sans date de fin, sinon le dernier en date.
-const titulaireAffiche = (t: Periode[]) =>
-  t.find(x => !x.au)?.nom ?? t[t.length - 1]?.nom ?? null
 
 export default function HistoriqueClassesClient({ classes }: { classes: ClasseArchivee[] }) {
   const annees = useMemo(() => [...new Set(classes.map(c => c.year_label))], [classes])
@@ -135,7 +133,8 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
                 <td className="list-td text-warm-700">{c.level || <span className="text-warm-700">·</span>}</td>
                 <td className="list-td text-warm-700">{c.cotisation_label || <span className="text-warm-700">·</span>}</td>
                 <td className="list-td text-warm-700 whitespace-nowrap">
-                  {titulaireAffiche(c.titulaires) ?? <span className="text-warm-700">·</span>}
+                  {/* Historique : « initial puis remplacant » (decision du 30/10) ; le detail garde la liste datee. */}
+                  {libelleTitulaires(c.titulaires) ?? <span className="text-warm-700">·</span>}
                 </td>
                 <td className="list-td text-warm-700">
                   {c.remplacements.length === 0 ? <span className="text-warm-700">·</span> : (

@@ -23,6 +23,7 @@ import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Student, Parent, Gender } from '@/types/database'
 import type { FicheEleve } from '@/lib/students/fiche'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 import type { PostgrestError } from '@supabase/supabase-js'
 import { messageErreur } from '@/lib/erreur'
 
@@ -636,7 +637,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                       const age = Math.floor((Date.now() - new Date(sib.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
                       const enrollment = sib.enrollments?.[0]
                       const cls = enrollment?.classes
-                      const mt = mainTeachers.find(t => t.class_id === enrollment?.class_id)
+                      const mt = titulaireActuel(mainTeachers.filter(t => t.class_id === enrollment?.class_id))
                       const teacherName = mt?.teachers
                         ? `${mt.teachers.civilite ? mt.teachers.civilite + ' ' : ''}${mt.teachers.last_name} ${mt.teachers.first_name}`
                         : null

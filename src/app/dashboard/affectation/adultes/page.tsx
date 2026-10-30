@@ -26,6 +26,7 @@ export default async function AffectationAdultesPage() {
             cotisation_types(label, is_adult),
             class_teachers (
               is_main_teacher,
+              effective_until,
               subject,
               teachers ( civilite, first_name, last_name )
             )

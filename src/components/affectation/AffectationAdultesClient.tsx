@@ -11,6 +11,7 @@ import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import { saveParentEnrollments } from '@/app/dashboard/affectation/actions'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 
 // 20 lignes par page (choix utilisateur) : la mise en page est resserree pour
 // qu'elles tiennent sans barre de defilement (gap-2, pas de marge sous les bandeaux).
@@ -19,7 +20,8 @@ const POOL_PAGE_SIZE = 20
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TeacherInfo { civilite: string | null; first_name: string; last_name: string }
-interface ClassTeacherRow { is_main_teacher: boolean | null; subject: string | null; teachers: TeacherInfo | null }
+// Ecran en temps reel : le titulaire EN POSTE (`titulaireActuel`), jamais un ancien.
+interface ClassTeacherRow { is_main_teacher: boolean | null; effective_until: string | null; subject: string | null; teachers: TeacherInfo | null }
 
 interface ClassRow {
   id:           string
@@ -77,7 +79,7 @@ function fmtTime(t: string | null) { return t ? t.slice(0, 5) : null }
 
 // Libellé classe une ligne : « Prof · Cotisation · Niveau · Jour HH:MM-HH:MM »
 function classInfoLine(cls: ClassRow): string {
-  const main = cls.class_teachers.find(t => t.is_main_teacher)
+  const main = titulaireActuel(cls.class_teachers)
   const teacher = main?.teachers
     ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
     : undefined
@@ -300,7 +302,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
         >
           <option value=""></option>
           {classes.map(c => {
-            const main = c.class_teachers.find(t => t.is_main_teacher)
+            const main = titulaireActuel(c.class_teachers)
             const teacher = main?.teachers
               ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
               : null

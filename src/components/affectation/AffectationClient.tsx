@@ -13,6 +13,7 @@ import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
 import { saveStudentEnrollments, verifierRetraitEleve } from '@/app/dashboard/affectation/actions'
 import { accordGenre } from '@/lib/texte/genre'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 
 // 20 lignes par page (choix utilisateur) : la mise en page est resserree pour
 // qu'elles tiennent sans barre de defilement (gap-2, pas de marge sous les bandeaux).
@@ -21,7 +22,8 @@ const POOL_PAGE_SIZE = 20
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TeacherInfo { civilite: string | null; first_name: string; last_name: string }
-interface ClassTeacherRow { is_main_teacher: boolean | null; subject: string | null; teachers: TeacherInfo | null }
+// Ecran en temps reel : le titulaire EN POSTE (`titulaireActuel`), jamais un ancien.
+interface ClassTeacherRow { is_main_teacher: boolean | null; effective_until: string | null; subject: string | null; teachers: TeacherInfo | null }
 
 interface ClassRow {
   id:           string
@@ -420,7 +422,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
   // composant `ClassInfo` serait un nouveau type a chaque rendu.
   function renderClassInfo() {
     if (!selectedClass) return null
-    const mainTeacher = selectedClass.class_teachers.find(t => t.is_main_teacher)
+    const mainTeacher = titulaireActuel(selectedClass.class_teachers)
     const teacherName = mainTeacher?.teachers
       ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
       : null
@@ -459,7 +461,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
         >
           <option value=""></option>
           {classes.map(c => {
-            const main = c.class_teachers.find(t => t.is_main_teacher)
+            const main = titulaireActuel(c.class_teachers)
             const teacher = main?.teachers
               ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
               : null
@@ -524,7 +526,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
                   // Badge classe : autre classe OU classe courante si déjà sauvegardée
                   const badgeClass            = isInOtherClass ? assignedClass : isSavedInCurrentClass ? selectedClass : null
                   const badgeName             = badgeClass?.name
-                  const badgeMain             = badgeClass?.class_teachers.find(t => t.is_main_teacher)
+                  const badgeMain             = titulaireActuel(badgeClass?.class_teachers)
                   const badgeTeacherName      = badgeMain?.teachers
                     ? [badgeMain.teachers.civilite, badgeMain.teachers.last_name, badgeMain.teachers.first_name].filter(Boolean).join(' ')
                     : undefined
