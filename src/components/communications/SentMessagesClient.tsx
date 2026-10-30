@@ -203,7 +203,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
                         {m.classe?.name ? ` · ${m.classe.name}` : ''}
                       </Puce>
                     </td>
-                    <td className="list-td text-warm-700 tabular-nums">{m.recipient_count ?? '·'}</td>
+                    <td className="list-td text-warm-700 tabular-nums">{m.recipient_count}</td>
                     <td className="list-td text-warm-700">
                       {m.profiles ? `${m.profiles.last_name} ${m.profiles.first_name}` : '·'}
                     </td>

@@ -105,7 +105,7 @@ export async function getStudentsForStatusModal(): Promise<{
       className:    info?.name ?? null,
       classTooltip: info?.tooltip || null,
       enrolled:     !!info,
-      is_active:    s.is_active ?? true,   // defaut de la colonne (jamais NULL en base)
+      is_active:    s.is_active,
     }
   })
   return { yearLabel, students: rows }

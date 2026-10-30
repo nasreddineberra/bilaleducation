@@ -231,7 +231,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
   Depuis le 27/10 `anon` n'a AUCUN droit de table ni de sequence dans `public`, nouvelles comprises
   (controle 26) : une page publique lit par la cle serveur, jamais en anonyme. Une nouvelle table
-  active TOUJOURS la RLS (le controle 26 le verifie aussi).
+  active TOUJOURS la RLS (le controle 26 le verifie aussi). Une colonne a DEFAUT est NOT NULL, sauf exception
+  justifiee ajoutee au controle 35 (seule exception au 30/10 : `evaluations.max_score`).
 
 ## 6. Charte graphique
 
@@ -407,10 +408,10 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        (glisser-deposer) ; appel enfants et adultes (saisie, justification) ; cotisations (historique) ; notes et
        bulletins (archivage, appreciation, PDF) ; passage d'annee (audits, purge) ; ressources, types de presence,
        etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).
-   - **Ensuite** : rendre NOT NULL les 57 colonnes a defaut jamais NULL (migration a planifier, plan avant de coder).
+   - **Ensuite** : dossier suivant du point 4 ou 5, plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
-   - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
+   - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base (question posee le 30/10) ; matiere du cahier de texte « General »
      a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
@@ -429,8 +430,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    `lib/financements/reglements.ts`, types des ecrans tires de ses requetes), lot 5 FAIT (eleves, parents,
    affectation : `lib/students/fiche.ts`, `lib/parents/fiche.ts`), lot 6 FAIT (cahier de texte : `lib/cahier-texte/donnees.ts`), lot 7 FAIT (communications et notifications :
    `lib/communications/donnees.ts`, `lib/communications/notifications.ts`), lots 8 et suivants FAITS (tableau de
-   bord `lib/dashboard/commun.ts` et `parent.ts`, puis tout le reste) ; puis rendre NOT NULL les 57 colonnes a
-   defaut jamais NULL (toutes les ecritures sont typees).
+   bord `lib/dashboard/commun.ts` et `parent.ts`, puis tout le reste) ; colonnes a defaut NOT NULL FAIT le 30/10
+   (72 colonnes, migration `colonnes-defaut-not-null.sql`, controle 35).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).

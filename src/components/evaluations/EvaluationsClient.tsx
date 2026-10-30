@@ -401,7 +401,7 @@ export default function EvaluationsClient({
       (ev.eval_kind !== 'scored' || c.max_score === ev.max_score)
     )
     const initCfg  = config?.id ?? evalOptions[0]?.configId ?? ''
-    const initCoef = String(ev.coefficient ?? 1)
+    const initCoef = String(ev.coefficient)
     const initDt   = ev.evaluation_date ?? ''
     setFormConfigId(initCfg);    setInitConfigId(initCfg)
     setFormCoefficient(initCoef); setInitCoefficient(initCoef)

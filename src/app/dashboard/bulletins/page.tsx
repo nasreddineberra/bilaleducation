@@ -274,8 +274,7 @@ export default async function BulletinsPage() {
       .from('grades')
       .select('id, student_id, evaluation_id, score, comment, is_absent')
       .in('evaluation_id', studentEvalIds)
-    // `is_absent` : defaut false, jamais NULL en base (0 cas au 30/10).
-    grades.push(...(data ?? []).map(g => ({ ...g, is_absent: g.is_absent ?? false })))
+    grades.push(...(data ?? []))
   }
   if (adultEvalIds.length > 0) {
     const { data } = await supabase

@@ -193,7 +193,7 @@ export async function chargerDonneesDirection(
   const classes = classesList.map(c => ({
     name: c.name,
     enrolled: effectif(c.id),
-    max: c.max_students ?? 30,
+    max: c.max_students,
     adulte: !!c.cotisation_types?.is_adult,
     // Titulaire ACTIF aujourd'hui (jour de Paris), comme partout ailleurs.
     professeur: nomEnseignantCivilite((c.class_teachers ?? []).find(ct =>

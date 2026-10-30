@@ -49,13 +49,13 @@ export default function MessageDetailClient({ message, parentRecipients, staffRe
     ...parentRecipients.map(r => ({
       name: r.parents ? `${r.parents.tutor1_last_name} ${r.parents.tutor1_first_name}` : '·',
       email: r.email || '·',
-      status: r.email_status ?? 'pending',
+      status: r.email_status,
       type: 'parent' as const,
     })),
     ...staffRecipients.map(r => ({
       name: r.profiles ? `${r.profiles.last_name} ${r.profiles.first_name}` : '·',
       email: r.email || '·',
-      status: r.email_status ?? 'pending',
+      status: r.email_status,
       type: 'staff' as const,
     })),
   ], [parentRecipients, staffRecipients])

@@ -48,11 +48,8 @@ export default async function AffectationAdultesPage() {
   ])
 
   // Garder uniquement les classes adultes
-  // `max_students` est NULLABLE en base (defaut 25) : un NULL ferait paraitre la
-  // classe pleine (`n >= null` vaut `n >= 0`). Meme repli que la liste des classes.
   const adultClasses = (classes ?? [])
     .filter(c => c.cotisation_types?.is_adult === true)
-    .map(c => ({ ...c, max_students: c.max_students ?? 25 }))
 
   if (adultClasses.length === 0) {
     return (

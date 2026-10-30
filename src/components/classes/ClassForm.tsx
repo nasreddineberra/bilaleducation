@@ -82,7 +82,7 @@ interface ClassFormProps {
   cotisationTypes?: CotisationType[]
   rooms?: RoomOption[]
   backHref?: string
-  currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] | null } | null
+  currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] } | null
   existingSlots?: SlotRow[]
   matieres?: MatiereOption[]
   weekStartDay?: number   // 0=Dimanche, 1=Lundi, 6=Samedi

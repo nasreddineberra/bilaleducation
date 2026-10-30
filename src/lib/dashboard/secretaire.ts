@@ -149,7 +149,7 @@ export async function chargerDonneesSecretaire(
   const classes: ClasseRemplissage[] = classesList.map(c => ({
     name: c.name,
     enrolled: effectif[c.id] ?? 0,
-    max: c.max_students ?? 30,
+    max: c.max_students,
     adulte: !!c.cotisation_types?.is_adult,
     professeur: nomEnseignantCivilite((c.class_teachers ?? []).find(ct =>
       ct.is_main_teacher

@@ -376,7 +376,7 @@ export default function GradesClient({
       if (err) { setError(err.message); setSaving(false); return }
       const rows: GradeRow[] = (data ?? []).map(d => ({
         student_id:    cleAdulte(d.parent_id, d.tutor_number),
-        evaluation_id: d.evaluation_id, score: d.score, comment: d.comment, is_absent: d.is_absent ?? false,
+        evaluation_id: d.evaluation_id, score: d.score, comment: d.comment, is_absent: d.is_absent,
       }))
       setGradesList(prev => [
         ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
@@ -393,7 +393,7 @@ export default function GradesClient({
       if (err) { setError(err.message); setSaving(false); return }
       setGradesList(prev => [
         ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
-        ...(data ?? []).map(g => ({ ...g, is_absent: g.is_absent ?? false })),
+        ...(data ?? []),
       ])
     }
 

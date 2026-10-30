@@ -115,7 +115,7 @@ export default async function EditClassPage({ params }: Props) {
   const initialAssignments: AssignmentData[] = (classTeachers ?? []).map(ct => ({
     teacher_id:      ct.teacher_id,
     teacher_name:    ct.teachers ? nomEnseignant(ct.teachers) : ct.teacher_id,
-    is_main_teacher: ct.is_main_teacher ?? false,   // defaut de la colonne (jamais NULL en base)
+    is_main_teacher: ct.is_main_teacher,
     subject:         ct.subject ?? '',
     effective_from:  ct.effective_from,
     effective_until: ct.effective_until,

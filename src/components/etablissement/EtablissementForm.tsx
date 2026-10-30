@@ -69,8 +69,8 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const initialLogoUrl = useRef<string | null>(etablissement.logo_url ?? null)
 
   // Premier jour de la semaine
-  const [weekStartDay, setWeekStartDay] = useState<number>(etablissement.week_start_day ?? -1)
-  const initialWeekStartDay = useRef<number>(etablissement.week_start_day ?? -1)
+  const [weekStartDay, setWeekStartDay] = useState<number>(etablissement.week_start_day)
+  const initialWeekStartDay = useRef<number>(etablissement.week_start_day)
 
   // Jours travailles (5 ou 7)
   const [workingDays, setWorkingDays] = useState<number>(etablissement.working_days ?? 5)

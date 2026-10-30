@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import AbsencesClient from '@/components/absences/AbsencesClient'
 import { AlertTriangle } from 'lucide-react'
-import type { Period, Absence } from '@/types/database'
+import type { Absence } from '@/types/database'
 import { effectiveRole } from '@/lib/auth/effective-role'
 import { genderFromRelationship } from '@/lib/parents/tutor-gender'
 
@@ -65,7 +65,7 @@ export default async function AbsencesAdultesPage() {
     .from('school_years')
     .select('id, label, vacations, jours_feries, periods(*)')
     .eq('is_current', true)
-    .single() as { data: ({ id: string; label: string; vacations: unknown; jours_feries: unknown; periods: Period[] }) | null }
+    .single()
 
   const periods      = (schoolYear?.periods ?? []).sort((a, b) => a.order_index - b.order_index)
   const schoolYearId = schoolYear?.id ?? null
@@ -219,8 +219,8 @@ export default async function AbsencesAdultesPage() {
       <AbsencesClient
         classes={classes}
         periods={periods}
-        vacations={(schoolYear?.vacations as never[]) ?? []}
-        feries={(schoolYear?.jours_feries as never[]) ?? []}
+        vacations={schoolYear?.vacations ?? []}
+        feries={schoolYear?.jours_feries ?? []}
         students={participants}
         initialAbsences={absences}
         etablissementId={etablissementId}

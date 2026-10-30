@@ -379,7 +379,7 @@ export async function generateArchive(supabase: SupabaseClient<Database>, ctx: Y
       level: c.level ?? null,
       cotisation_label: c.cotisation_types?.label ?? null,
       is_adult: adulte,
-      max_students: c.max_students ?? null,
+      max_students: c.max_students,
       titulaires,
       remplacements,
       creneaux,

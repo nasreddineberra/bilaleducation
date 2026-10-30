@@ -170,7 +170,7 @@ export default async function EmploiDuTempsPage() {
         workingDays={etablissement?.working_days ?? 5}
         schoolYearStartDate={currentYear.start_date ?? null}
         schoolYearEndDate={currentYear.end_date ?? null}
-        vacations={currentYear.vacations ?? []}
+        vacations={currentYear.vacations}
         feries={currentYear.jours_feries ?? []}
       />
     </div>

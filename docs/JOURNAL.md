@@ -10085,3 +10085,20 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - **Signale, non traite** : email de devoir qui recopie `destinataires-classe` ; copie des periodes et cotisations a
   la creation d'une annee sans verification d'ecriture.
 - Bilan : 185 tests, build OK, aucune migration.
+
+## 30/10 · Colonnes a valeur par defaut : NOT NULL
+
+- Decision du 27/10 (NOT NULL apres la sortie des `any`) executee : 72 colonnes (57 comptees le 27/10, des tables
+  ajoutees depuis). Exclue : `evaluations.max_score`, ou NULL a un sens (diagnostique, 4 lignes sur 12).
+- Preuves avant migration : 0 NULL en base (lecture seule) ; types simules NOT NULL (216 lignes) -> 0 erreur au
+  type-check, donc aucune ecriture du code n'envoie NULL ; fonctions de la base lues (creation de comptes,
+  `import_foyer`, `fn_demo_peupler`, `declarer_depart_eleve`) : valeur ou repli partout.
+- Migration `colonnes-defaut-not-null.sql`, controle 35 (rouge avant, vert dans une transaction annulee, puis vert
+  apres la migration jouee par l'utilisateur). Le controle refuse aussi toute AUTRE colonne a defaut acceptant NULL :
+  une colonne nouvelle a defaut se declare NOT NULL, ou devient une exception justifiee du controle.
+- Code : `npm run types-db` (216 lignes), replis retires (`max_students ?? 25` / `?? 30`, `is_absent ?? false`,
+  titulaire, eleve actif, statut d'envoi, nombre de destinataires, premier jour de semaine, coefficient) ; vacances et
+  feries lus par leur type (fin des `as never[]` et d'un type de requete ecrit a la main). Reperage par la regle
+  `no-unnecessary-condition` lancee a part (config temporaire, non conservee).
+- Ecart toujours ouvert : fiche classe 30 eleves par defaut, base 25.
+- Bilan : type-check 0, lint 0 erreur 0 avertissement, 185 tests, build OK.
