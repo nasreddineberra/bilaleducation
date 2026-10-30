@@ -64,7 +64,7 @@ export default async function EtablissementPage() {
       <div className="flex-1 min-w-0">
         <DocumentTypesConfig
           etablissementId={etab.id}
-          initialDocTypes={(docTypes ?? []) as any[]}
+          initialDocTypes={docTypes ?? []}
         />
       </div>
     </div>

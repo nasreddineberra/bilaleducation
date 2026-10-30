@@ -7,6 +7,7 @@ import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import { authRepository } from '@/lib/database/auth'
+import { messageErreur } from '@/lib/erreur'
 
 // ─── Slogan défilant ─────────────────────────────────────────────────────────
 // Défilement AUTOMATIQUE horizontal sur toute la largeur du panneau : la
@@ -161,8 +162,8 @@ export default function LoginPage() {
       // l'instant present des le premier passage sur /dashboard. Un seul
       // ecrivain, une seule portee.
       window.location.href = '/dashboard'
-    } catch (err: any) {
-      const msg = err.message ?? ''
+    } catch (err: unknown) {
+      const msg = messageErreur(err) ?? ''
       if (msg.includes('ACCOUNT_DISABLED')) {
         setError('Votre compte est désactivé. Contactez l\'administration de l\'établissement.')
       } else if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {

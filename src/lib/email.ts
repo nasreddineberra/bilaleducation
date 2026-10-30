@@ -3,6 +3,7 @@ import type { Transporter } from 'nodemailer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { coque, p, pDoux } from '@/lib/email/shell.mjs'
 import { preparerCorps } from '@/lib/email/corps-mail'
+import { messageErreur } from '@/lib/erreur'
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 // La messagerie est propre a chaque etablissement (l'app est multi-etablissement),
@@ -179,10 +180,10 @@ export async function sendNotificationEmail(params: {
     })
     await marquerMessagerieEprouvee(params.etablissementId, resolved.config)
     return { success: true }
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Seule trace de la raison cote serveur : les appelants ne gardent qu'un statut.
-    console.error(`[email] envoi refuse (etablissement ${params.etablissementId}) :`, e.message)
-    return { success: false, error: e.message }
+    console.error(`[email] envoi refuse (etablissement ${params.etablissementId}) :`, messageErreur(e))
+    return { success: false, error: messageErreur(e) }
   }
 }
 
@@ -195,8 +196,8 @@ export async function verifySmtpConfig(c: SmtpConfig): Promise<{ ok: boolean; er
   try {
     await transporter.verify()
     return { ok: true }
-  } catch (e: any) {
-    return { ok: false, error: e.message }
+  } catch (e: unknown) {
+    return { ok: false, error: messageErreur(e) }
   } finally {
     transporter.close()
   }
@@ -224,8 +225,8 @@ export async function sendTestEmail(c: SmtpConfig, to: string): Promise<{ ok: bo
       text:    corps.text,
     })
     return { ok: true }
-  } catch (e: any) {
-    return { ok: false, error: e.message }
+  } catch (e: unknown) {
+    return { ok: false, error: messageErreur(e) }
   } finally {
     transporter.close()
   }

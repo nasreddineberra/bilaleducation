@@ -5,6 +5,7 @@
 
 import type { Json } from './supabase'
 import type { DecisionAjustement } from '@/lib/financements/compute'
+import type { AuditResult } from '@/lib/closure/audits'
 
 /** Etat d'une ligne (avant / apres) au journal d'activite : `to_jsonb(ligne)`. */
 export type EtatLigne = { [colonne: string]: Json | undefined }
@@ -114,4 +115,5 @@ export type ColonnesJson = {
   'class_year_history.remplacements':     ArchivePeriode[]
   'class_year_history.creneaux':          ArchiveCreneau[]
   'class_year_history.participants':      ArchiveParticipant[]
+  'year_audits.recap_json':               AuditResult
 }

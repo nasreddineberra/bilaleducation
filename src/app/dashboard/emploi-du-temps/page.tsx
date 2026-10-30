@@ -80,10 +80,10 @@ export default async function EmploiDuTempsPage() {
   // est choisi par la base (`valider_seance`) : plus rien a charger ici.
 
   // Exceptions — limitées aux créneaux de l'année en cours (évite le sur-fetch)
-  const slotIds = (slots ?? []).map((s: { id: string }) => s.id)
+  const slotIds = (slots ?? []).map(s => s.id)
   const { data: exceptions } = slotIds.length > 0
     ? await supabase.from('schedule_exceptions').select('*').in('schedule_slot_id', slotIds)
-    : { data: [] as unknown[] }
+    : { data: [] }
 
   // Salles disponibles
   const { data: rooms } = await supabase
@@ -158,20 +158,20 @@ export default async function EmploiDuTempsPage() {
         role={role}
         canEdit={canEdit}
         schoolYearId={currentYear.id}
-        classes={(classes ?? []) as any[]}
-        teachers={(teachers ?? []) as any[]}
-        slots={(slots ?? []) as any[]}
-        exceptions={(exceptions ?? []) as any[]}
-        rooms={(rooms ?? []) as any[]}
-        coursList={(coursList ?? []) as any[]}
-        ueList={(ueList ?? []) as any[]}
-        todayValidations={(todayValidations ?? []) as any[]}
+        classes={classes ?? []}
+        teachers={teachers ?? []}
+        slots={slots ?? []}
+        exceptions={exceptions ?? []}
+        rooms={rooms ?? []}
+        coursList={coursList ?? []}
+        ueList={ueList ?? []}
+        todayValidations={todayValidations ?? []}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}
         schoolYearStartDate={currentYear.start_date ?? null}
         schoolYearEndDate={currentYear.end_date ?? null}
-        vacations={(currentYear.vacations as any[]) ?? []}
-        feries={(currentYear.jours_feries as any[]) ?? []}
+        vacations={currentYear.vacations ?? []}
+        feries={currentYear.jours_feries ?? []}
       />
     </div>
   )

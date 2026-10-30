@@ -1,5 +1,6 @@
 'use client'
 
+import type { NotifRecente } from '@/lib/dashboard/commun'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
@@ -23,7 +24,7 @@ interface Props {
   yearLabel: string
   periodLabel: string
   unreadNotifs: number
-  recentNotifs: any[]
+  recentNotifs: NotifRecente[]
   donnees: DonneesDirection
   /** Rappel de bascule de période, ou null s'il n'y a rien à signaler. */
   periodHint: { message: string; missing: boolean } | null

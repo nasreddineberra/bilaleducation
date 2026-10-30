@@ -1,5 +1,5 @@
 // FICHIER GENERE par `npm run types-db` (scripts/generer-types-db.mjs) : ne pas editer.
-// Structure du schema public du projet Supabase, le 2026-10-29.
+// Structure du schema public du projet Supabase, le 2026-10-30.
 
 import type { ColonnesJson } from './json'
 
@@ -4581,7 +4581,7 @@ export type Database = {
           audited_by: string | null
           etablissement_id: string
           id: string
-          recap_json: Json
+          recap_json: ColonnesJson['year_audits.recap_json']
           school_year_id: string
           step_key: string
         }
@@ -4591,7 +4591,7 @@ export type Database = {
           audited_by?: string | null
           etablissement_id: string
           id?: string
-          recap_json?: Json
+          recap_json?: ColonnesJson['year_audits.recap_json']
           school_year_id: string
           step_key: string
         }
@@ -4601,7 +4601,7 @@ export type Database = {
           audited_by?: string | null
           etablissement_id?: string
           id?: string
-          recap_json?: Json
+          recap_json?: ColonnesJson['year_audits.recap_json']
           school_year_id?: string
           step_key?: string
         }

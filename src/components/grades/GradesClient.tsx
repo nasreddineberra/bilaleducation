@@ -8,7 +8,7 @@ import {
 import { clsx } from 'clsx'
 import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
-import { lireCleAdulte } from '@/lib/parents/participant'
+import { cleAdulte, lireCleAdulte } from '@/lib/parents/participant'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
@@ -374,10 +374,10 @@ export default function GradesClient({
         .upsert(upserts, { onConflict: 'parent_id,tutor_number,evaluation_id' })
         .select('parent_id, tutor_number, evaluation_id, score, comment, is_absent')
       if (err) { setError(err.message); setSaving(false); return }
-      const rows = (data as any[]).map(d => ({
-        student_id:    `${d.parent_id}-${d.tutor_number}`,
-        evaluation_id: d.evaluation_id, score: d.score, comment: d.comment, is_absent: d.is_absent,
-      })) as GradeRow[]
+      const rows: GradeRow[] = (data ?? []).map(d => ({
+        student_id:    cleAdulte(d.parent_id, d.tutor_number),
+        evaluation_id: d.evaluation_id, score: d.score, comment: d.comment, is_absent: d.is_absent ?? false,
+      }))
       setGradesList(prev => [
         ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
         ...rows,
@@ -393,7 +393,7 @@ export default function GradesClient({
       if (err) { setError(err.message); setSaving(false); return }
       setGradesList(prev => [
         ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
-        ...(data as GradeRow[]),
+        ...(data ?? []).map(g => ({ ...g, is_absent: g.is_absent ?? false })),
       ])
     }
 

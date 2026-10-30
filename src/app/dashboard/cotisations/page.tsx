@@ -67,13 +67,13 @@ export default async function CotisationsPage() {
     <div className="h-full animate-fade-in">
       <CotisationsClient
         currentYear={currentYear ?? null}
-        cotisationTypes={(cotisationTypes ?? []) as any[]}
+        cotisationTypes={cotisationTypes ?? []}
         classesWithoutCount={classesWithout ?? 0}
-        presenceTypes={(presenceTypes ?? []) as any[]}
-        presenceTypeRates={(presenceTypeRates ?? []) as any[]}
-        allYears={(allYears ?? []) as any[]}
-        allCotisationTypes={(allCotisationTypes ?? []) as any[]}
-        allPresenceTypeRates={(allPresenceTypeRates ?? []) as any[]}
+        presenceTypes={presenceTypes ?? []}
+        presenceTypeRates={presenceTypeRates ?? []}
+        allYears={allYears ?? []}
+        allCotisationTypes={allCotisationTypes ?? []}
+        allPresenceTypeRates={allPresenceTypeRates ?? []}
         reglage={{
           regle:      (etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement,
           modifieLe:  etab?.regle_ajustement_le ?? null,

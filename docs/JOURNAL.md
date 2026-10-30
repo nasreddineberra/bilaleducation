@@ -10059,3 +10059,29 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   - Aucun effet en production au 30/10 (aucun changement de titulaire, aucun message en base).
 - Bilan : 153 `any` au lint (191 au debut du lot), lint 0 erreur (161 avertissements), 185 tests, build OK, aucune
   migration.
+
+## 30/10 · Sortie des `any` terminee (lots 8 et suivants)
+
+- Demande de l'utilisateur : « on fait toutes les corrections et je ferai les tests ensuite » (lots enchaines sans
+  arret pour tests). Resultat : 0 `any` dans `src` (226 au debut du chantier), lint 0 erreur 0 avertissement.
+- Tableau de bord : en-tete commun (periode, notifications) dans `lib/dashboard/commun.ts`, parent dans
+  `lib/dashboard/parent.ts` ; `recentNotifs` type `NotifRecente` dans les 6 variantes et `DashboardHeader`.
+- Fiche classe, EDT, appel enfants et adultes, cotisations, bulletins (+ PDF : types `jspdf-autotable`,
+  `lib/pdf/tableau.ts` `finDuTableau` aussi pour l'attestation), passage d'annee, notes, ressources, types de
+  presence, sidebar (`LucideIcon`), routes et `catch` (`messageErreur`), `classInfo.ts` et `VizTooltip` types.
+- `year_audits.recap_json` declare dans `ColonnesJson` (`AuditResult`) ; `npm run types-db` : seule cette colonne change.
+- Bulletins : la relecture apres archivage / appreciation ne demande plus que les colonnes communes (la cle du
+  participant est connue) ; la selection conditionnelle « adulte ou eleve » ne se typait pas.
+- **Defauts trouves** :
+  - SECURITE : l'enrolement TOTP ecrivait la reponse complete de `mfa.enroll` (secret TOTP, URI otpauth) dans la
+    console du navigateur. Journaux retires.
+  - Tableau de bord parent (dormant) : classe = premiere affectation (-> annee en cours, active), devoirs de classes
+    passees, « aujourd'hui » en UTC (-> `jourParis`), genre compare a 'M' / 'F' (base : male / female, pastille
+    toujours grise ; neutre desormais, bleu et rose hors charte).
+  - Liste des enseignants : « Classe actuelle » au jour UTC -> `jourParis`.
+  - `grades.is_absent` (defaut false, 0 NULL) normalise a la lecture ; jour des creneaux et `vacations` (0 NULL)
+    admis NULL dans les types de la fiche classe.
+- Nettoyage : imports et prop inutilises, `useCallback` inutile (React Compiler) dans l'affectation adultes.
+- **Signale, non traite** : email de devoir qui recopie `destinataires-classe` ; copie des periodes et cotisations a
+  la creation d'une annee sans verification d'ecriture.
+- Bilan : 185 tests, build OK, aucune migration.

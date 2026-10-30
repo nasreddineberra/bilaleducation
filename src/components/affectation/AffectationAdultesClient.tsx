@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { X, Users, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
@@ -215,7 +215,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
   const hasChanges    = JSON.stringify([...roster].sort()) !== JSON.stringify([...originalRoster].sort())
 
-  const selectClass = useCallback((classId: string | null) => {
+  const selectClass = (classId: string | null) => {
     const doSelect = () => {
       setSelectedClassId(classId)
       const newRoster = classId
@@ -229,7 +229,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     } else {
       doSelect()
     }
-  }, [hasChanges, enrollments])
+  }
 
   const reloadClass = () => selectClass(selectedClassId)
 

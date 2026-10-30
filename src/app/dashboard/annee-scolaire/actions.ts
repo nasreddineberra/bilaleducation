@@ -116,7 +116,7 @@ export async function prepareNextYear(currentYearId: string): Promise<{ error?: 
   const { data: periods } = await supabase
     .from('periods').select('label, order_index').eq('school_year_id', currentYearId).order('order_index')
   if (periods && periods.length > 0) {
-    await supabase.from('periods').insert(periods.map((p: any) => ({ school_year_id: newYearId, label: p.label, order_index: p.order_index })))
+    await supabase.from('periods').insert(periods.map(p => ({ school_year_id: newYearId, label: p.label, order_index: p.order_index })))
   }
 
   // Report des cotisations.
@@ -125,7 +125,7 @@ export async function prepareNextYear(currentYearId: string): Promise<{ error?: 
     .select('label, amount, registration_fee, sibling_discount, max_installments, order_index, sibling_discount_same_type, is_adult')
     .eq('school_year_id', currentYearId)
   if (cotis && cotis.length > 0) {
-    await supabase.from('cotisation_types').insert(cotis.map((c: any) => ({ ...c, etablissement_id: year.etablissement_id, school_year_id: newYearId })))
+    await supabase.from('cotisation_types').insert(cotis.map(c => ({ ...c, etablissement_id: year.etablissement_id, school_year_id: newYearId })))
   }
 
   // Types de présence : créés automatiquement par le trigger AFTER INSERT sur school_years.

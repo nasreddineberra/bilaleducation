@@ -71,9 +71,9 @@ export default async function NewClassPage() {
         matieres={matieres ?? []}
         schoolYears={schoolYears ?? []}
         teachers={teachers ?? []}
-        cotisationTypes={(cotisationTypes ?? []) as any[]}
-        rooms={(rooms ?? []) as any[]}
-        currentSchoolYear={currentYearRow as any}
+        cotisationTypes={cotisationTypes ?? []}
+        rooms={rooms ?? []}
+        currentSchoolYear={currentYearRow}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}
       />

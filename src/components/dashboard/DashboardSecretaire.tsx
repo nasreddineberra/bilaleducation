@@ -1,5 +1,6 @@
 'use client'
 
+import type { NotifRecente } from '@/lib/dashboard/commun'
 import Link from 'next/link'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import type { DonneesSecretaire } from '@/lib/dashboard/secretaire'
@@ -17,7 +18,7 @@ interface Props {
   yearLabel: string
   periodLabel: string
   unreadNotifs: number
-  recentNotifs: any[]
+  recentNotifs: NotifRecente[]
   donnees: DonneesSecretaire
 }
 

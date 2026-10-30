@@ -37,7 +37,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~161 avertissements (153 any au lint au 30/10)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur, 0 avertissement (plus aucun `any` depuis le 30/10 : n'en remettre aucun)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -403,7 +403,11 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        modifier, supprimer ; detail d'un devoir enfants et adulte ; filtre par classe ; jour en francais).
      - Sortie des `any` lot 7 (30/10) : message a une classe enfants, adulte, a l'equipe (piece jointe) ; detail
        (destinataires, enseignant, horaire) ; filtre par classe ; notifications ; email de devoir.
-   - **Ensuite** : sortie des `any`, dossier suivant (voir le point 4). Plan a presenter avant de coder.
+     - Sortie des `any` fin (30/10) : tableau de bord de chaque role (en-tete, notifications) ; fiche classe, EDT
+       (glisser-deposer) ; appel enfants et adultes (saisie, justification) ; cotisations (historique) ; notes et
+       bulletins (archivage, appreciation, PDF) ; passage d'annee (audits, purge) ; ressources, types de presence,
+       etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).
+   - **Ensuite** : rendre NOT NULL les 57 colonnes a defaut jamais NULL (migration a planifier, plan avant de coder).
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
@@ -416,15 +420,17 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
 3. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
-   (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
-   (153 au lint au 30/10) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
+   (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; l'email de devoir
+   (`api/notifications/homework`) recopie la recherche des destinataires au lieu de `lib/email/destinataires-classe.ts` ;
+   creation d'une annee : copie des periodes et cotisations sans verification d'ecriture ; sortie des `any`
+   TERMINEE le 30/10 (226 -> 0) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
    (`lib/dashboard`), lot 3 FAIT (`lib/closure` : lignes d'archive typees par leurs tables, colonnes jsonb de
    l'historique dans `json.ts`), lot 4 FAIT (financements : lectures de Reglements dans
    `lib/financements/reglements.ts`, types des ecrans tires de ses requetes), lot 5 FAIT (eleves, parents,
    affectation : `lib/students/fiche.ts`, `lib/parents/fiche.ts`), lot 6 FAIT (cahier de texte : `lib/cahier-texte/donnees.ts`), lot 7 FAIT (communications et notifications :
-   `lib/communications/donnees.ts`, `lib/communications/notifications.ts`), suite par dossier (lot 8 propose :
-   tableau de bord, `dashboard/page.tsx` + `components/dashboard`) ; puis rendre NOT NULL les 57 colonnes a
-   defaut jamais NULL (quand toutes les ecritures seront typees).
+   `lib/communications/donnees.ts`, `lib/communications/notifications.ts`), lots 8 et suivants FAITS (tableau de
+   bord `lib/dashboard/commun.ts` et `parent.ts`, puis tout le reste) ; puis rendre NOT NULL les 57 colonnes a
+   defaut jamais NULL (toutes les ecritures sont typees).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).

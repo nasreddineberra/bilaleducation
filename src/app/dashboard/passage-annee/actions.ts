@@ -11,7 +11,6 @@ import { runAuditFor, type YearCtx, type AuditResult } from '@/lib/closure/audit
 import { generateArchive } from '@/lib/closure/archive'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { accord, pluriel } from '@/lib/texte/pluriel'
-import type { Json } from '@/types/supabase'
 
 /**
  * PASSAGE D'ANNÉE — actions serveur.
@@ -42,7 +41,9 @@ const ROLES = ['admin', 'direction'] as const
  * relancer ou les effacer ensuite détruirait cette preuve. Masquer les boutons
  * ne protège rien — la garde est ici.
  */
-async function refuserSiClose(supabase: any, yearId: string): Promise<string | null> {
+type Client = Awaited<ReturnType<typeof createClient>>
+
+async function refuserSiClose(supabase: Client, yearId: string): Promise<string | null> {
   const { data: year } = await supabase
     .from('school_years').select('label, closed_at').eq('id', yearId).maybeSingle()
   if (!year) return 'Année introuvable.'
@@ -53,7 +54,7 @@ async function refuserSiClose(supabase: any, yearId: string): Promise<string | n
 }
 
 /** Contexte d'une année donnée, tel que l'attendent les audits et l'archivage. */
-async function getYearCtx(supabase: any, etablissementId: string, yearId: string): Promise<YearCtx | null> {
+async function getYearCtx(supabase: Client, etablissementId: string, yearId: string): Promise<YearCtx | null> {
   const { data: year } = await supabase
     .from('school_years').select('id, label, start_date, end_date').eq('id', yearId).maybeSingle()
   if (!year) return null
@@ -67,8 +68,8 @@ async function getYearCtx(supabase: any, etablissementId: string, yearId: string
     yearLabel: year.label,
     startDate: year.start_date ?? null,
     endDate: year.end_date ?? null,
-    periodIds: (periods ?? []).map((p: any) => p.id),
-    periodLabels: Object.fromEntries((periods ?? []).map((p: any) => [p.id, p.label])),
+    periodIds: (periods ?? []).map(p => p.id),
+    periodLabels: Object.fromEntries((periods ?? []).map(p => [p.id, p.label])),
   }
 }
 
@@ -118,7 +119,7 @@ export async function runAudit(yearId: string, stepKey: string): Promise<{ error
       school_year_id: yearId,
       step_key: stepKey,
       anomalies_count: result.anomalies,
-      recap_json: result as unknown as Json,
+      recap_json: result,
       audited_at: new Date().toISOString(),
       audited_by: user?.id ?? null,
     }, { onConflict: 'school_year_id,step_key' }).select('step_key'),
@@ -200,7 +201,7 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
   // 2. Les six audits doivent avoir été passés au moins une fois.
   const { data: passes } = await supabase
     .from('year_audits').select('step_key').eq('school_year_id', yearId)
-  const faits = new Set((passes ?? []).map((a: any) => a.step_key))
+  const faits = new Set((passes ?? []).map(a => a.step_key))
   const manquants = CLOSURE_STEPS.filter(s => !faits.has(s.key))
   if (manquants.length > 0) {
     return { error: `${accord(manquants.length, 'Audit non passé', 'Audits non passés')} : ${manquants.map(s => s.label).join(', ')}.` }
@@ -221,7 +222,7 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
         school_year_id: yearId,
         step_key: step.key,
         anomalies_count: result.anomalies,
-        recap_json: result as unknown as Json,
+        recap_json: result,
         audited_at: now,
         audited_by: user?.id ?? null,
       }, { onConflict: 'school_year_id,step_key' }).select('step_key'),
@@ -439,7 +440,10 @@ interface BilanPurge {
  * année archivée et NON courante — foyers soldés uniquement. Confirmation par
  * saisie du libellé. Appelle la RPC atomique `purge_school_year`.
  */
-export async function purgeYear(yearId: string, typedLabel: string): Promise<{ error?: string; summary?: any }> {
+/** Bilan rendu a l'ecran : les chemins de fichiers restent cote serveur. */
+export type ResumePurge = Partial<Omit<BilanPurge, 'fichiers'>> & { fichiers_retires: number; fichiers_attendus: number }
+
+export async function purgeYear(yearId: string, typedLabel: string): Promise<{ error?: string; summary?: ResumePurge }> {
   const { error: roleError } = await requireRoleServer([...ROLES])
   if (roleError) return { error: roleError }
 
@@ -478,7 +482,9 @@ export async function purgeYear(yearId: string, typedLabel: string): Promise<{ e
 
   revalidatePath('/dashboard/passage-annee')
   revalidatePath('/dashboard/annee-scolaire', 'layout')
-  return { summary: { ...data, fichiers: undefined, fichiers_retires: fichiersRetires, fichiers_attendus: fichiers.length } }
+  const bilan: Partial<BilanPurge> = { ...data }
+  delete bilan.fichiers
+  return { summary: { ...bilan, fichiers_retires: fichiersRetires, fichiers_attendus: fichiers.length } }
 }
 
 /**
@@ -578,7 +584,7 @@ export async function rafraichirRecapitulatifs(
     school_year_id: yearId,
     step_key: 'financements',
     anomalies_count: result.anomalies,
-    recap_json: result as unknown as Json,
+    recap_json: result,
     audited_at: new Date().toISOString(),
     audited_by: user?.id ?? null,
   }, { onConflict: 'school_year_id,step_key' })

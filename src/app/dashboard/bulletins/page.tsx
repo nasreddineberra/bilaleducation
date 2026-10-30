@@ -1,3 +1,4 @@
+import { cleAdulte } from '@/lib/parents/participant'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import BulletinsClient from '@/components/bulletins/BulletinsClient'
@@ -110,7 +111,7 @@ export default async function BulletinsPage() {
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
+    classes = (data ?? []).map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null, is_adult: cotisation_types?.is_adult ?? false }))
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -138,7 +139,7 @@ export default async function BulletinsPage() {
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
+        classes = (data ?? []).map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null, is_adult: cotisation_types?.is_adult ?? false }))
       }
     }
   }
@@ -222,17 +223,16 @@ export default async function BulletinsPage() {
       .in('class_id', studentClassIds)
       .eq('status', 'active')
 
-    students.push(...((enrollments ?? []) as any[])
-      .filter(e => e.students)
-      .map(e => ({
-        student_id:     e.student_id,
-        class_id:       e.class_id,
-        first_name:     e.students.first_name,
-        last_name:      e.students.last_name,
-        student_number: e.students.student_number,
-        date_of_birth:  e.students.date_of_birth ?? null,
-        photo_url:      e.students.photo_url ?? null,
-      })))
+    students.push(...(enrollments ?? [])
+      .flatMap(({ student_id, class_id, students: s }) => s ? [{
+        student_id,
+        class_id,
+        first_name:     s.first_name,
+        last_name:      s.last_name,
+        student_number: s.student_number,
+        date_of_birth:  s.date_of_birth ?? null,
+        photo_url:      s.photo_url ?? null,
+      }] : []))
   }
 
   if (adultClassIds.length > 0) {
@@ -242,21 +242,21 @@ export default async function BulletinsPage() {
       .in('class_id', adultClassIds)
       .eq('status', 'active')
 
-    students.push(...((adultEnr ?? []) as any[])
-      .filter(e => e.parents)
-      .map(e => {
+    students.push(...(adultEnr ?? [])
+      .flatMap(e => {
         const p     = e.parents
+        if (!p) return []
         const first = e.tutor_number === 1 ? p.tutor1_first_name : p.tutor2_first_name
         const last  = e.tutor_number === 1 ? p.tutor1_last_name  : p.tutor2_last_name
-        return {
-          student_id:     `${e.parent_id}-${e.tutor_number}`,
+        return [{
+          student_id:     cleAdulte(e.parent_id, e.tutor_number),
           class_id:       e.class_id,
           first_name:     first ?? '',
           last_name:      last ?? '',
           student_number: '',
           date_of_birth:  null,
           photo_url:      null,
-        }
+        }]
       }))
   }
 
@@ -274,16 +274,17 @@ export default async function BulletinsPage() {
       .from('grades')
       .select('id, student_id, evaluation_id, score, comment, is_absent')
       .in('evaluation_id', studentEvalIds)
-    grades.push(...((data ?? []) as GradeRow[]))
+    // `is_absent` : defaut false, jamais NULL en base (0 cas au 30/10).
+    grades.push(...(data ?? []).map(g => ({ ...g, is_absent: g.is_absent ?? false })))
   }
   if (adultEvalIds.length > 0) {
     const { data } = await supabase
       .from('adult_grades')
       .select('parent_id, tutor_number, evaluation_id, score, comment, is_absent')
       .in('evaluation_id', adultEvalIds)
-    grades.push(...((data ?? []) as any[]).map(g => ({
+    grades.push(...(data ?? []).map(g => ({
       id:            '',
-      student_id:    `${g.parent_id}-${g.tutor_number}`,
+      student_id:    cleAdulte(g.parent_id, g.tutor_number),
       evaluation_id: g.evaluation_id,
       score:         g.score,
       comment:       g.comment,
@@ -303,7 +304,7 @@ export default async function BulletinsPage() {
       .select('student_id, absence_type, is_justified, period_id')
       .eq('etablissement_id', etablissementId)
       .in('class_id', studentClassIds)
-    absences.push(...((data ?? []) as AbsenceRow[]))
+    absences.push(...(data ?? []))
   }
   if (adultClassIds.length > 0) {
     const { data } = await supabase
@@ -311,12 +312,12 @@ export default async function BulletinsPage() {
       .select('parent_id, tutor_number, absence_type, is_justified, period_id')
       .eq('etablissement_id', etablissementId)
       .in('class_id', adultClassIds)
-    absences.push(...((data ?? []) as any[]).map(a => ({
-      student_id: `${a.parent_id}-${a.tutor_number}`,
+    absences.push(...(data ?? []).map(a => ({
+      student_id: cleAdulte(a.parent_id, a.tutor_number),
       absence_type: a.absence_type,
       is_justified: a.is_justified,
       period_id: a.period_id,
-    })) as AbsenceRow[])
+    })))
   }
 
   // 9. Archives de bulletins existantes : bulletin_archives (élèves) + adult_bulletin_archives (adultes)
@@ -327,15 +328,15 @@ export default async function BulletinsPage() {
       .from('bulletin_archives')
       .select('id, student_id, class_id, period_id, file_path, archived_at')
       .in('class_id', studentClassIds)
-    archives.push(...((data ?? []) as ArchiveRow[]))
+    archives.push(...(data ?? []))
   }
   if (adultClassIds.length > 0) {
     const { data } = await supabase
       .from('adult_bulletin_archives')
       .select('id, parent_id, tutor_number, class_id, period_id, file_path, archived_at')
       .in('class_id', adultClassIds)
-    archives.push(...((data ?? []) as any[]).map(a => ({
-      id: a.id, student_id: `${a.parent_id}-${a.tutor_number}`,
+    archives.push(...(data ?? []).map(a => ({
+      id: a.id, student_id: cleAdulte(a.parent_id, a.tutor_number),
       class_id: a.class_id, period_id: a.period_id, file_path: a.file_path, archived_at: a.archived_at,
     })))
   }
@@ -348,15 +349,15 @@ export default async function BulletinsPage() {
       .from('bulletin_appreciations')
       .select('id, student_id, class_id, period_id, appreciation')
       .in('class_id', studentClassIds)
-    appreciations.push(...((data ?? []) as AppreciationRow[]))
+    appreciations.push(...(data ?? []))
   }
   if (adultClassIds.length > 0) {
     const { data } = await supabase
       .from('adult_bulletin_appreciations')
       .select('id, parent_id, tutor_number, class_id, period_id, appreciation')
       .in('class_id', adultClassIds)
-    appreciations.push(...((data ?? []) as any[]).map(a => ({
-      id: a.id, student_id: `${a.parent_id}-${a.tutor_number}`,
+    appreciations.push(...(data ?? []).map(a => ({
+      id: a.id, student_id: cleAdulte(a.parent_id, a.tutor_number),
       class_id: a.class_id, period_id: a.period_id, appreciation: a.appreciation,
     })))
   }

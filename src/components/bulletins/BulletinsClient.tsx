@@ -17,6 +17,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
+import { messageErreur } from '@/lib/erreur'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -524,24 +525,16 @@ export default function BulletinsClient({
         const { data: row, error: insertError } = await supabase
           .from(isAdultClass ? 'adult_bulletin_archives' : 'bulletin_archives')
           .insert(insertPayload)
-          .select(isAdultClass
-            ? 'id, parent_id, tutor_number, class_id, period_id, file_path, archived_at'
-            : 'id, student_id, class_id, period_id, file_path, archived_at')
+          // Colonnes communes aux deux tables : la cle du participant est deja connue.
+          .select('id, class_id, period_id, file_path, archived_at')
           .single()
         if (insertError) throw insertError
-        if (row) {
-          const r = row as any
-          newArchives.push({
-            id: r.id,
-            student_id: isAdultClass ? `${r.parent_id}-${r.tutor_number}` : r.student_id,
-            class_id: r.class_id, period_id: r.period_id, file_path: r.file_path, archived_at: r.archived_at,
-          } as ArchiveRow)
-        }
+        if (row) newArchives.push({ ...row, student_id: student.student_id })
       }
 
       setArchives(prev => [...prev, ...newArchives])
-    } catch (err: any) {
-      setArchiveError(err?.message ?? "Erreur lors de l'archivage")
+    } catch (err: unknown) {
+      setArchiveError(messageErreur(err) ?? "Erreur lors de l'archivage")
     } finally {
       setArchiving(false)
     }
@@ -575,8 +568,8 @@ export default function BulletinsClient({
       }
 
       setArchives(prev => prev.filter(a => !ids.includes(a.id)))
-    } catch (err: any) {
-      setArchiveError(err?.message ?? 'Erreur lors de la désarchivation')
+    } catch (err: unknown) {
+      setArchiveError(messageErreur(err) ?? 'Erreur lors de la désarchivation')
     } finally {
       setArchiving(false)
     }
@@ -632,25 +625,19 @@ export default function BulletinsClient({
       const { data, error } = await supabase
         .from(isAdultClass ? 'adult_bulletin_appreciations' : 'bulletin_appreciations')
         .upsert(payload, { onConflict: conflict })
-        .select(isAdultClass
-          ? 'id, parent_id, tutor_number, class_id, period_id, appreciation'
-          : 'id, student_id, class_id, period_id, appreciation')
+        // Colonnes communes aux deux tables : la cle du participant est deja connue.
+        .select('id, class_id, period_id, appreciation')
         .single()
       if (error) throw error
       if (data) {
-        const r = data as any
-        const row: AppreciationRow = {
-          id: r.id,
-          student_id: isAdultClass ? `${r.parent_id}-${r.tutor_number}` : r.student_id,
-          class_id: r.class_id, period_id: r.period_id, appreciation: r.appreciation,
-        }
+        const row: AppreciationRow = { ...data, student_id: studentId }
         setAppreciations(prev => {
           const filtered = prev.filter(a => !(a.student_id === studentId && a.class_id === selectedClassId && a.period_id === selectedPeriodId))
           return [...filtered, row]
         })
       }
-    } catch (err: any) {
-      console.error('Erreur sauvegarde appréciation:', err?.message)
+    } catch (err: unknown) {
+      console.error('Erreur sauvegarde appréciation:', messageErreur(err))
       setAppreciationError("Erreur lors de l'enregistrement de l'appréciation.")
     } finally {
       setSavingAppreciation(null)

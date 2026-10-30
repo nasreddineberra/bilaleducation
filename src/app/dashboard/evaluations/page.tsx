@@ -73,7 +73,7 @@ export default async function EvaluationsPage() {
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
+    classes = (data ?? []).map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null, is_adult: cotisation_types?.is_adult ?? false }))
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -99,7 +99,7 @@ export default async function EvaluationsPage() {
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
+        classes = (data ?? []).map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null, is_adult: cotisation_types?.is_adult ?? false }))
       }
     }
   }

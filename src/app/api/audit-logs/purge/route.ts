@@ -63,7 +63,7 @@ async function garde(request: Request): Promise<
 }
 
 /** Borne de date commune : `0` = tout purger, donc aucune borne. */
-function bornerQuery(query: any, jours: PurgeJours) {
+function bornerQuery<Q extends { lt(colonne: 'created_at', valeur: string): Q }>(query: Q, jours: PurgeJours): Q {
   if (jours > 0) {
     const limite = new Date()
     limite.setDate(limite.getDate() - jours)

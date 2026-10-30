@@ -30,7 +30,7 @@ import {
   // passer par lui, via `computeFamilyFinancials` — ecran et base partent donc
   // des memes lignes filles et du meme subtotal, ils ne peuvent pas diverger.
   computeFamilyFinancials, lignesCotisation,
-  LIBELLES_REGLE, type RegleAjustement,
+  LIBELLES_REGLE,
   type FamilyFinancials, type RecapDossier, type RetourReduction, type RetourSuppression, type AnneeLike, type LigneCotisation, type DecisionAjustement,
 } from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'

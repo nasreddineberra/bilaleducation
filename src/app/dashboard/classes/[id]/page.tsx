@@ -1,3 +1,4 @@
+import { nomEnseignant } from '@/lib/teachers/nom'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -113,13 +114,11 @@ export default async function EditClassPage({ params }: Props) {
 
   const initialAssignments: AssignmentData[] = (classTeachers ?? []).map(ct => ({
     teacher_id:      ct.teacher_id,
-    teacher_name:    ct.teachers
-      ? `${(ct.teachers as any).last_name} ${(ct.teachers as any).first_name}`
-      : ct.teacher_id,
+    teacher_name:    ct.teachers ? nomEnseignant(ct.teachers) : ct.teacher_id,
     is_main_teacher: ct.is_main_teacher ?? false,   // defaut de la colonne (jamais NULL en base)
     subject:         ct.subject ?? '',
-    effective_from:  (ct as any).effective_from ?? null,
-    effective_until: (ct as any).effective_until ?? null,
+    effective_from:  ct.effective_from,
+    effective_until: ct.effective_until,
   }))
 
   return (
@@ -138,10 +137,10 @@ export default async function EditClassPage({ params }: Props) {
         initialAssignments={initialAssignments}
         schoolYears={schoolYears ?? []}
         teachers={teachers ?? []}
-        cotisationTypes={(cotisationTypes ?? []) as any[]}
-        rooms={(rooms ?? []) as any[]}
-        currentSchoolYear={currentYearRow as any}
-        existingSlots={(existingSlots ?? []) as any[]}
+        cotisationTypes={cotisationTypes ?? []}
+        rooms={rooms ?? []}
+        currentSchoolYear={currentYearRow}
+        existingSlots={existingSlots ?? []}
         matieres={matieres ?? []}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}

@@ -123,13 +123,13 @@ interface ClassData {
   cotisation_types?: { label: string } | null
   class_teachers: {
     teacher_id: string
-    is_main_teacher: boolean
+    is_main_teacher: boolean | null
     subject?: string | null
     // Bornes de l'affectation : c'est ce qui permet a un REMPLACANT de voir les
     // creneaux de la classe qu'il couvre, pendant la periode ou il la couvre.
     effective_from?: string | null
     effective_until?: string | null
-    teachers: { id: string; first_name: string; last_name: string; civilite?: string }
+    teachers: { id: string; first_name: string; last_name: string; civilite?: string | null }
   }[]
 }
 
@@ -144,7 +144,7 @@ interface TeacherData {
   id: string
   first_name: string
   last_name: string
-  civilite?: string
+  civilite?: string | null
   user_id?: string | null
 }
 
@@ -198,7 +198,7 @@ export interface ResolvedSlot {
   /** Remplacant designe par l'absence (un compte, fiche enseignant ou non). */
   remplacant?: { profileId: string; personne: { first_name: string; last_name: string; civilite?: string | null } | null } | null
   classes?: { name: string }
-  teachers?: { first_name: string; last_name: string; civilite?: string }
+  teachers?: { first_name: string; last_name: string; civilite?: string | null }
   cours?: { nom_fr: string } | null
   unite_enseignement_id: string | null
   libelle: string | null
@@ -607,7 +607,7 @@ export default function EmploiDuTempsClient({
   // Noms : la liste des enseignants, completee par ceux lus dans les affectations
   // (un remplacant ne lit pas toujours la fiche du titulaire).
   const enseignantParId = useMemo(() => {
-    const parId = new Map<string, { first_name: string; last_name: string; civilite?: string }>()
+    const parId = new Map<string, { first_name: string; last_name: string; civilite?: string | null }>()
     for (const c of classes) for (const ct of c.class_teachers ?? []) if (ct.teachers) parId.set(ct.teacher_id, ct.teachers)
     for (const t of teachers) parId.set(t.id, t)
     return (id: string | null) => (id ? parId.get(id) : undefined)
@@ -987,8 +987,8 @@ export default function EmploiDuTempsClient({
         .from('schedule_exceptions')
         .select('*'),
     ])
-    if (freshSlots) setSlots(freshSlots as any[])
-    if (freshExceptions) setExceptions(freshExceptions as any[])
+    if (freshSlots) setSlots(freshSlots)
+    if (freshExceptions) setExceptions(freshExceptions)
   }, [supabase, schoolYearId])
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
@@ -1100,10 +1100,7 @@ export default function EmploiDuTempsClient({
         return
       }
 
-      const matchedCours = coursList.find(c => {
-        const ue = (c as any).unites_enseignement
-        return ue?.nom_fr === subject.ueName
-      })
+      const matchedCours = coursList.find(c => c.unites_enseignement?.nom_fr === subject.ueName)
 
       try {
         const { error } = await supabase.from('schedule_slots').insert({

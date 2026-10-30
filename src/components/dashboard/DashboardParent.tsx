@@ -1,5 +1,8 @@
 'use client'
 
+import type { NotifRecente } from '@/lib/dashboard/commun'
+import type { DonneesParent } from '@/lib/dashboard/parent'
+import type { LucideIcon } from 'lucide-react'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import { Cliquable } from '@/components/ui/Cliquable'
 
@@ -27,17 +30,11 @@ interface Props {
   yearLabel: string
   periodLabel: string
   unreadNotifs: number
-  recentNotifs: any[]
-  stats: {
-    children: { id: string; first_name: string; last_name: string; gender: string | null; photo_url: string | null; enrollments: { class_id: string; classes: { name: string } | null }[] }[]
-    recentGrades: { id: string; score: number; evaluations: { title: string; max_score: number; evaluation_date: string | null } | null; students: { first_name: string; last_name: string } | null }[]
-    recentAbsences: { id: string; absence_date: string; absence_type: string; is_justified: boolean; students: { first_name: string; last_name: string } | null }[]
-    familyFee: { id: string; total_due: number; status: string } | null
-    upcomingHomework?: { id: string; title: string; homework_type: string; due_date: string; subject: string; classes: { name: string } | null }[]
-  }
+  recentNotifs: NotifRecente[]
+  stats: DonneesParent
 }
 
-const HW_TYPE_BADGE: Record<string, { label: string; color: string; icon: any }> = {
+const HW_TYPE_BADGE: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
   lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
   expose:   { label: 'Exposé',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
@@ -71,15 +68,14 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
                 className="flex items-center gap-3 bg-warm-50 rounded-lg px-4 py-3"
                 classNameLien="hover:bg-warm-100 transition-colors"
               >
-                <div className={clsx(
-                  'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0',
-                  child.gender === 'M' ? 'bg-blue-400' : child.gender === 'F' ? 'bg-pink-400' : 'bg-warm-400'
-                )}>
+                {/* Pastille neutre : le genre etait compare a 'M' / 'F' (la base stocke
+                    male / female), donc toujours gris ; bleu et rose sont hors charte. */}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 bg-warm-400">
                   {child.last_name?.[0]}{child.first_name?.[0]}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-warm-800 truncate">{child.last_name} {child.first_name}</p>
-                  <p className="text-xs text-warm-700">{child.enrollments?.[0]?.classes?.name ?? 'Non inscrit'}</p>
+                  <p className="text-xs text-warm-700">{child.classe?.name ?? 'Non inscrit'}</p>
                 </div>
               </Cliquable>
             ))}

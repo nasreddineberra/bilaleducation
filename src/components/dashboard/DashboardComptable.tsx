@@ -1,5 +1,6 @@
 'use client'
 
+import type { NotifRecente } from '@/lib/dashboard/commun'
 import Link from 'next/link'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import type { DonneesComptable } from '@/lib/dashboard/comptable'
@@ -18,7 +19,7 @@ interface Props {
   yearLabel: string
   periodLabel: string
   unreadNotifs: number
-  recentNotifs: any[]
+  recentNotifs: NotifRecente[]
   donnees: DonneesComptable
 }
 

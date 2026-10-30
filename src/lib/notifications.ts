@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { sendNotificationEmail, type EmailAttachment } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push'
+import type { Json } from '@/types/supabase'
 
 interface CreateNotificationParams {
   etablissement_id: string
@@ -10,7 +11,7 @@ interface CreateNotificationParams {
   student_id?: string | null
   title: string
   body: string
-  metadata?: Record<string, any>
+  metadata?: { [cle: string]: Json | undefined }
   emailHtml?: string
   emailSubject?: string
   // Force la liste des destinataires email (ex. classe adulte : uniquement le

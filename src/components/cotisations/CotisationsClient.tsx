@@ -1,5 +1,7 @@
 'use client'
 
+import type { Tables } from '@/types/supabase'
+import { messageErreur } from '@/lib/erreur'
 import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -47,8 +49,8 @@ interface Props {
   presenceTypes: PresenceType[]
   presenceTypeRates: PresenceTypeRate[]
   allYears: SchoolYear[]
-  allCotisationTypes: any[]
-  allPresenceTypeRates: any[]
+  allCotisationTypes: Pick<Tables<'cotisation_types'>, 'id' | 'school_year_id' | 'label' | 'amount' | 'registration_fee' | 'sibling_discount' | 'max_installments' | 'is_adult'>[]
+  allPresenceTypeRates: (Pick<Tables<'presence_type_rates'>, 'school_year_id' | 'rate'> & { presence_types: Pick<Tables<'presence_types'>, 'label' | 'color'> | null })[]
   /** Regle de l'etablissement pour un depart en cours d'annee, et sa derniere modification. */
   reglage: {
     regle: RegleAjustement; modifieLe: string | null; modifiePar: string | null
@@ -229,8 +231,8 @@ export default function CotisationsClient({
         toast.success('Type ajouté.')
       }
       setEditing(null)
-    } catch (e: any) {
-      toast.error(e.message ?? 'Erreur lors de l\'enregistrement.')
+    } catch (e: unknown) {
+      toast.error(messageErreur(e) ?? 'Erreur lors de l\'enregistrement.')
     } finally {
       setSaving(false)
     }
@@ -264,8 +266,8 @@ export default function CotisationsClient({
       setRows(prev => prev.filter(r => r.id !== id))
       setConfirmDeleteId(null)
       toast.success('Type supprimé.')
-    } catch (e: any) {
-      toast.error(e.message ?? 'Erreur lors de la suppression.')
+    } catch (e: unknown) {
+      toast.error(messageErreur(e) ?? 'Erreur lors de la suppression.')
     } finally {
       setSaving(false)
     }
@@ -399,13 +401,13 @@ export default function CotisationsClient({
                 </thead>
                 <tbody className="divide-y divide-warm-50">
                   {pastYears.map(year => {
-                    const yearCotisations = allCotisationTypes.filter((c: any) => c.school_year_id === year.id)
+                    const yearCotisations = allCotisationTypes.filter(c => c.school_year_id === year.id)
                     return (
                       <Fragment key={year.id}>
                         <tr className="sans-survol bg-warm-100/50">
                           <td colSpan={5} className="px-2 py-1 text-[11px] font-bold text-secondary-700">{year.label}</td>
                         </tr>
-                        {yearCotisations.length > 0 ? yearCotisations.map((c: any) => (
+                        {yearCotisations.length > 0 ? yearCotisations.map(c => (
                           <tr key={c.id}>
                             <td className="px-2 py-1 text-secondary-800 whitespace-nowrap">{c.label}{c.is_adult ? <span className="ml-1 text-violet-600 font-semibold">·A</span> : null}</td>
                             <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{fmtEur(c.amount)}</td>
@@ -536,8 +538,8 @@ export default function CotisationsClient({
                         setRateSaving(false)
                         try {
                           verifierEcriture(resultat, 'Les taux horaires')
-                        } catch (e: any) {
-                          toast.error(e?.message ?? 'Enregistrement impossible.')
+                        } catch (e: unknown) {
+                          toast.error(messageErreur(e) ?? 'Enregistrement impossible.')
                           return
                         }
                         setRateSuccess('Taux enregistrés')
@@ -563,13 +565,13 @@ export default function CotisationsClient({
             ) : (
               <div className="divide-y divide-warm-100">
                 {pastYears.map(year => {
-                  const yearRates: any[] = allPresenceTypeRates.filter((r: any) => r.school_year_id === year.id)
+                  const yearRates = allPresenceTypeRates.filter(r => r.school_year_id === year.id)
                   return (
                     <div key={year.id} className="px-3 py-2">
                       <p className="text-[11px] font-bold text-secondary-700 mb-1">{year.label}</p>
                       {yearRates.length > 0 ? (
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                          {yearRates.map((r: any, i: number) => (
+                          {yearRates.map((r, i) => (
                             <div key={i} className="flex items-center justify-between gap-1.5 text-[11px] min-w-0">
                               <span className="flex items-center gap-1 text-secondary-800 min-w-0">
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.presence_types?.color }} />

@@ -1,3 +1,4 @@
+import { cleAdulte } from '@/lib/parents/participant'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import GradesClient from '@/components/grades/GradesClient'
@@ -103,7 +104,7 @@ export default async function GradesPage() {
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
+    classes = (data ?? []).map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null, is_adult: cotisation_types?.is_adult ?? false }))
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -129,7 +130,7 @@ export default async function GradesPage() {
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
+        classes = (data ?? []).map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null, is_adult: cotisation_types?.is_adult ?? false }))
       }
     }
   }
@@ -230,16 +231,15 @@ export default async function GradesPage() {
       .in('class_id', studentClassIds)
       .eq('status', 'active')
 
-    students.push(...((enrollments ?? []) as any[])
-      .filter(e => e.students)
-      .map(e => ({
-        student_id:     e.student_id,
-        class_id:       e.class_id,
-        first_name:     e.students.first_name,
-        last_name:      e.students.last_name,
-        student_number: e.students.student_number,
-        photo_url:      e.students.photo_url ?? null,
-      })))
+    students.push(...(enrollments ?? [])
+      .flatMap(({ student_id, class_id, students: s }) => s ? [{
+        student_id,
+        class_id,
+        first_name:     s.first_name,
+        last_name:      s.last_name,
+        student_number: s.student_number,
+        photo_url:      s.photo_url ?? null,
+      }] : []))
   }
 
   if (adultClassIds.length > 0) {
@@ -249,20 +249,20 @@ export default async function GradesPage() {
       .in('class_id', adultClassIds)
       .eq('status', 'active')
 
-    students.push(...((adultEnr ?? []) as any[])
-      .filter(e => e.parents)
-      .map(e => {
+    students.push(...(adultEnr ?? [])
+      .flatMap(e => {
         const p     = e.parents
+        if (!p) return []
         const first = e.tutor_number === 1 ? p.tutor1_first_name : p.tutor2_first_name
         const last  = e.tutor_number === 1 ? p.tutor1_last_name  : p.tutor2_last_name
-        return {
-          student_id:     `${e.parent_id}-${e.tutor_number}`,
+        return [{
+          student_id:     cleAdulte(e.parent_id, e.tutor_number),
           class_id:       e.class_id,
           first_name:     first ?? '',
           last_name:      last ?? '',
           student_number: '',
           photo_url:      null,
-        }
+        }]
       }))
   }
 
@@ -281,16 +281,17 @@ export default async function GradesPage() {
       .from('grades')
       .select('id, student_id, evaluation_id, score, comment, is_absent')
       .in('evaluation_id', studentEvalIds)
-    grades.push(...((data ?? []) as GradeRow[]))
+    // `is_absent` : defaut false, jamais NULL en base (0 cas au 30/10).
+    grades.push(...(data ?? []).map(g => ({ ...g, is_absent: g.is_absent ?? false })))
   }
   if (adultEvalIds.length > 0) {
     const { data } = await supabase
       .from('adult_grades')
       .select('parent_id, tutor_number, evaluation_id, score, comment, is_absent')
       .in('evaluation_id', adultEvalIds)
-    grades.push(...((data ?? []) as any[]).map(g => ({
+    grades.push(...(data ?? []).map(g => ({
       id:            '',
-      student_id:    `${g.parent_id}-${g.tutor_number}`,
+      student_id:    cleAdulte(g.parent_id, g.tutor_number),
       evaluation_id: g.evaluation_id,
       score:         g.score,
       comment:       g.comment,

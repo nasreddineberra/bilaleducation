@@ -12,6 +12,7 @@ import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatField
 import FormModal from '@/components/ui/FormModal'
 import type { Etablissement } from '@/types/database'
 import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
+import { messageErreur } from '@/lib/erreur'
 
 interface EtablissementFormProps {
   etablissement: Etablissement
@@ -338,8 +339,8 @@ function LogoField({
       const { data: { publicUrl } } = supabase.storage.from('etablissement-logos').getPublicUrl(path)
       onChange(`${publicUrl}?t=${Date.now()}`)
       closeCrop()
-    } catch (err: any) {
-      setUploadError(err?.message ?? "Erreur lors de l'upload. Veuillez réessayer.")
+    } catch (err: unknown) {
+      setUploadError(messageErreur(err) ?? "Erreur lors de l'upload. Veuillez réessayer.")
     } finally {
       setIsUploading(false)
     }

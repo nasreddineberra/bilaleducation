@@ -59,7 +59,7 @@ export default async function TypesPresencePage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <TypesPresenceClient
-        initialTypes={(types ?? []) as any[]}
+        initialTypes={types ?? []}
         currentYear={{
           id:         currentYear.id,
           label:      currentYear.label,

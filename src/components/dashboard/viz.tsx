@@ -54,12 +54,21 @@ export function fmtAxis(n: number) {
 
 // ─── Tooltip commun ─────────────────────────────────────────────────────────
 // `unit` non vide = valeurs en effectif (et non en euros).
-export function VizTooltip({ active, payload, label, total, unit }: any) {
+/** Ce que Recharts passe a un `content` de Tooltip (champs lus ici seulement). */
+type VizTooltipProps = {
+  active?: boolean
+  payload?: { value?: number | string; name?: string; dataKey?: string | number; color?: string; payload?: { fill?: string } }[]
+  label?: string | number
+  total?: number
+  unit?: string
+}
+
+export function VizTooltip({ active, payload, label, total, unit }: VizTooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-lg border border-warm-200 bg-white px-2.5 py-1.5 shadow-lg">
       {label && <p className="text-[11px] font-semibold text-secondary-800 mb-0.5">{label}</p>}
-      {payload.map((p: any) => {
+      {payload.map(p => {
         const value = Number(p.value ?? 0)
         const pct = total && total > 0 ? ` (${Math.round((value / total) * 100)} %)` : ''
         const shown = unit ? `${value} ${unit}${value > 1 ? 's' : ''}` : fmtEur(value)

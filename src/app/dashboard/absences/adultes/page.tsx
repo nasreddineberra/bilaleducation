@@ -1,3 +1,4 @@
+import { cleAdulte } from '@/lib/parents/participant'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import AbsencesClient from '@/components/absences/AbsencesClient'
@@ -72,12 +73,17 @@ export default async function AbsencesAdultesPage() {
 
   // ── Classes ADULTES de l'année, filtrées selon le rôle ──
   let classes: ClassRow[] = []
-  const construire = (data: any[]) => data
-    .filter((c: any) => c.cotisation_types?.is_adult)
-    .map((c: any) => ({
+  type ClasseLue = {
+    id: string; name: string; level: string
+    day_of_week: string | null; start_time: string | null; end_time: string | null
+    cotisation_types: { label: string | null; is_adult: boolean } | null
+  }
+  const construire = (data: ClasseLue[]) => data
+    .filter(c => c.cotisation_types?.is_adult)
+    .map(({ cotisation_types, ...c }): ClassRow => ({
       ...c, main_teacher_name: null, main_teacher_civilite: null,
-      cotisation_label: c.cotisation_types?.label ?? null,
-    })) as ClassRow[]
+      cotisation_label: cotisation_types?.label ?? null,
+    }))
 
   if (['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(role)) {
     const query = supabase
@@ -164,23 +170,24 @@ export default async function AbsencesAdultesPage() {
       .in('class_id', classIds)
       .eq('status', 'active')
 
-    participants = ((pce ?? []) as any[])
-      .filter(e => e.parents)
-      .map(e => {
+    participants = (pce ?? [])
+      .flatMap(e => {
+        const p = e.parents
+        if (!p) return []
         const t2 = e.tutor_number === 2
-        return {
+        return [{
           // CLÉ UNIFIÉE. Le client ne connaît que ce champ ; il le reconvertit en
           // `parent_id` + `tutor_number` au moment d'écrire.
-          student_id: `${e.parent_id}-${e.tutor_number}`,
+          student_id: cleAdulte(e.parent_id, e.tutor_number),
           class_id:   e.class_id,
-          first_name: t2 ? e.parents.tutor2_first_name : e.parents.tutor1_first_name,
-          last_name:  t2 ? e.parents.tutor2_last_name  : e.parents.tutor1_last_name,
+          first_name: (t2 ? p.tutor2_first_name : p.tutor1_first_name) ?? '',
+          last_name:  (t2 ? p.tutor2_last_name  : p.tutor1_last_name) ?? '',
           // Un adulte n'a pas de matricule : le champ existe, il reste vide, comme
           // sur le bulletin adulte où le matricule est masqué.
           student_number: '',
-          gender:     genderFromRelationship(t2 ? e.parents.tutor2_relationship : e.parents.tutor1_relationship),
+          gender:     genderFromRelationship(t2 ? p.tutor2_relationship : p.tutor1_relationship),
           photo_url:  null,
-        }
+        }]
       })
       .filter(p => p.last_name)
       .sort((a, b) =>
@@ -196,9 +203,9 @@ export default async function AbsencesAdultesPage() {
       .select('*')
       .eq('etablissement_id', etablissementId)
       .in('class_id', classIds)
-    absences = ((data ?? []) as any[]).map(r => ({
-      ...r, student_id: `${r.parent_id}-${r.tutor_number}`,
-    })) as Absence[]
+    absences = (data ?? []).map(r => ({
+      ...r, student_id: cleAdulte(r.parent_id, r.tutor_number),
+    }))
   }
 
   const { data: etablissement } = await supabase

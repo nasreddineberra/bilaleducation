@@ -77,8 +77,8 @@ export default async function AbsencesPage() {
       // Les classes ADULTES ont leur propre feuille d'appel : leurs participants
       // sont des tuteurs (`parent_class_enrollments`), invisibles ici. Les laisser
       // dans le sélecteur donnait un trombinoscope VIDE.
-      .filter((c: any) => !c.cotisation_types?.is_adult)
-      .map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
+      .filter(c => !c.cotisation_types?.is_adult)
+      .map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null }))
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -110,8 +110,8 @@ export default async function AbsencesPage() {
       // Les classes ADULTES ont leur propre feuille d'appel : leurs participants
       // sont des tuteurs (`parent_class_enrollments`), invisibles ici. Les laisser
       // dans le sélecteur donnait un trombinoscope VIDE.
-      .filter((c: any) => !c.cotisation_types?.is_adult)
-      .map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
+      .filter(c => !c.cotisation_types?.is_adult)
+      .map(({ cotisation_types, ...c }): ClassRow => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: cotisation_types?.label ?? null }))
       }
     }
   }
@@ -169,17 +169,16 @@ export default async function AbsencesPage() {
       .in('class_id', classIds)
       .eq('status', 'active')
 
-    students = ((enrollments ?? []) as any[])
-      .filter(e => e.students)
-      .map(e => ({
-        student_id:     e.student_id,
-        class_id:       e.class_id,
-        first_name:     e.students.first_name,
-        last_name:      e.students.last_name,
-        student_number: e.students.student_number,
-        gender:         e.students.gender ?? null,
-        photo_url:      e.students.photo_url ?? null,
-      }))
+    students = (enrollments ?? [])
+      .flatMap(({ student_id, class_id, students: s }) => s ? [{
+        student_id,
+        class_id,
+        first_name:     s.first_name,
+        last_name:      s.last_name,
+        student_number: s.student_number,
+        gender:         s.gender ?? null,
+        photo_url:      s.photo_url ?? null,
+      }] : [])
       .sort((a, b) =>
         a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
       )

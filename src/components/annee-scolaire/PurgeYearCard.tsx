@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
 import { purgeYear } from '@/app/dashboard/passage-annee/actions'
 import { pluriel } from '@/lib/texte/pluriel'
+import { messageErreur } from '@/lib/erreur'
 
 function fmt(d: string) {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -48,13 +49,13 @@ export default function PurgeYearCard({
       const s = res.summary
       toast.success(`Année ${yearLabel} purgée : ${pluriel(s?.notes ?? 0, 'note')}, ${pluriel(s?.absences ?? 0, 'absence')}, ${pluriel(s?.fees_paid ?? 0, 'foyer soldé', 'foyers soldés')}, ${pluriel(s?.messages ?? 0, 'message')}, ${pluriel(s?.notifications ?? 0, 'notification')}, ${pluriel(s?.relances ?? 0, 'relance')}.`)
       // Les lignes sont parties ; seuls des fichiers sont restes dans le stockage.
-      if ((s?.fichiers_retires ?? 0) < (s?.fichiers_attendus ?? 0)) {
+      if (s && s.fichiers_retires < s.fichiers_attendus) {
         toast.warning(`${pluriel(s.fichiers_attendus - s.fichiers_retires, 'pièce jointe', 'pièces jointes')} ${s.fichiers_attendus - s.fichiers_retires > 1 ? "n'ont pas pu être retirées" : "n'a pas pu être retirée"} du stockage.`)
       }
       setOpen(false); setTyped('')
       router.refresh()
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Une erreur est survenue.')
+    } catch (e: unknown) {
+      toast.error(messageErreur(e) ?? 'Une erreur est survenue.')
     } finally {
       setBusy(false)
     }

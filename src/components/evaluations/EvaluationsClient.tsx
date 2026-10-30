@@ -17,6 +17,7 @@ import type {
   UniteEnseignement, CoursModule, Cours,
   Period, EvalTypeConfig, EvalTypeKind,
 } from '@/types/database'
+import { messageErreur } from '@/lib/erreur'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -575,10 +576,10 @@ export default function EvaluationsClient({
         'Cet ordre',
       )
       setOrderDirty(false)
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Le message est RELAYE : un texte generique masquerait « vos droits ne
       // le permettent pas », qui est justement ce qui permet d'agir.
-      setError(e?.message ?? 'Erreur lors de la sauvegarde.')
+      setError(messageErreur(e) ?? 'Erreur lors de la sauvegarde.')
     } finally {
       setSavingOrder(false)
     }

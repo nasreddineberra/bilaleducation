@@ -42,7 +42,8 @@ interface RoomOption {
 
 interface SlotRow {
   id: string
-  day_of_week: number
+  /** Jamais NULL pour un creneau recurrent (0 cas en base au 30/10). */
+  day_of_week: number | null
   start_time: string
   end_time: string
   effective_from: string | null
@@ -81,7 +82,7 @@ interface ClassFormProps {
   cotisationTypes?: CotisationType[]
   rooms?: RoomOption[]
   backHref?: string
-  currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] } | null
+  currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] | null } | null
   existingSlots?: SlotRow[]
   matieres?: MatiereOption[]
   weekStartDay?: number   // 0=Dimanche, 1=Lundi, 6=Samedi
@@ -215,7 +216,7 @@ export default function ClassForm({
   // ── Slots EDT ─────────────────────────────────────────────────────────────
   const initialSlotDrafts: SlotDraft[] = existingSlots.map(s => ({
     id:              s.id,
-    day_of_week:     DAY_NUM_TO_NAME[s.day_of_week] ?? 'Lundi',
+    day_of_week:     (s.day_of_week != null ? DAY_NUM_TO_NAME[s.day_of_week] : undefined) ?? 'Lundi',
     start_time:      (s.start_time  ?? '').slice(0, 5),
     end_time:        (s.end_time    ?? '').slice(0, 5),
     effective_from:  (s.effective_from  ?? '').slice(0, 10),

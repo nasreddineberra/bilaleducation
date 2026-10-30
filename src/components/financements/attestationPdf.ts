@@ -1,5 +1,6 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { finDuTableau } from '@/lib/pdf/tableau'
 
 // ─── Couleurs (alignees sur bulletinPdf) ─────────────────────────────────────
 const COLORS = {
@@ -165,7 +166,7 @@ export async function generateAttestationPdfBase64(input: AttestationPdfInput): 
     margin: { left: margin, right: margin },
   })
 
-  y = (doc as any).lastAutoTable.finalY + 16
+  y = finDuTableau(doc) + 16
 
   // Pied : date + mention.
   doc.setFont('helvetica', 'normal')

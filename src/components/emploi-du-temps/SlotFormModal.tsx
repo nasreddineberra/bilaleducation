@@ -38,9 +38,9 @@ interface ClassData {
   cotisation_types?: { label: string } | null
   class_teachers: {
     teacher_id: string
-    is_main_teacher: boolean
+    is_main_teacher: boolean | null
     effective_until?: string | null
-    teachers: { id: string; first_name: string; last_name: string; civilite?: string }
+    teachers: { id: string; first_name: string; last_name: string; civilite?: string | null }
   }[]
 }
 

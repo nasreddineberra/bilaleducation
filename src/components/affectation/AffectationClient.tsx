@@ -58,7 +58,6 @@ interface Props {
   classes:       ClassRow[]
   students:      StudentRow[]
   enrollments:   EnrollmentRow[]
-  currentYearId: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -297,7 +296,7 @@ function DropZone({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function AffectationClient({ classes, students, enrollments, currentYearId }: Props) {
+export default function AffectationClient({ classes, students, enrollments }: Props) {
   const router  = useRouter()
   const toast   = useToast()
 

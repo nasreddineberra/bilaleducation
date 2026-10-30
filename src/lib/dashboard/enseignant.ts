@@ -2,11 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import type { JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
-import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
+import { indexTitulaires } from '@/lib/edt/seance'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
-  type SlotSource, type ExceptionSource, type StatutSeance, type Seance,
+  type SlotSource, type StatutSeance, type Seance,
 } from './seances'
 import { chargerAbsencesFenetre } from '@/lib/absences-enseignants/tableau-de-bord'
 import { cleAdulte } from '@/lib/parents/participant'

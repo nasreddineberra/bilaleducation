@@ -12,7 +12,6 @@ export default async function AffectationPage() {
     .single()
 
   const yearLabel  = currentYear?.label ?? null
-  const yearId     = currentYear?.id    ?? null
 
   // Classes de l'année (une seule requête, réutilisée pour les inscriptions)
   const { data: classes } = yearLabel
@@ -76,7 +75,6 @@ export default async function AffectationPage() {
         classes={apprenantClasses}
         students={students ?? []}
         enrollments={enrollments ?? []}
-        currentYearId={yearId}
       />
     </div>
   )

@@ -11,7 +11,7 @@ import { seanceDeClasse } from '@/components/dashboard/classInfo'
 import { chargerAbsencesFenetre, chargerAlerteAbsences, type AlerteAbsences } from '@/lib/absences-enseignants/tableau-de-bord'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
-  type SlotSource, type ExceptionSource, type StatutSeance,
+  type SlotSource, type StatutSeance,
 } from './seances'
 
 /**

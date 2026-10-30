@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import TeachersClient from '@/components/teachers/TeachersClient'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { jourParis } from '@/lib/tenant/abonnement'
 
 const PAGE_SIZE = 20
 
@@ -71,10 +72,10 @@ export default async function TeachersPage({
         .in('teacher_id', teacherIds)
         .eq('classes.academic_year', year.label)
 
-      const d = new Date()
-      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      // Jour de PARIS : le serveur tourne en UTC.
+      const today = jourParis(new Date())
 
-      for (const a of (assignments ?? []) as any[]) {
+      for (const a of assignments ?? []) {
         // Affectation cloturee ou pas encore commencee : la classe n'est pas « actuelle ».
         if (a.effective_from && a.effective_from > today) continue
         if (a.effective_until && a.effective_until < today) continue

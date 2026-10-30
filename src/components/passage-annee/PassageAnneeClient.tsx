@@ -14,6 +14,7 @@ import { CLOSURE_STEPS } from '@/lib/closure/steps'
 import type { AuditResult } from '@/lib/closure/audits'
 import { runAudit, resetAudit, closeYear, reopenYear, archiveYear, setPurgeIntent, rafraichirRecapitulatifs } from '@/app/dashboard/passage-annee/actions'
 import { pluriel } from '@/lib/texte/pluriel'
+import { messageErreur } from '@/lib/erreur'
 
 export interface AnneeEtat {
   id: string
@@ -135,8 +136,8 @@ export default function PassageAnneeClient({
       const res = await runAudit(annee.id, stepKey)
       if (res.error) { toast.error(res.error); return }
       setResultats(prev => ({ ...prev, [stepKey]: { result: res.result ?? null, at: new Date().toISOString() } }))
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Une erreur est survenue.')
+    } catch (e: unknown) {
+      toast.error(messageErreur(e) ?? 'Une erreur est survenue.')
     } finally {
       setEnCours(null)
     }
@@ -167,8 +168,8 @@ export default function PassageAnneeClient({
       } else {
         toast.success(`${pluriel(res.corriges ?? 0, 'dossier rafraîchi', 'dossiers rafraîchis')}.`)
       }
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Une erreur est survenue.')
+    } catch (e: unknown) {
+      toast.error(messageErreur(e) ?? 'Une erreur est survenue.')
     } finally {
       setEnCours(null)
     }
@@ -185,8 +186,8 @@ export default function PassageAnneeClient({
         return suite
       })
       setDetail(d => (d === stepKey ? null : d))
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Une erreur est survenue.')
+    } catch (e: unknown) {
+      toast.error(messageErreur(e) ?? 'Une erreur est survenue.')
     } finally {
       setEnCours(null)
     }

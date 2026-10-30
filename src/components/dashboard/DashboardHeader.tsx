@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FUSEAU, formatJourLongFr } from '@/lib/dates'
 import { Bell, ChevronRight } from 'lucide-react'
+import type { NotifRecente } from '@/lib/dashboard/commun'
 
 interface Props {
   firstName: string
@@ -9,14 +10,10 @@ interface Props {
   yearLabel: string
   periodLabel: string
   unreadNotifs: number
-  recentNotifs: {
-    id: string
-    is_read: boolean
-    /** 'staff' ou 'parent' : les deux tables de destinataires n'ouvrent pas la
-     *  même fiche (paramètre `rt`). */
-    recipientType?: string
-    announcements: { id: string; title: string; published_at: string | null; profiles: { first_name: string; last_name: string } | null } | null
-  }[]
+  /** `recipientType` : 'staff' ou 'parent', les deux tables de destinataires
+   *  n'ouvrent pas la meme fiche (parametre `rt`). */
+  recentNotifs: NotifRecente[]
+
 }
 
 function formatDate(d: string | null): string {

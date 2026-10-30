@@ -7,7 +7,7 @@ import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
-  seancesSousAbsence, type SlotSource, type ExceptionSource,
+  seancesSousAbsence, type SlotSource,
 } from './seances'
 import { moyenneSur20, avancementSaisie, type AvancementSaisie, type NoteSaisie } from './notes'
 import type { AnneeRef, SeanceAffichee } from './direction'

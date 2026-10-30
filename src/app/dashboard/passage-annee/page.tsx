@@ -79,13 +79,13 @@ export default async function PassageAnneePage() {
   return (
     <PassageAnneeClient
       annee={etat}
-      audits={(audits ?? []).map((a: any) => ({
+      audits={(audits ?? []).map(a => ({
         stepKey:   a.step_key,
         anomalies: a.anomalies_count,
         recap:     a.recap_json ?? null,
         auditedAt: a.audited_at,
       }))}
-      precedentes={(precedentes ?? []).map((p: any) => ({
+      precedentes={(precedentes ?? []).map(p => ({
         id: p.id, label: p.label, closedAt: p.closed_at, archivedAt: p.archived_at, purgedAt: p.purged_at,
       }))}
     />

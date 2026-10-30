@@ -129,13 +129,6 @@ export default function EnrollTotpPage() {
         throw enrollError
       }
 
-      // Debug : voir la structure exacte de la réponse
-      console.log('[enroll-totp] Full response:', JSON.stringify(enrollData, null, 2))
-      console.log('[enroll-totp] totp field type:', typeof enrollData.totp)
-      console.log('[enroll-totp] totp.qr_code type:', typeof enrollData.totp?.qr_code)
-      console.log('[enroll-totp] totp.qr_code length:', (enrollData.totp?.qr_code ?? '').length)
-      console.log('[enroll-totp] totp.qr_code first 200 chars:', (enrollData.totp?.qr_code ?? '').substring(0, 200))
-
       // Si qr_code contient un data URL ou un data URI, il ne faut PAS le réencoder en QR
       // Il faut extraire l'URI TOTP réel
       let totpUri: string | undefined
@@ -156,16 +149,12 @@ export default function EnrollTotpPage() {
           totpUri = raw
         }
       } else {
-        // Fallback sur totp_uri direct
-        totpUri = (enrollData as any).totp_uri ?? (enrollData as any).data?.totp?.qr_code
+        // Repli : l'URI TOTP renvoyée à côté du QR code
+        totpUri = enrollData.totp?.uri
       }
-
-      console.log('[enroll-totp] Final totpUri length:', totpUri?.length)
-      console.log('[enroll-totp] Final totpUri preview:', totpUri?.substring(0, 100))
 
       if (!totpUri) {
         console.error('[enroll-totp] Response keys:', Object.keys(enrollData ?? {}))
-        console.error('[enroll-totp] Full data:', JSON.stringify(enrollData))
         throw new Error('Supabase n\'a pas retourné d\'URI TOTP. Vérifiez que la 2FA est activée dans Supabase Auth > MFA.')
       }
 

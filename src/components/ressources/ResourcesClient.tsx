@@ -11,6 +11,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Room, Material, RoomType, MaterialCategory, MaterialCondition } from '@/types/database'
+import { messageErreur } from '@/lib/erreur'
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
 
@@ -99,7 +100,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   const startAddRoom = () => {
     setAddingRoom(true)
     setEditingRoom(null)
-    setRoomForm({ name: '', room_type: undefined as any, capacity: undefined, floor: '', description: '', is_available: true })
+    setRoomForm({ name: '', room_type: undefined, capacity: undefined, floor: '', description: '', is_available: true })
     setRoomError('')
   }
 
@@ -142,7 +143,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
         setRooms(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       }
       cancelRoom()
-    } catch (e: any) { setRoomError(e.message || 'Erreur') }
+    } catch (e: unknown) { setRoomError(messageErreur(e) || 'Erreur') }
     finally { setRoomSaving(false) }
   }, [roomForm, editingRoom, supabase, etablissementId])
 
@@ -167,7 +168,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   const startAddMat = () => {
     setAddingMat(true)
     setEditingMat(null)
-    setMatForm({ name: '', category: undefined as any, quantity: 1, condition: undefined as any, room_id: undefined, serial_number: '', purchase_date: '', notes: '' })
+    setMatForm({ name: '', category: undefined, quantity: 1, condition: undefined, room_id: undefined, serial_number: '', purchase_date: '', notes: '' })
     setMatError('')
   }
 
@@ -208,7 +209,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
         setMaterials(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       }
       cancelMat()
-    } catch (e: any) { setMatError(e.message || 'Erreur') }
+    } catch (e: unknown) { setMatError(messageErreur(e) || 'Erreur') }
     finally { setMatSaving(false) }
   }, [matForm, editingMat, supabase, etablissementId])
 

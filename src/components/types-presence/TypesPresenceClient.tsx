@@ -186,8 +186,8 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
 
     const existingCodes = new Set(rows.map(r => r.code))
     const toInsert = (prevTypes ?? [])
-      .filter((t: any) => !existingCodes.has(t.code))
-      .map((t: any) => ({ ...t, school_year_id: currentYear.id }))
+      .filter(t => !existingCodes.has(t.code))
+      .map(t => ({ ...t, school_year_id: currentYear.id }))
 
     if (toInsert.length === 0) {
       setError(`Rien à copier : tous les types de ${previousYear.label} sont déjà présents.`)

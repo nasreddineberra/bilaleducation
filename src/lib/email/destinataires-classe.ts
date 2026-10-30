@@ -29,10 +29,10 @@ export async function destinatairesDeLaClasse(
       .eq('class_id', classId)
       .eq('status', 'active')
 
-    for (const p of (participants ?? []) as any[]) {
-      const t = p.tutor_number === 2 ? 2 : 1
-      const email = p.parents?.[`tutor${t}_email`]
-      const nom = `${p.parents?.[`tutor${t}_last_name`] ?? ''} ${p.parents?.[`tutor${t}_first_name`] ?? ''}`.trim()
+    for (const p of participants ?? []) {
+      const t2 = p.tutor_number === 2
+      const email = t2 ? p.parents?.tutor2_email : p.parents?.tutor1_email
+      const nom = `${(t2 ? p.parents?.tutor2_last_name : p.parents?.tutor1_last_name) ?? ''} ${(t2 ? p.parents?.tutor2_first_name : p.parents?.tutor1_first_name) ?? ''}`.trim()
       destinataires.push({ parent_id: p.parent_id, emailsOverride: email ? [email] : [], nom })
     }
   } else {
@@ -43,7 +43,7 @@ export async function destinatairesDeLaClasse(
       .eq('status', 'active')
 
     const parFoyer = new Map<string, string[]>()
-    for (const e of (enrollments ?? []) as any[]) {
+    for (const e of enrollments ?? []) {
       const st = e.students
       if (!st?.parent_id) continue
       const liste = parFoyer.get(st.parent_id) ?? []

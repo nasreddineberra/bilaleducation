@@ -40,8 +40,9 @@ export async function sendPushToUser(
         JSON.stringify(payload)
       )
       sent++
-    } catch (err: any) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
+    } catch (err: unknown) {
+      const statut = (err as { statusCode?: number } | null)?.statusCode
+      if (statut === 410 || statut === 404) {
         expiredIds.push(sub.id)
       }
       failed++

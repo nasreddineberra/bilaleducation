@@ -50,6 +50,7 @@ import {
 import Image from 'next/image'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
+import type { LucideIcon } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ import { clsx } from 'clsx'
 interface LeafNavItem {
   name:    string
   href:    string
-  icon:    any
+  icon:    LucideIcon
   roles:   UserRole[]
   mobile?: boolean
 }
@@ -77,7 +78,7 @@ interface LeafNavItem {
 interface SubNavItem {
   name:      string
   href?:     string
-  icon:      any
+  icon:      LucideIcon
   roles:     UserRole[]
   mobile?:   boolean
   children?: LeafNavItem[]
@@ -86,7 +87,7 @@ interface SubNavItem {
 interface NavItem {
   name:      string
   href?:     string
-  icon:      any
+  icon:      LucideIcon
   roles:     UserRole[]
   mobile?:   boolean
   children?: SubNavItem[]
@@ -725,7 +726,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
   // Mode RÉDUIT : toutes les destinations d'une section, à plat, en icônes.
   // L'icône d'un sous-menu = celle de SON MENU (le libellé vit dans le tooltip).
-  type Dest = { href: string; label: string; icon: any }
+  type Dest = { href: string; label: string; icon: LucideIcon }
   const destsOfSection = (sectionLabel: string): Dest[] =>
     filteredItems
       .filter(it => SECTION_OF[it.name] === sectionLabel)

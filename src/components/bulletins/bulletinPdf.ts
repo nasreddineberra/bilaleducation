@@ -1,5 +1,6 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import autoTable, { type CellInput, type CellHookData, type Styles } from 'jspdf-autotable'
+import { finDuTableau } from '@/lib/pdf/tableau'
 import type { BulletinData } from './BulletinsClient'
 import { afficherPdf } from '@/lib/pdf/ouvrir'
 
@@ -266,7 +267,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   const allLines = data.ueBlocks.flatMap(b => b.lines)
   const hasScored = allLines.some(l => l.evalKind === 'scored')
 
-  const tableBody: any[][] = []
+  const tableBody: CellInput[][] = []
   // Texte arabe de chaque ligne, indexe sur la ligne de CORPS : il n'est pas
   // dans le contenu de la cellule (il serait aligne comme le francais), mais
   // dessine ensuite a droite par `didDrawCell`.
@@ -357,7 +358,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
     }
   }
 
-  const tableHead: any[] = hasScored
+  const tableHead: CellInput[] = hasScored
     ? [
         { content: 'Matière', styles: { halign: 'left' } },
         { content: 'Note', styles: { halign: 'center' } },
@@ -370,7 +371,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
         { content: 'Note', styles: { halign: 'center' } },
       ]
 
-  const colStyles: Record<number, any> = hasScored
+  const colStyles: Record<number, Partial<Styles>> = hasScored
     ? {
         0: { cellWidth: 'auto' },
         1: { cellWidth: 22, halign: 'center' },
@@ -405,13 +406,16 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
     // L'arabe est dessine APRES la cellule, aligne sur son bord droit : le
     // francais garde l'alignement a gauche, les deux se lisent chacun de son
     // cote. `content` ne peut pas produire ce double alignement.
-    didDrawCell: (d: any) => {
+    didDrawCell: (d: CellHookData) => {
       if (d.section !== 'body' || d.column.index !== 0) return
       const ar = arabicByRow[d.row.index]
       if (!ar) return
       const prevFont = doc.getFont()
       const prevSize = doc.getFontSize()
-      const isUeRow = d.row.raw?.[0]?.styles?.fillColor === COLORS.ueBg
+      // Ligne d'UE : sa premiere cellule porte le fond `ueBg` (meme tableau, meme reference).
+      const premiere = Array.isArray(d.row.raw) ? d.row.raw[0] : undefined
+      const isUeRow = typeof premiere === 'object' && premiere !== null && !Array.isArray(premiere)
+        && premiere.styles?.fillColor === COLORS.ueBg
       doc.setFont(AR_FONT_NAME, isUeRow ? 'bold' : 'normal')
       doc.setFontSize(isUeRow ? 8 : 7.5)
       doc.setTextColor(...(isUeRow ? COLORS.secondary : COLORS.black))
@@ -426,7 +430,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   })
 
   // Position après le tableau : même respiration que partout ailleurs.
-  y = (doc as any).lastAutoTable.finalY + GAP
+  y = finDuTableau(doc) + GAP
 
   // ── Résumé : moyenne, absences et appréciation dans un SEUL encadré ────────
   //

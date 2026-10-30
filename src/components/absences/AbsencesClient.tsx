@@ -8,7 +8,8 @@ import { ChevronRight, ChevronDown, AlertTriangle, X, Trash2, Check } from 'luci
 import { createClient } from '@/lib/supabase/client'
 import { ouvrirOngletPdf, afficherPdf, fermerOngletPdf, ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
-import { lireCleAdulte } from '@/lib/parents/participant'
+import { cleAdulte, lireCleAdulte } from '@/lib/parents/participant'
+import { messageErreur } from '@/lib/erreur'
 import { useToast } from '@/lib/toast-context'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import type { VacationPeriod, JourFerie } from '@/types/database'
@@ -22,6 +23,7 @@ import { Puce } from '@/components/dashboard/tdb'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import type { Period, Absence, AbsenceType } from '@/types/database'
+import type { Tables } from '@/types/supabase'
 
 // ─── Types props ─────────────────────────────────────────────────────────────
 
@@ -106,9 +108,9 @@ export function colonnesParticipant(mode: ModeAppel, cle: string) {
 }
 
 /** Ligne de base → forme unifiée attendue par l'écran (`student_id` = la clé). */
-export function normaliserAbsence(row: any, mode: ModeAppel): Absence {
-  if (mode === 'students') return row as Absence
-  return { ...row, student_id: `${row.parent_id}-${row.tutor_number}` } as Absence
+export function normaliserAbsence(row: Tables<'absences'> | Tables<'adult_absences'>, mode: ModeAppel): Absence {
+  if (mode === 'students' || 'student_id' in row) return row as Absence
+  return { ...row, student_id: cleAdulte(row.parent_id, row.tutor_number) }
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -1213,8 +1215,8 @@ function SaisieModal({
       onComplete(added, updated, deletedIds, date)
       setIsSaved(true)
       setIsSubmitting(false)
-    } catch (err: any) {
-      setError(err?.message ?? 'Erreur lors de l\'enregistrement.')
+    } catch (err: unknown) {
+      setError(messageErreur(err) ?? 'Erreur lors de l\'enregistrement.')
       setIsSubmitting(false)
     }
   }
@@ -1687,8 +1689,8 @@ function JustificationModal({
 
       if (updateErr) throw updateErr
       onComplete(normaliserAbsence(data, mode))
-    } catch (err: any) {
-      setError(err?.message ?? 'Erreur lors de la justification.')
+    } catch (err: unknown) {
+      setError(messageErreur(err) ?? 'Erreur lors de la justification.')
       setIsSubmitting(false)
     }
   }
