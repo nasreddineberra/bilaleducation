@@ -142,6 +142,7 @@ export default function StudentDetail({
       {activeTab === 'identite' && (
         <div role="tabpanel" id="panel-identite" aria-labelledby="tab-identite">
           <StudentForm
+            key={student.updated_at}
             student={student}
             parents={parents}
             backHref={backHref}

@@ -325,8 +325,10 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   Etats vides d'une phrase.
 - **Lignes de liste cliquables** vers la fiche (`stopPropagation` sur nom/actions) ; actions de ligne
   toujours visibles.
-- **Apres enregistrement : retour a l'origine** (liste par defaut, `?from=` pour audit/parents),
-  avec les filtres de la liste conserves (URL ou `sessionStorage`).
+- **Apres MODIFICATION d'une fiche : on RESTE sur la fiche** (message de confirmation, page rechargee ; le
+  formulaire porte `key={ligne.updated_at}` pour repartir des donnees enregistrees). Le retour a la liste est
+  MANUEL (« Retour a la liste », « Annuler ») : a l'origine (`?from=` pour audit/parents), filtres conserves (URL
+  ou `sessionStorage`). Seule exception : apres une CREATION, retour a la liste. Une suppression y ramene aussi.
 - **Selects demarrent vides** (placeholder `disabled hidden`), obligatoires si pertinent.
 - **Modales de SAISIE** : fermeture X / Annuler seulement (ni fond ni Echap). Echap autorise sur
   une modale de confirmation.

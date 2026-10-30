@@ -239,7 +239,9 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
         if (onClose) {
           onClose()
         } else {
-          router.push(backHref)
+          // Modification : on RESTE sur la fiche (retour a la liste manuel, decision du 30/10) ;
+          // la page rechargee remonte le formulaire (cle `updated_at`).
+          toast.success('Fiche parents modifiée avec succès.')
         }
       } else {
         // Création avec comptes utilisateurs automatiques

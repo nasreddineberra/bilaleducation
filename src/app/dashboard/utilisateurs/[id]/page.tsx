@@ -46,7 +46,7 @@ export default async function EditUtilisateurPage({ params }: Props) {
         <ChevronLeft size={15} />
         Retour à la liste
       </Link>
-      <UtilisateurForm profile={profile as Profile} has2fa={has2fa} />
+      <UtilisateurForm key={profile.updated_at} profile={profile as Profile} has2fa={has2fa} />
     </div>
   )
 }

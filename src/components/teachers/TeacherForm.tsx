@@ -151,7 +151,10 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           setIsSubmitting(false)
           return
         }
-        router.push(backHref)
+        // Modification : on RESTE sur la fiche (retour a la liste manuel, decision du 30/10) ;
+        // la page rechargee remonte le formulaire (cle `updated_at`).
+        toast.success('Fiche enseignant modifiée avec succès.')
+        setIsSubmitting(false)
         router.refresh()
       } else {
         // Création avec compte utilisateur automatique

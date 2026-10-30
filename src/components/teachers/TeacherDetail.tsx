@@ -104,7 +104,7 @@ export default function TeacherDetail({ teacher, documents: initialDocuments, as
       {/* Contenu */}
       {activeTab === 'identite' && (
         <div role="tabpanel" id="panel-identite" aria-labelledby="tab-identite">
-          <TeacherForm teacher={teacher} backHref={backHref} />
+          <TeacherForm key={teacher.updated_at} teacher={teacher} backHref={backHref} />
         </div>
       )}
 

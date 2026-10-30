@@ -10108,3 +10108,17 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - Decision de l'utilisateur (« a corriger / aligner ») : une nouvelle classe est proposee avec 25 eleves, le defaut de
   `classes.max_students` en base (30 auparavant). Constante `EFFECTIF_PAR_DEFAUT` de `ClassForm.tsx`, aussi repli d'un
   champ vide a l'enregistrement. Classes existantes inchangees.
+
+## 30/10 · Fiches : on reste sur la fiche apres une modification
+
+- Decision de l'utilisateur : apres validation / modification d'une fiche ouverte depuis une liste, on RESTE sur la
+  fiche ; le retour a la liste devient manuel (« Retour a la liste », « Annuler », filtres et origine conserves).
+  Seule exception : apres une CREATION, retour a la liste (choix B). Une suppression y ramene aussi (fiche disparue).
+- Six fiches : Classe, Apprenant, Parents, Enseignant, Utilisateur, Annee scolaire. Message de confirmation ajoute la
+  ou il manquait (Apprenant, Enseignant, Parents). Fiche parents ouverte en fenetre : fermeture inchangee.
+- Piege evite : rester sur la fiche avec l'etat local du formulaire aurait recree, au second enregistrement, les
+  creneaux ajoutes (sans id). Le formulaire porte `key={ligne.updated_at}` (declencheur `update_updated_at_column`
+  sur classes, students, parents, teachers, profiles) : la page rechargee le remonte avec les donnees enregistrees.
+  `school_years` n'a pas `updated_at`, mais periodes et types d'evaluation y sont remplaces a chaque enregistrement.
+- Regle de CLAUDE.md (section 6) reecrite ; en-tete de `lib/navigation/retour.ts` mis a jour.
+- Bilan : type-check 0, lint 0, 185 tests, build OK.

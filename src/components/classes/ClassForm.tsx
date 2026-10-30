@@ -621,7 +621,9 @@ export default function ClassForm({
       }
 
       toast.success(isEditing ? 'Classe modifiée avec succès.' : 'Classe créée avec succès.')
-      router.push(backHref)
+      // Modification : on RESTE sur la fiche (retour a la liste manuel, decision du 30/10) ;
+      // creation : retour a la liste. La page rechargee remonte le formulaire (cle `updated_at`).
+      if (!isEditing) router.push(backHref)
       router.refresh()
     } catch (err) {
       // Doublon refuse par la base (enregistrement simultane, ou controle contourne).

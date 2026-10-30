@@ -189,7 +189,9 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
       } else {
         toast.warning('Utilisateur créé, mais l\'email de définition du mot de passe n\'a pas pu partir. Transmettez-lui son mot de passe.')
       }
-      router.push('/dashboard/utilisateurs')
+      // Modification : on RESTE sur la fiche (retour a la liste manuel, decision du 30/10) ;
+      // creation : retour a la liste. La page rechargee remonte le formulaire (cle `updated_at`).
+      if (!isEditing) router.push('/dashboard/utilisateurs')
       router.refresh()
     } catch {
       toast.error('Une erreur est survenue. Veuillez réessayer.')

@@ -332,7 +332,14 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         await retirerPhoto(supabase, photoEnregistree)
       }
 
-      router.push(backHref)
+      // Modification : on RESTE sur la fiche (retour a la liste manuel, decision du 30/10) ;
+      // creation : retour a la liste. La page rechargee remonte le formulaire (cle `updated_at`).
+      if (isEditing) {
+        toast.success('Fiche apprenant modifiée avec succès.')
+        setIsSubmitting(false)
+      } else {
+        router.push(backHref)
+      }
       router.refresh()
     } catch (e: unknown) {
       // Levee ici : une `Error` (codes internes ci-dessus) ou une erreur PostgREST.

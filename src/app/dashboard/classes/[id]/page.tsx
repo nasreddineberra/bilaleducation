@@ -133,6 +133,7 @@ export default async function EditClassPage({ params }: Props) {
       </Link>
 
       <ClassForm
+        key={cls.updated_at}
         cls={cls}
         initialAssignments={initialAssignments}
         schoolYears={schoolYears ?? []}

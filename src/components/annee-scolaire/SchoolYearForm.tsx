@@ -584,7 +584,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       }
 
       toast.success(isEditing ? 'Année scolaire modifiée avec succès.' : 'Année scolaire créée avec succès.')
-      router.push('/dashboard/annee-scolaire')
+      // Modification : on RESTE sur la fiche (retour a la liste manuel, decision du 30/10) ;
+      // creation : retour a la liste. Periodes et types d'evaluation sont remplaces a chaque
+      // enregistrement : le formulaire peut rester tel quel.
+      if (!isEditing) router.push('/dashboard/annee-scolaire')
       router.refresh()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message

@@ -81,7 +81,7 @@ export default function ParentDetail({ parent, backHref, tutor1AdultEnrolled, tu
       {/* Contenu */}
       {activeTab === 'identite' && (
         <div role="tabpanel" id="panel-identite" aria-labelledby="tab-identite">
-          <ParentForm parent={parent} backHref={backHref} tutor1AdultEnrolled={tutor1AdultEnrolled} tutor2AdultEnrolled={tutor2AdultEnrolled} />
+          <ParentForm key={parent.updated_at} parent={parent} backHref={backHref} tutor1AdultEnrolled={tutor1AdultEnrolled} tutor2AdultEnrolled={tutor2AdultEnrolled} />
         </div>
       )}
 

@@ -1,5 +1,9 @@
 /**
- * D'OÙ VIENT-ON — et donc où retourner après enregistrement, avec quel état.
+ * D'OÙ VIENT-ON — et donc où retourner, avec quel état.
+ *
+ * Depuis le 30/10, une MODIFICATION laisse sur la fiche : le retour (lien
+ * « Retour à la liste », « Annuler ») est manuel et passe par ici. Une CRÉATION
+ * revient à la liste. L'historique ci-dessous date de l'ancienne règle.
  *
  * ── LE DÉFAUT QUE CECI CORRIGE ─────────────────────────────────────────────
  *
