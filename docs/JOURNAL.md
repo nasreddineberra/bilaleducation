@@ -10100,5 +10100,11 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   titulaire, eleve actif, statut d'envoi, nombre de destinataires, premier jour de semaine, coefficient) ; vacances et
   feries lus par leur type (fin des `as never[]` et d'un type de requete ecrit a la main). Reperage par la regle
   `no-unnecessary-condition` lancee a part (config temporaire, non conservee).
-- Ecart toujours ouvert : fiche classe 30 eleves par defaut, base 25.
+- Ecart fiche classe 30 / base 25 : regle le meme jour (25, voir plus bas).
 - Bilan : type-check 0, lint 0 erreur 0 avertissement, 185 tests, build OK.
+
+## 30/10 · Fiche classe : effectif propose aligne sur la base
+
+- Decision de l'utilisateur (« a corriger / aligner ») : une nouvelle classe est proposee avec 25 eleves, le defaut de
+  `classes.max_students` en base (30 auparavant). Constante `EFFECTIF_PAR_DEFAUT` de `ClassForm.tsx`, aussi repli d'un
+  champ vide a l'enregistrement. Classes existantes inchangees.

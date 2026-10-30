@@ -40,6 +40,9 @@ interface RoomOption {
   room_type?: string
 }
 
+/** Effectif maximal propose a une nouvelle classe : le defaut de `classes.max_students` en base. */
+const EFFECTIF_PAR_DEFAUT = 25
+
 interface SlotRow {
   id: string
   /** Jamais NULL pour un creneau recurrent (0 cas en base au 30/10). */
@@ -207,7 +210,7 @@ export default function ClassForm({
     name:               cls?.name               ?? '',
     level:              cls?.level              ?? '',
     room_id:            cls?.room_id            ?? '',
-    max_students:       String(cls?.max_students ?? 30),
+    max_students:       String(cls?.max_students ?? EFFECTIF_PAR_DEFAUT),
     description:        cls?.description        ?? '',
     cotisation_type_id: cls?.cotisation_type_id ?? '',
     teaching_mode:      'single', // V1 : mode Secondaire non géré, toutes les classes sont en Primaire
@@ -462,7 +465,7 @@ export default function ClassForm({
         teaching_mode: form.teaching_mode,
         academic_year: currentYear?.label ?? null,
         room_id:       salleUnique ? (form.room_id || null) : null,
-        max_students:  parseInt(form.max_students, 10) || 30,
+        max_students:  parseInt(form.max_students, 10) || EFFECTIF_PAR_DEFAUT,
         description:   form.description.trim() || null,
         cotisation_type_id: form.cotisation_type_id || null,
         // Référence créneau principal

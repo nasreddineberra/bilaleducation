@@ -411,7 +411,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    - **Ensuite** : dossier suivant du point 4 ou 5, plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
-   - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base (question posee le 30/10) ; matiere du cahier de texte « General »
+   - Ecart note : matiere du cahier de texte « General »
      a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
