@@ -7,6 +7,8 @@ import { useToast } from '@/lib/toast-context'
 import { modifierDevoir } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
+import { messageErreur } from '@/lib/erreur'
+import type { DevoirCahier } from '@/lib/cahier-texte/donnees'
 import type { TypeDevoir } from '@/components/cahier-texte/commun'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
@@ -26,7 +28,7 @@ interface Props {
   subjects: string[]          // matières disponibles pour la classe
   onClose: () => void
   onSaved: () => void
-  initialData?: any           // présent en édition
+  initialData?: Pick<DevoirCahier, 'id' | 'subject' | 'title' | 'homework_type' | 'due_date' | 'description_html'>   // présent en édition
 }
 
 // Champ en lecture seule (classe / enseignant / matiere) : champ verrouille de la charte.
@@ -105,8 +107,8 @@ export default function DevoirForm({
       onSaved()
       router.refresh()
       onClose()
-    } catch (err: any) {
-      toast.error(err.message ?? 'Erreur lors de l\'enregistrement.')
+    } catch (err: unknown) {
+      toast.error(messageErreur(err) ?? 'Erreur lors de l\'enregistrement.')
       setSaving(false)
     }
   }

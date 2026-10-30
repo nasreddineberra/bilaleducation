@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import CahierTexteClient from '@/components/cahier-texte/CahierTexteClient'
 import { AlertTriangle } from 'lucide-react'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { horodatageParis } from '@/lib/dates'
+import { chargerCahierTexte } from '@/lib/cahier-texte/donnees'
 
 export default async function CahierTextePage() {
   const supabase = await createClient()
@@ -21,114 +21,10 @@ export default async function CahierTextePage() {
 
   const role = effectiveRole(profile) ?? 'enseignant'
 
-  // Année scolaire courante
-  const { data: schoolYear } = await supabase
-    .from('school_years')
-    .select('id, label')
-    .eq('is_current', true)
-    .single()
+  // Lectures : `lib/cahier-texte/donnees.ts` (les types de l'ecran en derivent).
+  const { teacher, ...donnees } = await chargerCahierTexte(supabase, userId, role)
 
-  const yearLabel = schoolYear?.label ?? null
-
-  // Teacher record + assignments (pour enseignant)
-  let teacherId: string | null = null
-  let teacherAssignments: { class_id: string; is_main_teacher: boolean; subject: string | null; effective_from: string | null; effective_until: string | null }[] = []
-
-  const { data: teacher } = await supabase
-    .from('teachers')
-    .select('id, civilite, first_name, last_name')
-    .eq('user_id', userId)
-    .single()
-
-  if (teacher) {
-    teacherId = teacher.id
-    const { data: assignments } = await supabase
-      .from('class_teachers')
-      .select('class_id, is_main_teacher, subject, effective_from, effective_until')
-      .eq('teacher_id', teacher.id)
-
-    teacherAssignments = (assignments ?? []) as any[]
-  }
-
-  // Fenêtre de LECTURE (Phase B) : classes où je suis affecté, avec préparation 7 j
-  // avant le début (effective_from − 7 j <= aujourd'hui <= effective_until). Aligné sur la RLS.
-  const _today = new Date()
-  const todayISO = _today.toISOString().slice(0, 10)
-  const _plus7 = new Date(_today); _plus7.setDate(_plus7.getDate() + 7)
-  const todayPlus7ISO = _plus7.toISOString().slice(0, 10)
-  const inReadWindow = (a: { effective_from: string | null; effective_until: string | null }) =>
-    (!a.effective_from || a.effective_from <= todayPlus7ISO) &&
-    (!a.effective_until || a.effective_until >= todayISO)
-
-  // Classes selon le rôle
-  const classSelect = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, subject, teachers(id, civilite, first_name, last_name)), cotisation_types(label, is_adult)'
-
-  let classIds: string[] = []
-  let classes: any[] = []
-
-  if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
-    const query = supabase.from('classes').select(classSelect).order('name')
-    if (yearLabel) query.eq('academic_year', yearLabel)
-    const { data } = await query
-    classes = (data ?? []) as any[]
-    classIds = classes.map((c: any) => c.id)
-
-  } else if (role === 'enseignant' && teacher) {
-    // Classes ou il REMPLACE une seance (absence d'un collegue, lot 3) : de 7 jours
-    // avant la seance a 7 jours apres, comme la RLS (`fn_remplace_classe`).
-    const aujourdhui = horodatageParis(new Date()).slice(0, 10)
-    const decale = (jours: number) => {
-      const [y, m, d] = aujourdhui.split('-').map(Number)
-      const x = new Date(y, m - 1, d + jours)
-      return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-    }
-    const { data: remplacements } = await supabase
-      .from('absences_enseignants_seances')
-      .select('schedule_slots!inner(class_id)')
-      .eq('decision', 'remplacee')
-      .eq('remplacant_profile_id', userId)
-      .gte('seance_date', decale(-7))
-      .lte('seance_date', decale(7))
-    const classesRemplacees = (remplacements ?? []).map(r => r.schedule_slots.class_id)
-
-    classIds = [...new Set([...teacherAssignments.filter(inReadWindow).map(a => a.class_id), ...classesRemplacees])]
-    const { data } = classIds.length
-      ? await supabase
-          .from('classes')
-          .select(classSelect)
-          .in('id', classIds)
-          .order('name')
-      : { data: [] }
-    classes = (data ?? []) as any[]
-
-  } else if (role === 'parent') {
-    const { data: parentLink } = await supabase
-      .from('parents')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (parentLink) {
-      const { data: studentEnrollments } = await supabase
-        .from('students')
-        .select('enrollments!inner(class_id)')
-        .eq('parent_id', parentLink.id)
-        .eq('is_active', true)
-        .eq('enrollments.status', 'active')
-
-      classIds = [...new Set(((studentEnrollments ?? []) as any[]).flatMap(s => s.enrollments.map((e: any) => e.class_id)))]
-      if (classIds.length > 0) {
-        const { data } = await supabase
-          .from('classes')
-          .select(classSelect)
-          .in('id', classIds)
-          .order('name')
-        classes = (data ?? []) as any[]
-      }
-    }
-  }
-
-  if (classes.length === 0) {
+  if (donnees.classes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
         <AlertTriangle size={36} className="text-warm-700" />
@@ -137,64 +33,12 @@ export default async function CahierTextePage() {
     )
   }
 
-  // Journal entries
-  let journalEntries: any[] = []
-  if (classIds.length > 0) {
-    const { data } = await supabase
-      .from('class_journal')
-      .select('*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))')
-      .in('class_id', classIds)
-      .order('session_date', { ascending: false })
-      .limit(100)
-
-    journalEntries = data ?? []
-  }
-
-  // Homework entries
-  let homeworkEntries: any[] = []
-  if (classIds.length > 0) {
-    const { data } = await supabase
-      .from('homework')
-      .select('*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))')
-      .in('class_id', classIds)
-      .order('due_date', { ascending: false })
-      .limit(100)
-
-    homeworkEntries = data ?? []
-  }
-
-  // All teachers for direction/resp_pedagogique (for the create form)
-  let allTeachers: { id: string; first_name: string; last_name: string }[] = []
-  let allAssignments: { class_id: string; teacher_id: string; is_main_teacher: boolean; subject: string | null }[] = []
-
-  if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
-    const { data: t } = await supabase
-      .from('teachers')
-      .select('id, first_name, last_name')
-      .eq('is_active', true)
-      .order('last_name')
-    allTeachers = (t ?? []) as any[]
-
-    if (classIds.length > 0) {
-      const { data: a } = await supabase
-        .from('class_teachers')
-        .select('class_id, teacher_id, is_main_teacher, subject')
-        .in('class_id', classIds)
-      allAssignments = (a ?? []) as any[]
-    }
-  }
-
   return (
     <div className="space-y-4 animate-fade-in">
       <CahierTexteClient
+        {...donnees}
         role={role}
-        classes={classes}
-        journalEntries={journalEntries}
-        homeworkEntries={homeworkEntries}
-        teacherId={teacherId}
-        teacherAssignments={teacherAssignments}
-        allTeachers={allTeachers}
-        allAssignments={allAssignments}
+        teacherId={teacher?.id ?? null}
         etablissementId={etablissementId}
         moi={teacher ?? null}
       />

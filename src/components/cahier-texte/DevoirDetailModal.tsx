@@ -16,29 +16,16 @@ import { typeDevoir, dateLocale, rendPasse } from './commun'
 import { useToast } from '@/lib/toast-context'
 import { useRouter } from 'next/navigation'
 import { supprimerDevoir } from '@/app/dashboard/cahier-texte/actions'
+import { nomCompletEnseignant } from '@/lib/teachers/nom'
+import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
+import { cleAdulte, lireCleAdulte } from '@/lib/parents/participant'
+import type { DevoirCahier } from '@/lib/cahier-texte/donnees'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 
-function teacherLabelOf(t: any): string {
-  if (!t) return ''
-  return `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
-}
-const DAY_STR: Record<string, string> = {
-  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi', thursday: 'Jeudi',
-  friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
-}
-// Info classe : cotisation · Niveau (si) · horaires.
-function classInfoOf(c: any): string {
-  if (!c) return ''
-  const parts: string[] = []
-  if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
-  if (c.level) parts.push(`Niveau ${c.level}`)
-  if (c.day_of_week && c.start_time) {
-    const day = DAY_STR[c.day_of_week] ?? c.day_of_week
-    parts.push(`${day} ${c.start_time.slice(0, 5)}${c.end_time ? `-${c.end_time.slice(0, 5)}` : ''}`)
-  }
-  return parts.join(' · ')
-}
+// Civilité NOM Prénom et infos de classe : sources uniques (`lib/teachers/nom`, `classInfo`).
+const teacherLabelOf = nomCompletEnseignant
+const classInfoOf = (c: Parameters<typeof classInfoWithTeacher>[0]) => classInfoWithTeacher(c, '')
 function formatDate(d: string): string {
   return dateLocale(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
@@ -52,7 +39,7 @@ interface Participant { key: string; name: string }
 interface Status { key: string; id: string; is_seen: boolean; seen_at: string | null; is_done: boolean; done_at: string | null }
 
 interface Props {
-  homework: any
+  homework: DevoirCahier
   role: string
   teacherId: string | null
   isAdult: boolean
@@ -70,6 +57,10 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
   const [participants, setParticipants] = useState<Participant[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
   const [myKeys, setMyKeys] = useState<string[]>([])   // clés que l'utilisateur connecté peut pointer
+  // Foyer du parent connecte : `homework_status.parent_id` est NOT NULL et la RLS
+  // n'ouvre l'ecriture qu'a lui. L'ecran ne l'envoyait pas : le pointage d'un
+  // devoir d'enfant echouait sans un mot (vu en typant, 30/10 ; comptes parents suspendus en V1).
+  const [monFoyer, setMonFoyer] = useState<string | null>(null)
 
   const isParent = role === 'parent'
   const canViewTracking = STAFF.includes(role) || role === 'enseignant'
@@ -112,17 +103,17 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           .select('parent_id, tutor_number, parents(tutor1_first_name, tutor1_last_name, tutor2_first_name, tutor2_last_name)')
           .eq('class_id', homework.class_id)
           .eq('status', 'active')
-        const parts: Participant[] = ((enr ?? []) as any[]).map(e => {
+        const parts: Participant[] = (enr ?? []).map(e => {
           const p = e.parents
           const name = e.tutor_number === 1
             ? `${p?.tutor1_last_name ?? ''} ${p?.tutor1_first_name ?? ''}`.trim()
             : `${p?.tutor2_last_name ?? ''} ${p?.tutor2_first_name ?? ''}`.trim()
-          return { key: `${e.parent_id}-${e.tutor_number}`, name: name || 'Participant' }
+          return { key: cleAdulte(e.parent_id, e.tutor_number), name: name || 'Participant' }
         }).sort((a, b) => a.name.localeCompare(b.name))
 
         const { data: st } = await supabase.from('adult_homework_status').select('*').eq('homework_id', homework.id)
-        const sts: Status[] = ((st ?? []) as any[]).map(s => ({
-          key: `${s.parent_id}-${s.tutor_number}`, id: s.id,
+        const sts: Status[] = (st ?? []).map(s => ({
+          key: cleAdulte(s.parent_id, s.tutor_number), id: s.id,
           is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at,
         }))
 
@@ -135,7 +126,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
               .select('id, tutor1_user_id, tutor2_user_id')
               .or(`tutor1_user_id.eq.${user.id},tutor2_user_id.eq.${user.id}`)
             const myAll: string[] = []
-            for (const p of (me ?? []) as any[]) {
+            for (const p of me ?? []) {
               if (p.tutor1_user_id === user.id) myAll.push(`${p.id}-1`)
               if (p.tutor2_user_id === user.id) myAll.push(`${p.id}-2`)
             }
@@ -152,25 +143,24 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           const { data: pl } = await supabase.from('parents').select('id').eq('user_id', user.id).maybeSingle()
           if (!pl) return
           const { data: kids } = await supabase.from('students').select('id, first_name, last_name').eq('parent_id', pl.id).eq('is_active', true)
-          const parts: Participant[] = ((kids ?? []) as any[]).map(s => ({ key: s.id, name: `${s.last_name} ${s.first_name}` }))
+          const parts: Participant[] = (kids ?? []).map(s => ({ key: s.id, name: `${s.last_name} ${s.first_name}` }))
           const ids = parts.map(p => p.key)
           const { data: st } = ids.length
             ? await supabase.from('homework_status').select('*').eq('homework_id', homework.id).in('student_id', ids)
-            : { data: [] as any[] }
-          const sts: Status[] = ((st ?? []) as any[]).map(s => ({ key: s.student_id, id: s.id, is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at }))
-          if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(ids) }
+            : { data: [] }
+          const sts: Status[] = (st ?? []).map(s => ({ key: s.student_id, id: s.id, is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at }))
+          if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(ids); setMonFoyer(pl.id) }
         } else if (canViewTracking) {
           const { data: enr } = await supabase
             .from('enrollments')
             .select('student_id, students:student_id(id, first_name, last_name)')
             .eq('class_id', homework.class_id)
             .eq('status', 'active')
-          const parts: Participant[] = ((enr ?? []) as any[])
-            .filter(e => e.students)
-            .map(e => ({ key: e.students.id, name: `${e.students.last_name} ${e.students.first_name}` }))
+          const parts: Participant[] = (enr ?? [])
+            .flatMap(e => e.students ? [{ key: e.students.id, name: `${e.students.last_name} ${e.students.first_name}` }] : [])
             .sort((a, b) => a.name.localeCompare(b.name))
           const { data: st } = await supabase.from('homework_status').select('*').eq('homework_id', homework.id)
-          const sts: Status[] = ((st ?? []) as any[]).map(s => ({ key: s.student_id, id: s.id, is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at }))
+          const sts: Status[] = (st ?? []).map(s => ({ key: s.student_id, id: s.id, is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at }))
           if (active) { setParticipants(parts); setStatuses(sts); setMyKeys([]) }
         }
       }
@@ -197,17 +187,13 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
       return
     }
 
-    let row: any
-    if (isAdult) {
-      const cut = key.lastIndexOf('-')
-      row = { homework_id: homework.id, parent_id: key.slice(0, cut), tutor_number: Number(key.slice(cut + 1)) }
-    } else {
-      row = { homework_id: homework.id, student_id: key }
-    }
-    row[field] = newVal
-    row[stampField] = stamp
-    const table = isAdult ? 'adult_homework_status' : 'homework_status'
-    const { data } = await supabase.from(table).insert(row).select('id').single()
+    const marque = field === 'is_seen' ? { is_seen: newVal, seen_at: stamp } : { is_done: newVal, done_at: stamp }
+    if (!isAdult && !monFoyer) return
+    const { data } = isAdult
+      ? await supabase.from('adult_homework_status')
+          .insert({ homework_id: homework.id, ...lireCleAdulte(key), ...marque }).select('id').single()
+      : await supabase.from('homework_status')
+          .insert({ homework_id: homework.id, student_id: key, parent_id: monFoyer!, ...marque }).select('id').single()
     if (data) {
       setStatuses(prev => [...prev, {
         key, id: data.id,

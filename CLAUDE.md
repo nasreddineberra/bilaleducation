@@ -37,7 +37,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~243 avertissements (226 any au 30/10)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~199 avertissements (183 any au 30/10)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -399,6 +399,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      - Titulaire (30/10) : changer le titulaire d'une classe ; temps reel = le nouveau seul, historique = « initial
        puis remplacant ».
      - Carte fratrie (30/10) : classe de l'annee en cours, mentions Non affecte et Non actif accordees au genre.
+     - Sortie des `any` lot 6 (30/10) : cahier de texte en direction puis en enseignant (seance et devoir : creer,
+       modifier, supprimer ; detail d'un devoir enfants et adulte ; filtre par classe ; jour en francais).
    - **Ensuite** : sortie des `any`, dossier suivant (voir le point 4). Plan a presenter avant de coder.
    - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
      archiver les remplacements depuis `absences_enseignants_seances` ?
@@ -413,11 +415,11 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
-   (226 au 30/10) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
+   (183 au 30/10) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
    (`lib/dashboard`), lot 3 FAIT (`lib/closure` : lignes d'archive typees par leurs tables, colonnes jsonb de
    l'historique dans `json.ts`), lot 4 FAIT (financements : lectures de Reglements dans
    `lib/financements/reglements.ts`, types des ecrans tires de ses requetes), lot 5 FAIT (eleves, parents,
-   affectation : `lib/students/fiche.ts`, `lib/parents/fiche.ts`), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
+   affectation : `lib/students/fiche.ts`, `lib/parents/fiche.ts`), lot 6 FAIT (cahier de texte : `lib/cahier-texte/donnees.ts`), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
    defaut jamais NULL (quand toutes les ecritures seront typees).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de

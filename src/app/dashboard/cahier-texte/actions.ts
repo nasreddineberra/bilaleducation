@@ -10,6 +10,7 @@ import { destinatairesDeLaClasse } from '@/lib/email/destinataires-classe'
 import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { formatJourLongFr } from '@/lib/dates'
 import { sanitize } from '@/lib/security/sanitize'
+import { nomCompletEnseignant } from '@/lib/teachers/nom'
 import type { TypeDevoir } from '@/components/cahier-texte/commun'
 
 /**
@@ -84,7 +85,7 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
   if (!hw || hw.etablissement_id !== etablissementId) return { error: 'Devoir introuvable.' }
 
   // ── Droit et fenêtre ──
-  const teacher = hw.teachers as any
+  const teacher = hw.teachers
   const estAuteur = teacher?.user_id === user.id
   if (!ENCADREMENT.includes(role)) {
     if (!estAuteur) return { error: 'Seul son auteur peut supprimer ce devoir.' }
@@ -95,7 +96,7 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
 
   // ── Destinataires résolus AVANT la suppression ──
   // La ligne va disparaître : ses foyers avec elle si on attend.
-  const isAdult = !!(hw.classes as any)?.cotisation_types?.is_adult
+  const isAdult = !!hw.classes?.cotisation_types?.is_adult
   const destinataires = await destinatairesDeLaClasse(supabase, hw.class_id, isAdult)
 
   // ── Trace AVANT d'effacer : après, on ne saurait plus quoi écrire ──
@@ -103,7 +104,7 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
     action: 'DELETE',
     entityType: 'homework',
     entityId: id,
-    description: `Devoir supprime : « ${hw.title} » · ${(hw.classes as any)?.name ?? ''} · a rendre le ${hw.due_date}`,
+    description: `Devoir supprime : « ${hw.title} » · ${hw.classes?.name ?? ''} · a rendre le ${hw.due_date}`,
   })
 
   // ── La suppression. `.select()` : écartée par la RLS, elle n'écrit rien ET
@@ -127,14 +128,12 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
   // suppression : elle a eu lieu, on le dit en avertissement (motif de
   // l'alerte de changement d'email, 9 août).
   const ecole = await marqueEcole(supabase, etablissementId)
-  const teacherLabel = teacher
-    ? `${teacher.civilite ? teacher.civilite + ' ' : ''}${teacher.last_name} ${teacher.first_name}`
-    : ''
+  const teacherLabel = nomCompletEnseignant(teacher)
   let echecs = 0
 
   for (const d of destinataires) {
     const titre = d.nom ? `Devoir annulé · ${d.nom}` : 'Devoir annulé'
-    const corps = `${hw.title} · ${(hw.classes as any)?.name ?? ''}`
+    const corps = `${hw.title} · ${hw.classes?.name ?? ''}`
 
     const html = coque({
       titre,
@@ -143,7 +142,7 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
         `              <div style="font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">Ce devoir est annulé : il n'est plus à faire.</div>`,
         tableauInfos(([
           [isAdult ? 'Participant' : 'Élève', d.nom],
-          ['Classe', (hw.classes as any)?.name ?? ''],
+          ['Classe', hw.classes?.name ?? ''],
           ['Titre', hw.title],
           ['Était à rendre le', formatJourLongFr(hw.due_date)],
           ['Enseignant', teacherLabel],
@@ -377,7 +376,7 @@ export async function supprimerSeance(id: string): Promise<Resultat> {
 
   if (!seance || seance.etablissement_id !== etablissementId) return { error: 'Séance introuvable.' }
 
-  const estAuteur = (seance.teachers as any)?.user_id === user.id
+  const estAuteur = seance.teachers?.user_id === user.id
   if (!ENCADREMENT.includes(role)) {
     if (!estAuteur) return { error: 'Seul son auteur peut supprimer cette séance.' }
     const jours = joursEcoules(seance.session_date)
@@ -390,7 +389,7 @@ export async function supprimerSeance(id: string): Promise<Resultat> {
     action: 'DELETE',
     entityType: 'class_journal',
     entityId: id,
-    description: `Seance supprimee : « ${seance.title} » · ${(seance.classes as any)?.name ?? ''} · du ${seance.session_date}`,
+    description: `Seance supprimee : « ${seance.title} » · ${seance.classes?.name ?? ''} · du ${seance.session_date}`,
   })
 
   const { data: supprimes, error } = await supabase

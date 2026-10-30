@@ -7,6 +7,8 @@ import { useToast } from '@/lib/toast-context'
 import { modifierSeance } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
+import { messageErreur } from '@/lib/erreur'
+import type { SeanceCahier } from '@/lib/cahier-texte/donnees'
 import { aujourdhui } from './commun'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
@@ -26,7 +28,7 @@ interface Props {
   subjects: string[]          // matières disponibles pour la classe
   onClose: () => void
   onSaved: () => void
-  initialData?: any           // présent en édition
+  initialData?: Pick<SeanceCahier, 'id' | 'subject' | 'session_date' | 'title' | 'content_html'>   // présent en édition
 }
 
 // Champ en lecture seule (classe / enseignant / matiere) : champ verrouille de la charte.
@@ -89,8 +91,8 @@ export default function SeanceForm({
       onSaved()
       router.refresh()
       onClose()
-    } catch (err: any) {
-      toast.error(err.message ?? 'Erreur lors de l\'enregistrement.')
+    } catch (err: unknown) {
+      toast.error(messageErreur(err) ?? 'Erreur lors de l\'enregistrement.')
       setSaving(false)
     }
   }

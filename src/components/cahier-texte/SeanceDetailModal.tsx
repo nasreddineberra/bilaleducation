@@ -12,35 +12,21 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { useRouter } from 'next/navigation'
 import { supprimerSeance } from '@/app/dashboard/cahier-texte/actions'
+import { nomCompletEnseignant } from '@/lib/teachers/nom'
+import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
+import type { SeanceCahier } from '@/lib/cahier-texte/donnees'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 
-function teacherLabelOf(t: any): string {
-  if (!t) return ''
-  return `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
-}
-const DAY_STR: Record<string, string> = {
-  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi', thursday: 'Jeudi',
-  friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
-}
-// Info classe : cotisation · Niveau (si) · horaires.
-function classInfoOf(c: any): string {
-  if (!c) return ''
-  const parts: string[] = []
-  if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
-  if (c.level) parts.push(`Niveau ${c.level}`)
-  if (c.day_of_week && c.start_time) {
-    const day = DAY_STR[c.day_of_week] ?? c.day_of_week
-    parts.push(`${day} ${c.start_time.slice(0, 5)}${c.end_time ? `-${c.end_time.slice(0, 5)}` : ''}`)
-  }
-  return parts.join(' · ')
-}
+// Civilité NOM Prénom et infos de classe : sources uniques (`lib/teachers/nom`, `classInfo`).
+const teacherLabelOf = nomCompletEnseignant
+const classInfoOf = (c: Parameters<typeof classInfoWithTeacher>[0]) => classInfoWithTeacher(c, '')
 function formatDate(d: string): string {
   return dateLocale(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 interface Props {
-  journal: any
+  journal: SeanceCahier
   role: string
   teacherId: string | null
   subjects: string[]

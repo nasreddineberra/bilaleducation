@@ -12,20 +12,19 @@ import Tooltip from '@/components/ui/Tooltip'
 import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import SeanceForm from './SeanceForm'
 import DevoirForm from './DevoirForm'
+import type { DonneesCahierTexte, SeanceCahier, DevoirCahier } from '@/lib/cahier-texte/donnees'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
+import { nomCompletEnseignant } from '@/lib/teachers/nom'
+import { seanceDeClasse } from '@/components/dashboard/classInfo'
 
-interface Props {
+// Donnees de la page : celles de `chargerCahierTexte`, sans recopie.
+type Props = Omit<DonneesCahierTexte, 'teacher'> & {
   role: string
-  classes: { id: string; name: string; level?: string | null; day_of_week?: string | null; start_time?: string | null; end_time?: string | null; class_teachers: { is_main_teacher: boolean; subject?: string | null; teachers: { id: string; civilite?: string | null; first_name: string; last_name: string } | null }[]; cotisation_types?: { label: string; is_adult?: boolean } | null }[]
-  journalEntries: any[]
-  homeworkEntries: any[]
   teacherId: string | null
-  teacherAssignments: { class_id: string; is_main_teacher: boolean; subject: string | null }[]
-  allTeachers: { id: string; first_name: string; last_name: string }[]
-  allAssignments: { class_id: string; teacher_id: string; is_main_teacher: boolean; subject: string | null }[]
   etablissementId: string
   /** Fiche enseignant du connecte : auteur de ce qu'il ecrit quand il REMPLACE une
    *  seance de la classe (absence d'un collegue, lot 3) sans y etre affecte. */
-  moi?: { id: string; civilite?: string | null; first_name: string; last_name: string } | null
+  moi?: DonneesCahierTexte['teacher']
 }
 
 // Carte d'une seance / d'un devoir : bouton, survol par la bordure de marque
@@ -43,11 +42,8 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
 }
 
-function teacherName(t: { civilite?: string | null; first_name: string; last_name: string } | null): string {
-  if (!t) return ''
-  const civ = t.civilite ? `${t.civilite} ` : ''
-  return `${civ}${t.last_name} ${t.first_name}`
-}
+// Civilité NOM Prénom : source unique `lib/teachers/nom`.
+const teacherName = nomCompletEnseignant
 
 // Valeur spéciale du filtre Classe (staff) : afficher toutes les classes.
 const ALL_CLASSES = '__all__'
@@ -82,7 +78,7 @@ export default function CahierTexteClient({
   }
 
   const [showCreate, setShowCreate] = useState(false)
-  const [detail, setDetail] = useState<{ type: 'seance' | 'devoir'; entry: any } | null>(null)
+  const [detail, setDetail] = useState<{ type: 'seance'; entry: SeanceCahier } | { type: 'devoir'; entry: DevoirCahier } | null>(null)
 
   const selectedClass = classes.find(c => c.id === filterClass) ?? null
   const canCreate = ['admin', 'enseignant', 'direction', 'responsable_pedagogique'].includes(role)
@@ -93,16 +89,16 @@ export default function CahierTexteClient({
   const classById = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes])
   const subjectsForClass = (classId: string) =>
     [...new Set(((classById.get(classId)?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort()
-  const entryMeta = (entry: any) => {
+  const entryMeta = (entry: SeanceCahier | DevoirCahier) => {
     const c = classById.get(entry.class_id)
-    const schedule = c?.day_of_week
-      ? `${c.day_of_week}${c.start_time && c.end_time ? ` ${c.start_time.slice(0, 5)}-${c.end_time.slice(0, 5)}` : ''}`
-      : null
+    // Jour en francais (`seanceDeClasse`) : il s'affichait en anglais brut (« monday »).
+    const schedule = c ? seanceDeClasse(c) : ''
     return [teacherName(entry.teachers), c?.cotisation_types?.label, schedule].filter(Boolean).join(' · ')
   }
 
   // Prof principal + matières de la classe filtrée (pré-remplissage de la création)
-  const mainCT = selectedClass?.class_teachers?.find(ct => ct.is_main_teacher) ?? null
+  // Titulaire EN POSTE (temps reel), jamais un ancien.
+  const mainCT = titulaireActuel(selectedClass?.class_teachers) ?? null
   const mainTeacherId = mainCT?.teachers?.id ?? ''
   const mainTeacherLabel = mainCT?.teachers ? teacherName(mainCT.teachers) : ''
   // Auteur d'une création = enseignant CONNECTÉ s'il est affecté à la classe
@@ -282,7 +278,7 @@ export default function CahierTexteClient({
           <div className="card text-center text-sm text-warm-700 py-10">Aucune séance enregistrée.</div>
         ) : (
           <div className="space-y-2">
-            {filteredJournal.map((j: any) => (
+            {filteredJournal.map(j => (
               <button
                 key={j.id}
                 type="button"
@@ -316,7 +312,7 @@ export default function CahierTexteClient({
           <div className="card text-center text-sm text-warm-700 py-10">Aucun devoir enregistré.</div>
         ) : (
           <div className="space-y-2">
-            {filteredHomework.map((h: any) => {
+            {filteredHomework.map(h => {
               const typeInfo = typeDevoir(h.homework_type)
               // Devoir passe : fond de ligne inactive (et non `opacity-60`, qui faisait
               // tomber le contraste du texte sous AA).

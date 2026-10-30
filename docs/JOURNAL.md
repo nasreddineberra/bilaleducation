@@ -10023,3 +10023,20 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - Jour de la seance en francais par `seanceDeClasse` (s'affichait en anglais brut : « monday »). Titulaire en poste.
 - Etiquette « inactif » a cote du nom retiree (doublon de la mention, non accordee) ; le nom reste grise.
 - Bilan : 185 tests, lint 0 erreur, build OK, aucune migration.
+
+## 30/10 · Sortie des `any`, lot 6 : cahier de texte
+
+- Lectures de la page deplacees dans `lib/cahier-texte/donnees.ts` (`chargerCahierTexte`) ; l'ecran, les deux fenetres
+  de detail et les deux formulaires tirent leurs types de ces requetes (`SeanceCahier`, `DevoirCahier`, `ClasseCahier`).
+  43 `any` -> 0 dans le dossier (183 restants dans `src`).
+- Copies retirees : nom de l'enseignant (4 copies) -> `nomCompletEnseignant` ; infobulle de classe (2 copies avec leur
+  table des jours) -> `classInfoWithTeacher` (rendu identique : civilite = « M. » ou « Mme » seulement en base) ;
+  cles adultes -> `cleAdulte` / `lireCleAdulte` ; `catch` des formulaires -> `messageErreur`.
+- **Defauts trouves en typant** :
+  - Pointage « vu / fait » d'un devoir d'ENFANT : l'insertion `homework_status` n'envoyait pas `parent_id` (NOT NULL,
+    sans declencheur), echec silencieux. Table vide en base, seuls les parents pointent (comptes suspendus en V1) :
+    aucun effet aujourd'hui. L'ecran envoie desormais le foyer du parent connecte.
+  - Auteur propose a l'encadrement : premier titulaire venu (ancien possible) -> `titulaireActuel`.
+  - Jour des cartes en anglais brut -> `seanceDeClasse`.
+  - Fenetre de lecture de l'enseignant calculee par `toISOString` (UTC) -> jour de Paris (`horodatageParis`).
+- Bilan : 185 tests, lint 0 erreur (199 avertissements), build OK, aucune migration.
