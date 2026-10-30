@@ -385,7 +385,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
    pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
    redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
-1. **A la reprise (arret du 29/10 au soir, tout pousse, aucune migration en attente)** :
+1. **A la reprise (arret du 30/10 au soir, tout pousse, aucune migration en attente)** :
    - **A TESTER a l'ecran** (demonstration) :
      - **Fiche classe · Planning EDT avec des seances DEJA VALIDEES** : ajouter, modifier, supprimer un creneau
        (et changer le titulaire) quand des seances passees de ce creneau sont validees. Attendu : les validations,
@@ -410,10 +410,42 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        (glisser-deposer) ; appel enfants et adultes (saisie, justification) ; cotisations (historique) ; notes et
        bulletins (archivage, appreciation, PDF) ; passage d'annee (audits, purge) ; ressources, types de presence,
        etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).
-   - **Ensuite** : passage d'annee, verifier que chaque donnee purgee a sa trace dans l'historique AVANT d'autoriser
-     la purge (demande du 30/10). Plan a presenter avant de coder.
-   - **A decider** : `class_year_history.remplacements` est vide depuis le lot 5 (lu dans `class_teachers`) ;
-     archiver les remplacements depuis `absences_enseignants_seances` ?
+     - NOT NULL (30/10) : rien a voir ; effectif propose a une nouvelle classe = 25.
+     - Fiches (30/10) : modifier puis enregistrer chacune des 6 fiches (classe, apprenant, parents, enseignant,
+       utilisateur, annee) depuis une liste filtree = on RESTE sur la fiche (message, donnees a jour) ; « Retour a la
+       liste » garde le filtre ; fiche classe : ajouter un creneau, enregistrer 2 fois = pas de doublon ; creer = liste.
+     - Email d'un nouveau devoir (30/10) : classe enfants (« Eleve » / « Eleves » nommes) puis classe adulte.
+   - **ENSUITE (chantier ouvert le 30/10, REPONSES DE L'UTILISATEUR ATTENDUES, rien n'est code)** :
+     **Passage d'annee : historisation avant purge + bilan financier annuel.** Demandes de l'utilisateur :
+     « avant la suppression des donnees on doit etre sur que les informations ont bien ete historisees » ;
+     « on a oublie de preparer un bilan financier pour la comptabilite avant de purger les donnees de l'annee, et il
+     faut garder un historique financier annee par annee ». Constat (lecture de `purge_school_year`) :
+     - seule garde aujourd'hui = annee archivee (ni archive COMPLETE, ni archive A JOUR : un paiement saisi apres
+       l'archivage serait efface sans trace) ;
+     - purges SANS trace : Temps de presence (`staff_time_entries` : heures ET cout du personnel, donc le bilan de
+       l'annee devient incalculable), validations de seances, cahier de texte (`homework`, `class_journal`),
+       messages / notifications / relances, remplacements (`class_year_history.remplacements` vide depuis le lot 5) ;
+     - Synthese de Financements = annee EN COURS seulement, aucun document pour le comptable ; depenses et autres
+       revenus ne sont pas purges ; paiements des foyers soldes conserves dans `family_year_finance`.
+     Plan PROPOSE (a confirmer, puis plan detaille migration / controle / ecrans avant de coder) :
+     1. Fonction SQL de verification : chaque participant a sa ligne d'historique ; chaque participant note sur une
+        periode a son bulletin archive ; chaque foyer solde efface figure dans `family_year_finance` ; chaque classe
+        a sa ligne ; rien a purger cree / modifie apres l'archivage ; bilan financier present et a jour.
+     2. `purge_school_year` REFUSE tant que la liste n'est pas vide (meme transaction) ; l'ecran de purge affiche le
+        resultat et grise le bouton. Controle 36 (ecole jetable : archive incomplete = purge refusee).
+     3. BILAN FINANCIER FIGE par annee (table, une ligne ecole x annee, chiffres figes + date + auteur), etabli a
+        l'archivage (re-etabli si on rearchive) : recettes (cotisations facturees / encaissees / reste du, foyers,
+        ajustements, autres revenus par source), depenses par categorie, cout du personnel (heures et cout par
+        personne et type de presence), resultat. Meme calcul que la Synthese (`getFamilyFinancials`,
+        `chargerCoutHeures`), fige.
+     4. Documents comptable : PDF « Bilan financier · annee » + Excel de detail (paiements, depenses, revenus, cout
+        du personnel).
+     5. Historique financier annee par annee : selecteur d'annee dans la Synthese (en cours = direct, passee = bilan
+        fige + documents).
+     QUESTIONS POSEES, SANS REPONSE : (a) contenu du bilan suffisant, ou ventilation par mois / par moyen de
+     paiement ? (b) PDF et Excel, ou un seul ? (c) cahier de texte : historiser ou accepter la perte ?
+     (d) messages / notifications : historiser ou accepter ? (e) remplacements : historiser depuis
+     `absences_enseignants_seances` ? (Temps de presence : couvert par le bilan, cout par personne.)
    - Ecart note : matiere du cahier de texte « General »
      a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces

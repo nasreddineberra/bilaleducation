@@ -10135,3 +10135,9 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - CLAUDE.md, point 4 : `npm audit` (0 vulnerabilite) et « email a la modification d'un devoir » (deja en place) retires.
 - Demande suivante de l'utilisateur : avant la purge, s'assurer que chaque donnee purgee a bien ete historisee.
 - Bilan : type-check 0, lint 0, 185 tests, build OK.
+
+## 30/10 (soir) · Chantier ouvert : historisation avant purge et bilan financier annuel
+
+- Demandes de l'utilisateur, rien n'est code : s'assurer que chaque donnee purgee a ete historisee ; un bilan
+  financier pour la comptabilite avant la purge ; un historique financier annee par annee.
+- Etat des lieux, plan propose et questions en attente : CLAUDE.md, section 8, point 1 (« ENSUITE »).
