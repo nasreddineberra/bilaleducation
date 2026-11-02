@@ -10,6 +10,8 @@ import { useTheme } from './ThemeContext'
 import Tooltip from '@/components/ui/Tooltip'
 import SupportBanner from './SupportBanner'
 import BoutonPleinEcran from './BoutonPleinEcran'
+import BoutonAide from '@/components/aide/BoutonAide'
+import { effectiveRole } from '@/lib/auth/effective-role'
 import { authRepository } from '@/lib/database/auth'
 import { libelleRole } from '@/lib/auth/role-labels'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
@@ -62,6 +64,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/support':           'Support technique',
   '/dashboard/import':            'Importation de familles',
   '/dashboard/passage-annee':     'Audits & Passage d\'année',
+  '/dashboard/aide':              'Aide',
 }
 
 /**
@@ -127,6 +130,10 @@ function getBreadcrumbs(pathname: string): Crumb[] {
     return [{ label: 'Cahier de texte' }, { label: 'Nouvelle séance' }]
   if (/^\/dashboard\/cahier-texte\//.test(pathname))
     return [{ label: 'Cahier de texte' }, { label: 'Séance' }]
+
+  // Aide : une procedure
+  if (/^\/dashboard\/aide\//.test(pathname))
+    return [{ label: 'Aide' }, { label: 'Procédure' }]
 
   // Absences enseignants
   if (/^\/dashboard\/absences-enseignants\//.test(pathname))
@@ -213,6 +220,7 @@ function getPageTitle(pathname: string): string {
   if (/^\/dashboard\/classes\//.test(pathname))        return 'Fiche classe'
   if (/^\/dashboard\/annee-scolaire\//.test(pathname)) return 'Année scolaire'
   if (/^\/dashboard\/absences-enseignants\//.test(pathname)) return 'Absence'
+  if (/^\/dashboard\/aide\//.test(pathname))         return 'Procédure'
   return 'Tableau de bord'
 }
 
@@ -306,13 +314,14 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
             coupe EN BIAIS a gauche, elements separes par des barres obliques.
             Pleine hauteur et colle au bord droit (le <nav> n'a plus de marge
             droite). Resserre sous 768 px : l'avatar sortait de l'ecran (23/10). */}
-        {/* Plein ecran : dans la partie blanche, a gauche de la coupe en biais
-            (ordinateur seulement). Il porte la marge automatique ; sous 1024 px,
-            masque, c'est la zone compte qui la reprend. */}
-        <div className="hidden lg:flex ml-auto mr-2">
-          <BoutonPleinEcran />
+        {/* Aide de l'ecran (toutes tailles, si l'ecran en a une) et plein ecran
+            (ordinateur seulement) : dans la partie blanche, a gauche de la coupe
+            en biais. Ce groupe porte la marge automatique. */}
+        <div className="flex items-center gap-1 ml-auto mr-2">
+          <BoutonAide role={effectiveRole(profile)} />
+          <BoutonPleinEcran className="hidden lg:flex" />
         </div>
-        <div className="ml-auto lg:ml-0 self-stretch flex items-center gap-2 md:gap-3 pl-10 md:pl-14 pr-4 md:pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
+        <div className="self-stretch flex items-center gap-2 md:gap-3 pl-10 md:pl-14 pr-4 md:pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
           {/* ── Bascule thème clair / sombre — sélecteur segmenté ──────────────
               MASQUÉE PENDANT UNE INTERVENTION DE SUPPORT. Le thème est une
               préférence PERSONNELLE, rangée dans `profiles.theme` — donc dans le

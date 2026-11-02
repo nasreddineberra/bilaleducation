@@ -13,6 +13,7 @@ import { joursRestants } from '@/lib/tenant/abonnement'
 import {
   Upload,
   LifeBuoy,
+  CircleHelp,
   LayoutDashboard,
   Users,
   Contact,
@@ -619,6 +620,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
     return () => document.removeEventListener('keydown', surTouche)
   }, [ouvertMobile, setOuvertMobile])
   const peutContacterSupport = Boolean(role && ROLES_SUPPORT.includes(role))
+  // Aide integree (02/11) : tout le personnel ; pas de procedure parent en V1.
+  const peutLireAide = Boolean(role && role !== 'parent')
   const abonnement = lireFinAbonnement(finAbonnement)
   const [tempExpanded,  setTempExpanded]  = useState(false)  // expand temporaire depuis état réduit
 
@@ -1141,11 +1144,33 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           La fin d'abonnement vit dans le MEME encadré, sous le lien : même public
           (admin et direction, ceux qui renouvellent). Rien sans échéance — une
           ligne « sans échéance » n'appellerait aucune action. */}
-      {peutContacterSupport && (
+      {(peutContacterSupport || peutLireAide) && (
         <div className={clsx(
           'border-t border-white/10 flex-shrink-0',
           collapsed ? 'py-2 flex flex-col items-center gap-1' : 'px-3 py-2'
         )}>
+          {peutLireAide && (
+          <SidebarTooltip label="Aide" className={collapsed ? 'w-auto' : 'w-full'}>
+            {/* Procedures utilisateur : au-dessus du support, qu'elles doivent
+                rendre moins necessaire. */}
+            <Link
+              href="/dashboard/aide"
+              aria-current={pathname.startsWith('/dashboard/aide') ? 'page' : undefined}
+              className={clsx(
+                'sidebar-item flex items-center rounded-lg transition-colors',
+                pathname.startsWith('/dashboard/aide')
+                  ? 'bg-white/10 text-white'
+                  : 'text-[var(--brand-muted)] hover:bg-white/10 hover:text-white',
+                collapsed ? 'justify-center p-2' : 'w-full gap-3 px-3 py-2'
+              )}
+            >
+              <CircleHelp size={collapsed ? 20 : 18} className="flex-shrink-0" aria-hidden="true" />
+              {!collapsed && <span className="text-sm truncate">Aide</span>}
+            </Link>
+          </SidebarTooltip>
+          )}
+
+          {peutContacterSupport && (
           <SidebarTooltip
             label="Support technique"
             className={collapsed ? 'w-auto' : 'w-full'}
@@ -1169,8 +1194,9 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
               {!collapsed && <span className="text-sm truncate">Support technique</span>}
             </Link>
           </SidebarTooltip>
+          )}
 
-          {abonnement && (collapsed ? (
+          {peutContacterSupport && abonnement && (collapsed ? (
             <SidebarTooltip label={`Fin abonnement au ${abonnement.date}`} className="w-auto">
               <span
                 className={clsx('flex p-2', abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]')}

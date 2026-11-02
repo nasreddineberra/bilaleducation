@@ -10213,3 +10213,21 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   (`lib/cahier-texte/matiere.ts`, 6 tests), champ commun `ChampMatiere`. Valeurs stockees inchangees (pas de
   migration). L'archive du cahier de texte porte desormais la matiere (champ facultatif, anciennes archives sans).
 - Bilan : type-check 0, lint 0, 198 tests, build OK.
+
+## 02/11 · Aide integree : procedures utilisateur par ecran (cadre + Reglements)
+
+- Demande : moins d'emails sur l'utilisation. Un assistant conversationnel a ete ecarte par l'utilisateur au profit
+  d'un MODE D'EMPLOI integre : une procedure detaillee par fonctionnalite, consultee par l'utilisateur.
+- Affichage : un panneau qui POUSSE le contenu aurait casse les ecrans concus sans defilement (EDT, listes,
+  Reglements). Retenu (option 3) : tiroir SUPERPOSE au bord droit (420 px, plein ecran sur telephone, porte dans
+  `<body>`, `role="dialog"` sous le pont du theme sombre, sans fond ni verrou, Echap ferme) + lien « Ouvrir dans un
+  onglet » pour suivre une procedure en manipulant. Icone masquee sur un ecran sans procedure.
+- Menu « Aide » (bas de la barre laterale, au-dessus du support, tout le personnel) : procedures par module, recherche
+  sans accents, « Guide PDF » (procedures du role, sommaire, pagination). La fin d'abonnement reste reservee a
+  admin / direction (le bloc du bas s'affiche desormais pour tout le personnel).
+- Contenu en TypeScript type (`lib/aide/types.ts`) plutot qu'en Markdown : filtrage par role element par element,
+  meme source pour l'ecran, la recherche et le PDF, aucune dependance. Gabarit : a quoi sert l'ecran, qui peut faire
+  quoi, pas a pas, regles, bouton grise ou absent, questions frequentes, voir aussi.
+- Premiere procedure : Reglements (9 taches, relue contre `FinancementsClient`, `PaymentModal`, `ImpayesAnterieurs`).
+  A valider par l'utilisateur avant les lots suivants. Console editeur : pas d'aide (decision).
+- Bilan : type-check 0, lint 0, 205 tests, build OK.
