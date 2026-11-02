@@ -443,8 +443,9 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      panneau qui coulisse et se range (ecran derriere inchange, Echap, telephone plein ecran, theme sombre),
      « Ouvrir dans un onglet » ; menu « Aide » (recherche, « Guide PDF ») ; enseignant : pas de languette sur les
      ecrans sans procedure. Lot 1 ECRIT le 02/11 (Situation financiere, Statistiques, Bilans annuels, Cotisations,
-     Audits & Passage d'annee, Absences enseignants, Etablissement et messagerie) : a relire. Restent les lots 2
-     (quotidien : apprenants, parents, affectations, appel, cahier de texte, EDT, temps de presence) et 3 (reste).
+     Audits & Passage d'annee, Absences enseignants, Etablissement et messagerie) ; lot 2 ECRIT le 02/11 (Apprenants,
+     Parents, Affectations, Feuille d'appel, Cahier de texte, Emploi du temps, Temps de presence) : a relire. Reste
+     le lot 3 (notes, gabarits, bulletins, communications, importation, parametres, mon compte, classes archivees).
    - **A TESTER (02/11) · Matiere du cahier de texte et passe valeurs en dur** : seance et devoir dans une classe a
      une matiere (champ verrouille sur elle), a plusieurs (choix ; changer la date de la seance change la
      proposition), sans matiere (« Général ») ; modifier une ancienne seance « Général » ; pastille de matiere dans

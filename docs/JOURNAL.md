@@ -10250,3 +10250,9 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   lecture seule pour enseignant et comptable), Etablissement et messagerie. Chaque procedure relue contre son ecran
   (libelles des boutons et champs releves dans le code). Test : fiche d'absence couverte par prefixe, taches de
   gestion absentes de la version enseignant.
+- Lot 2 ecrit (15 procedures au total) : Apprenants (liste + fiche, taches de gestion hors enseignant), Parents et
+  foyers, Affectations (enfants + adultes, retrait = correction sans donnees), Feuille d'appel (enfants + adultes),
+  Cahier de texte (matiere deduite de l'EDT), Emploi du temps (validation, actions de seance, seance ponctuelle ;
+  le glisser-deposer, desactive, n'est pas decrit), Temps de presence (saisie direction / secretaire / resp. pedago,
+  couts selon le role). Releve : la liste des apprenants montre a l'enseignant « Ajouter » et « Mettre a jour les
+  statuts », que la RLS lui refuse (non corrige, signale).

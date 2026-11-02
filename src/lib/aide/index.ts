@@ -10,6 +10,8 @@ import { cotisations } from './procedures/cotisations.ts'
 import { passageAnnee } from './procedures/passage-annee.ts'
 import { absencesEnseignants } from './procedures/absences-enseignants.ts'
 import { etablissement } from './procedures/etablissement.ts'
+import { apprenants, parents, affectations } from './procedures/vie-scolaire.ts'
+import { feuilleAppel, cahierTexte, emploiDuTemps, tempsPresence } from './procedures/pedagogie.ts'
 
 /** Ordre des modules dans le menu Aide : celui de la barre de navigation. */
 export const ORDRE_MODULES = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Clôture', 'Paramètres'] as const
@@ -23,6 +25,13 @@ export const PROCEDURES: Procedure[] = [
   passageAnnee,
   absencesEnseignants,
   etablissement,
+  apprenants,
+  parents,
+  affectations,
+  feuilleAppel,
+  cahierTexte,
+  emploiDuTemps,
+  tempsPresence,
 ]
 
 /** `admin` a les droits de `direction` partout (regle du projet). */
