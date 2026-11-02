@@ -94,7 +94,7 @@ export default function LanguetteAide({ role }: { role: string | null | undefine
           aria-expanded={ouvert}
           aria-controls={panneauId}
           className={clsx(
-            'flex flex-col items-center justify-center gap-0.5 w-4 lg:w-6 h-14 rounded-l-lg shadow-md outline-none transition-colors',
+            'flex flex-col lg:flex-row items-center justify-center gap-0.5 lg:gap-0 w-4 h-14 lg:w-[30px] lg:h-9 rounded-l-lg shadow-md outline-none transition-colors',
             // Rangee : vert de marque. Deroulee : orange dore de la charte, vif, pour
             // se reperer d'un coup d'oeil ; encre foncee dessus (contraste).
             ouvert
@@ -104,11 +104,12 @@ export default function LanguetteAide({ role }: { role: string | null | undefine
             signal && 'languette-signal',
           )}
         >
-          {/* Chevron : le sens du geste (tirer vers la gauche, repousser vers la droite). */}
-          {ouvert
-            ? <ChevronRight className="w-3 h-3 lg:w-3.5 lg:h-3.5" aria-hidden="true" />
-            : <ChevronLeft className="w-3 h-3 lg:w-3.5 lg:h-3.5" aria-hidden="true" />}
-          <CircleHelp className="w-3.5 h-3.5 lg:w-4 lg:h-4" aria-hidden="true" />
+          {/* Chevron du cote du geste : a GAUCHE du « ? » pour tirer le panneau, a
+              DROITE pour le repousser. Sur ordinateur, cote a cote (la languette
+              tient dans la marge de 32 px) ; en dessous, empiles (16 px de large). */}
+          {!ouvert && <ChevronLeft className="w-3 h-3 lg:w-3.5 lg:h-3.5 shrink-0" aria-hidden="true" />}
+          <CircleHelp className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" aria-hidden="true" />
+          {ouvert && <ChevronRight className="w-3 h-3 lg:w-3.5 lg:h-3.5 shrink-0" aria-hidden="true" />}
         </button>
       </Tooltip>
 
