@@ -10274,3 +10274,10 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   et les actions de ligne (modifier, supprimer), que la RLS lui refuse. Masques (jamais possibles pour ce role).
   La page de creation renvoie a la liste. Regle unique `lib/students/droits.ts` (`peutEcrireEleves`), reprise par la
   fiche (qui la portait seule). La ligne ouvre toujours la fiche, en lecture.
+
+## 02/11 · CLAUDE.md allege
+
+- Recettes « A TESTER » sorties vers `docs/A-TESTER.md` (classees par module ; un point verifie s'en retire, un
+  chantier livre y ajoute la sienne). Historique de la sortie des `any` retire de la section 8 (il est plus haut dans
+  ce journal). Dates et mentions d'historique retirees des regles (sections 1, 3, 4, 5). Aucune regle supprimee.
+  486 -> 425 lignes, 41 -> 35 Ko.

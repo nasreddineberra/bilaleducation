@@ -1,0 +1,70 @@
+# A tester a l'ecran
+
+Essais sur le site deploye, ecole de demonstration (jamais ECOLE BILAL). Un point verifie se RETIRE de ce
+fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa recette.
+
+## EDT, classes, titulaires
+
+- **Fiche classe · Planning EDT avec des seances DEJA VALIDEES** : ajouter, modifier, supprimer un creneau (et
+  changer le titulaire) quand des seances passees de ce creneau sont validees. Attendu : les validations, les heures
+  de Temps de presence et l'historique restent justes ; rien de valide ne se perd ni ne se recalcule en silence.
+- Lot 5 : EDT (creation d'une seance ponctuelle, glisser-deposer), fiche classe (titulaire, encadre Remplacements).
+  NB : le glisser-deposer est desactive dans le code (`isDndActive = false`) : a trancher.
+- Titulaire (30/10) : changer le titulaire d'une classe ; temps reel = le nouveau seul, historique = « initial puis
+  remplacant ».
+- Creneau : choix Cours / Activite (fiche classe, EDT). NOT NULL (30/10) : effectif propose a une nouvelle classe = 25.
+
+## Absences enseignants
+
+- Messagerie configuree : annulation annoncee puis retablissement, remplacement annonce.
+
+## Eleves, parents, affectations
+
+- Sortie des `any` lot 5 (30/10) : fiche eleve (5 onglets, fratrie, document, avertissement, depart), fiche parent
+  avec cours adulte, affectation enfants et adultes (correction, depart).
+- Carte fratrie (30/10) : classe de l'annee en cours, mentions Non affecte et Non actif accordees au genre.
+- Fiches (30/10) : modifier puis enregistrer chacune des 6 fiches (classe, apprenant, parents, enseignant,
+  utilisateur, annee) depuis une liste filtree = on RESTE sur la fiche (message, donnees a jour) ; « Retour a la
+  liste » garde le filtre ; fiche classe : ajouter un creneau, enregistrer 2 fois = pas de doublon ; creer = liste.
+- Apprenants en enseignant (02/11) : ni « Ajouter », ni « Mettre a jour les statuts », ni actions de ligne ; la
+  ligne ouvre la fiche en lecture ; `/dashboard/students/new` renvoie a la liste.
+
+## Cahier de texte et communications
+
+- Sortie des `any` lot 6 (30/10) : cahier de texte en direction puis en enseignant (seance et devoir : creer,
+  modifier, supprimer ; detail d'un devoir enfants et adulte ; filtre par classe ; jour en francais).
+- Matiere (02/11) : seance et devoir dans une classe a une matiere (champ verrouille sur elle), a plusieurs (choix ;
+  changer la date de la seance change la proposition), sans matiere (« Général ») ; modifier une ancienne seance
+  « Général » ; pastille de matiere dans la liste et le detail ; email d'un devoir (ligne Matiere).
+- Email d'un nouveau devoir (30/10) : classe enfants (« Eleve » / « Eleves » nommes) puis classe adulte.
+- Sortie des `any` lot 7 (30/10) : message a une classe enfants, adulte, a l'equipe (piece jointe) ; detail
+  (destinataires, enseignant, horaire) ; filtre par classe ; notifications. Pieces jointes : 1 Mo, jauge.
+
+## Financements
+
+- Sortie des `any` lot 4 : Reglements (famille, infobulle de classe avec niveau, historique, impayes anterieurs),
+  Synthese, Vue globale, ouverture d'un paiement sans enregistrer, tableaux de bord comptable et direction.
+- Bilans annuels (02/11) : provisoire de l'annee en cours (chiffres = Situation financiere, PDF, Excel 6 feuilles),
+  en direction puis en comptable.
+
+## Passage d'annee et historique
+
+- Sortie des `any` lot 3 : 6 audits du passage d'annee, Historique des classes.
+- Historisation (02/11, migration `historisation-avant-purge.sql`, controle 36) : Historique des classes, onglets
+  Remplacements et Cahier de texte (visibles apres un archivage). Le parcours complet (archivage, carte de purge
+  grisee avec la liste des manques, re-archivage) attend une vraie fin d'annee ou une ecole d'essai.
+
+## Aide integree (02/11)
+
+- Languette « ? » au bord droit (pulsations a la 1re visite de l'ecran dans la session seulement), panneau qui
+  coulisse et se range (ecran derriere inchange, Echap, telephone plein ecran, theme sombre), « Ouvrir dans un
+  onglet » ; menu « Aide » (recherche, « Guide PDF ») ; pas de languette sur un ecran sans procedure.
+- Contenu des 33 procedures a relire par role (direction, resp. pedagogique, secretaire, comptable, enseignant).
+- Guide PDF : presentation des fonctionnalites par role (tableau) puis « Mise en route » ; jamais controle
+  visuellement.
+
+## Passe generale (sortie des `any`, fin 30/10)
+
+- Tableau de bord de chaque role (en-tete, notifications) ; appel enfants et adultes (saisie, justification) ;
+  cotisations (historique) ; notes et bulletins (archivage, appreciation, PDF) ; ressources, types de presence,
+  etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).

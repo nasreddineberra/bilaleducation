@@ -37,7 +37,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur, 0 avertissement (plus aucun `any` depuis le 30/10 : n'en remettre aucun)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur, 0 avertissement, aucun `any`
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -84,8 +84,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (`teaches_student`), sa propre ligne `teachers`. Lit l'EDT de toute l'ecole (document collectif)
   mais l'ecran ne lui montre que SON planning (+ classes qu'il remplace). Ne communique que les
   devoirs. Valide ses propres seances.
-- **Remplacant** : decision « Remplacee par » d'une absence d'enseignant, seance par seance (plus jamais une ligne
-  `class_teachers`, refusee depuis le lot 5). Voit le cahier de texte 7 j avant a 7 j apres, valide les seances qu'il
+- **Remplacant** : decision « Remplacee par » d'une absence d'enseignant, seance par seance (jamais une ligne
+  `class_teachers`, refusee par la base). Voit le cahier de texte 7 j avant a 7 j apres, valide les seances qu'il
   assure (heures a son nom, `replaced_profile_id` = titulaire). Le titulaire remplace ne valide plus.
 - **Comptable** : Financements + Parametres -> Cotisations ; pas de notes/absences.
 - **Resp. pedagogique** : pedagogie complete, enseignants dans Temps de presence (sans couts).
@@ -101,7 +101,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 ## 4. Modules (regles metier qui ne se lisent pas d'un coup d'oeil dans le code)
 
 - **Tableau de bord** : une variante par role, une page sans defilement. En-tete : bonjour a gauche, date et
-  periode a droite, plus de raccourcis (28/10). Plein ecran : icone de la barre du haut, ordinateur seulement (`Maximize2`).
+  periode a droite. Plein ecran : icone de la barre du haut, ordinateur seulement (`Maximize2`).
   « A traiter » : une ligne URGENTE (seances d'absence a decider) passe en tete, bandeau ambre `.ligne-urgente`.
 - **Temps de presence** : codes 3 car. ; types RESERVES absence/cours/activite lies a l'EDT ; saisie
   reservee aux gestionnaires ; couts selon le role.
@@ -115,7 +115,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   ecrite par la base). Un retour dans l'annee annule le depart ; seul le DERNIER depart compte.
 - **Notes / bulletins** : gabarits a date obligatoire (ordre `lib/evaluations/ordre.ts`), absences
   reportees de l'appel, bulletins PDF bilingues FR/AR archives avec chiffres figes.
-- **Planning, absences, presence** (chantier TERMINE le 29/10, `docs/CONCEPTION-PLANNING-ABSENCES.md`) : une
+- **Planning, absences, presence** (`docs/CONCEPTION-PLANNING-ABSENCES.md`) : une
   information = un ecran qui l'ecrit. QUI ASSURE une seance se DEDUIT a la date (`lib/edt/seance.ts`) : rien n'est
   recopie sur un creneau (plus de `schedule_slots.teacher_id`, `class_teachers` = titulaires seuls, seance
   « modifiee » = salle seule, controle 34). Validation par la base (`valider_seance`), seance validee intouchable.
@@ -143,13 +143,11 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   comptable) : bilan FIGE de chaque annee archivee (`bilans_financiers`, etabli a l'archivage) + PROVISOIRE de
   l'annee en cours (meme calcul `lib/financements/bilan.ts`), PDF + Excel de detail.
 - **Support** : demande ecrite en base AVANT l'email.
-- **Aide integree** (02/11) : procedures utilisateur par ecran, contenu TypeScript dans `lib/aide/procedures/`
-  (modele `lib/aide/types.ts`, registre `lib/aide/index.ts`). INTERCALAIRE (`LanguetteAide`) : languette « ? » au
-  bord droit, sous la barre du haut (dans la marge de page), qui fait coulisser un panneau SUPERPOSE SOUS la barre du
-  haut (zone profil jamais recouverte ; jamais pousse :
-  aucun ecran ne perd de largeur) et le range ; 3 pulsations a la 1re ouverture de l'ecran dans la session ;
-  « Ouvrir dans un onglet » ; menu « Aide » (bas de la barre
-  laterale, tout le personnel, pas le parent) avec recherche et « Guide PDF ». Contenu filtre par role (`admin` =
+- **Aide integree** : procedures utilisateur par ecran, contenu TypeScript dans `lib/aide/procedures/` (modele
+  `lib/aide/types.ts`, registre `lib/aide/index.ts`). INTERCALAIRE (`LanguetteAide`) : languette « ? » au bord droit,
+  sous la barre du haut, qui fait coulisser un panneau SUPERPOSE sous cette barre (zone profil jamais recouverte,
+  aucun ecran ne perd de largeur) ; 3 pulsations a la 1re ouverture de l'ecran dans la session ; « Ouvrir dans un
+  onglet » ; menu « Aide » (bas de la barre laterale, tout le personnel, pas le parent) avec recherche et « Guide PDF ». Contenu filtre par role (`admin` =
   `direction`, jamais nomme). Noms de boutons entre « ... ». **Un ecran modifie = sa procedure relue dans le meme
   commit.** Test `lib/aide/index.test.ts` (ecrans existants, roles, ni tiret long ni « (s) »). Guide PDF : presentation
   des fonctionnalites par role (`presentationParModule`, tiree des procedures) puis « Mise en route » (direction).
@@ -249,13 +247,12 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   volontaire). Delimiteurs nommes (`$fn$`). Apres `REVOKE ... FROM public`, revoquer aussi `anon`.
   **Apres une migration de structure : `npm run types-db` puis `npm run type-check`** (jeton
   `SUPABASE_TYPES_TOKEN` de `.env.local`, permission Database = Read, a recreer a expiration).
-  Une fonction NOUVELLE n'est executable ni par PUBLIC ni par `anon` (defauts changes le 26/10,
-  controle 25) : l'octroyer explicitement a `authenticated` ; a `anon` seulement si une page publique
+  Une fonction NOUVELLE n'est executable ni par PUBLIC ni par `anon` (controle 25) : l'octroyer explicitement a `authenticated` ; a `anon` seulement si une page publique
   en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
-  Depuis le 27/10 `anon` n'a AUCUN droit de table ni de sequence dans `public`, nouvelles comprises
+  `anon` n'a AUCUN droit de table ni de sequence dans `public`, nouvelles comprises
   (controle 26) : une page publique lit par la cle serveur, jamais en anonyme. Une nouvelle table
   active TOUJOURS la RLS (le controle 26 le verifie aussi). Une colonne a DEFAUT est NOT NULL, sauf exception
-  justifiee ajoutee au controle 35 (seule exception au 30/10 : `evaluations.max_score`).
+  justifiee ajoutee au controle 35 (seule exception : `evaluations.max_score`).
 
 ## 6. Charte graphique
 
@@ -404,57 +401,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 Tous les modules sont faits et audites (accessibilite, charte, theme sombre, mobile, RLS role + tenant,
 ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console. Historique : journal.
 
-1. **A la reprise (02/11 : historisation avant purge et bilans annuels livres)** :
-   - **A TESTER a l'ecran** (demonstration) :
-     - **Fiche classe · Planning EDT avec des seances DEJA VALIDEES** : ajouter, modifier, supprimer un creneau
-       (et changer le titulaire) quand des seances passees de ce creneau sont validees. Attendu : les validations,
-       les heures de Temps de presence et l'historique restent justes ; rien de valide ne se perd ni ne se
-       recalcule en silence.
-     - Lot 5 : EDT (creation d'une seance ponctuelle, glisser-deposer), fiche classe (titulaire, encadre
-       Remplacements).
-     - Sortie des `any` lots 3 et 4 : 6 audits du passage d'annee, Historique des classes ; Reglements (famille,
-       infobulle de classe avec niveau, historique, impayes anterieurs), Synthese, Vue globale, ouverture d'un
-       paiement sans enregistrer, tableaux de bord comptable et direction.
-     - Absences (messagerie configuree) : annulation annoncee puis retablissement, remplacement annonce.
-     - Sortie des `any` lot 5 (30/10) : fiche eleve (5 onglets, fratrie, document, avertissement, depart), fiche
-       parent avec cours adulte, affectation enfants et adultes (correction, depart).
-     - Titulaire (30/10) : changer le titulaire d'une classe ; temps reel = le nouveau seul, historique = « initial
-       puis remplacant ».
-     - Carte fratrie (30/10) : classe de l'annee en cours, mentions Non affecte et Non actif accordees au genre.
-     - Sortie des `any` lot 6 (30/10) : cahier de texte en direction puis en enseignant (seance et devoir : creer,
-       modifier, supprimer ; detail d'un devoir enfants et adulte ; filtre par classe ; jour en francais).
-     - Sortie des `any` lot 7 (30/10) : message a une classe enfants, adulte, a l'equipe (piece jointe) ; detail
-       (destinataires, enseignant, horaire) ; filtre par classe ; notifications ; email de devoir.
-     - Sortie des `any` fin (30/10) : tableau de bord de chaque role (en-tete, notifications) ; fiche classe, EDT
-       (glisser-deposer) ; appel enfants et adultes (saisie, justification) ; cotisations (historique) ; notes et
-       bulletins (archivage, appreciation, PDF) ; passage d'annee (audits, purge) ; ressources, types de presence,
-       etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).
-     - NOT NULL (30/10) : rien a voir ; effectif propose a une nouvelle classe = 25.
-     - Fiches (30/10) : modifier puis enregistrer chacune des 6 fiches (classe, apprenant, parents, enseignant,
-       utilisateur, annee) depuis une liste filtree = on RESTE sur la fiche (message, donnees a jour) ; « Retour a la
-       liste » garde le filtre ; fiche classe : ajouter un creneau, enregistrer 2 fois = pas de doublon ; creer = liste.
-     - Email d'un nouveau devoir (30/10) : classe enfants (« Eleve » / « Eleves » nommes) puis classe adulte.
-   - **A TESTER (02/11) · Historisation avant purge et bilans annuels** (migration
-     `historisation-avant-purge.sql`, controle 36) : Financements -> Bilans annuels (provisoire de l'annee en cours :
-     chiffres = Situation financiere, PDF, Excel 6 feuilles) en direction puis en comptable ; Historique des classes
-     (onglets Remplacements et Cahier de texte, visibles apres un archivage). Le parcours complet (archivage, carte
-     de purge grisee avec la liste des manques, re-archivage) attend une vraie fin d'annee ou une ecole d'essai.
-   - **A TESTER (02/11) · Aide integree** (cadre + procedure Reglements, contenu VALIDE le 02/11 ; plus de rubrique
-     « Qui peut faire quoi ») : Reglements en
-     direction puis comptable : languette « ? » au bord droit (pulsations a la 1re visite de la session seulement),
-     panneau qui coulisse et se range (ecran derriere inchange, Echap, telephone plein ecran, theme sombre),
-     « Ouvrir dans un onglet » ; menu « Aide » (recherche, « Guide PDF ») ; enseignant : pas de languette sur les
-     ecrans sans procedure. Lot 1 ECRIT le 02/11 (Situation financiere, Statistiques, Bilans annuels, Cotisations,
-     Audits & Passage d'annee, Absences enseignants, Etablissement et messagerie) ; lot 2 ECRIT le 02/11 (Apprenants,
-     Parents, Affectations, Feuille d'appel, Cahier de texte, Emploi du temps, Temps de presence) ; lot 3 ECRIT le 02/11
-     (33 procedures : tous les ecrans du personnel + « Mise en route de l'etablissement », ordre du parametrage pour la
-     direction). Guide PDF : presentation des fonctionnalites par role (tableau) en tete, puis la mise en route. A
-     relire, et a verifier a l'ecran (le PDF n'a pu etre controle visuellement).
-   - **A TESTER (02/11) · Matiere du cahier de texte et passe valeurs en dur** : seance et devoir dans une classe a
-     une matiere (champ verrouille sur elle), a plusieurs (choix ; changer la date de la seance change la
-     proposition), sans matiere (« Général ») ; modifier une ancienne seance « Général » ; pastille de matiere dans
-     la liste et le detail ; email d'un devoir (ligne Matiere). Pieces jointes d'un message (1 Mo, jauge). Creneau :
-     choix Cours / Activite (fiche classe, EDT). Gabarit « Reset Password » recolle dans Supabase le 02/11.
+1. **A tester a l'ecran** : `docs/A-TESTER.md` (une recette par chantier livre ; un point verifie s'en retire).
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
    conservees). Jour J : essai dans son etablissement -> lever la borne, remplir la facturation, retirer
@@ -462,16 +409,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    console puis import `.xlsx` ; s'il ne signe pas -> depart (export, puis effacement).
 3. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; sortie des `any`
-   TERMINEE le 30/10 (226 -> 0) : lot 1 FAIT (clients Supabase types, `src/types/supabase.ts` genere), lot 2 FAIT
-   (`lib/dashboard`), lot 3 FAIT (`lib/closure` : lignes d'archive typees par leurs tables, colonnes jsonb de
-   l'historique dans `json.ts`), lot 4 FAIT (financements : lectures de Reglements dans
-   `lib/financements/reglements.ts`, types des ecrans tires de ses requetes), lot 5 FAIT (eleves, parents,
-   affectation : `lib/students/fiche.ts`, `lib/parents/fiche.ts`), lot 6 FAIT (cahier de texte : `lib/cahier-texte/donnees.ts`), lot 7 FAIT (communications et notifications :
-   `lib/communications/donnees.ts`, `lib/communications/notifications.ts`), lots 8 et suivants FAITS (tableau de
-   bord `lib/dashboard/commun.ts` et `parent.ts`, puis tout le reste) ; colonnes a defaut NOT NULL FAIT le 30/10
-   (72 colonnes, migration `colonnes-defaut-not-null.sql`, controle 35).
-5. **Passes de fin de V1** : plan de test, tracabilite globale (valeurs en dur et tirets longs FAITS le 02/11).
+4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre.
+5. **Passes de fin de V1** : plan de test, tracabilite globale.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`).
 
