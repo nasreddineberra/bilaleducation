@@ -34,6 +34,7 @@ import {
   type FamilyFinancials, type RecapDossier, type RetourReduction, type RetourSuppression, type AnneeLike, type LigneCotisation, type DecisionAjustement,
 } from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
+import { METHOD_LABELS, libelleAjustement } from '@/lib/financements/libelles'
 import type { AdulteReglement, DonneesReglements, DossierReglement, MouvementReglement, ParentReglement } from '@/lib/financements/reglements'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -191,9 +192,6 @@ const STATUS_BAR: Record<FeeStatus, string> = {
   overpaid: 'bg-red-500',
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
-}
 
 // Calcul financier d'une famille : le modele vit dans `lib/financements/compute`
 // (source unique partagee avec Stats reglements). Ici, seul l'assemblage du
@@ -1384,7 +1382,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       <td className="px-2 py-1.5 text-xs text-secondary-600">{fmtDate(a.adjustment_date)}</td>
                       <td className="px-2 py-1.5">
                         <Puce ton={a.adjustment_type === 'reduction' ? 'info' : a.adjustment_type === 'remboursement' ? 'orange' : 'remplacement'}>
-                          {a.adjustment_type === 'reduction' ? 'Réduction' : a.adjustment_type === 'remboursement' ? 'Remboursement' : 'Avoir'}
+                          {libelleAjustement(a.adjustment_type)}
                         </Puce>
                       </td>
                       <td className="px-2 py-1.5 text-xs text-secondary-700">{a.label}</td>
@@ -1698,7 +1696,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       >
         {deleteAdjTarget && (
           <p className="text-xs text-warm-700">
-            {deleteAdjTarget.adjustment_type === 'reduction' ? 'Réduction' : deleteAdjTarget.adjustment_type === 'remboursement' ? 'Remboursement' : 'Avoir'}
+            {libelleAjustement(deleteAdjTarget.adjustment_type)}
             {' · '}{deleteAdjTarget.label}{' · '}<strong className="text-warm-700">{fmtEur(Math.abs(deleteAdjTarget.amount))}</strong>
           </p>
         )}

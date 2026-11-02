@@ -44,6 +44,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/financements':              'Situation financière actuelle',
   '/dashboard/financements/reglements':  'Règlements',
   '/dashboard/financements/vue-globale': 'Statistiques sur règlements',
+  '/dashboard/financements/bilans':      'Bilans annuels',
   '/dashboard/etablissement':     'Établissement',
   '/dashboard/utilisateurs':      'Utilisateurs',
   '/dashboard/annee-scolaire':    'Années scolaires',
@@ -146,6 +147,8 @@ function getBreadcrumbs(pathname: string): Crumb[] {
     return [{ label: 'Financements' }, { label: 'Règlements' }]
   if (/^\/dashboard\/financements\/vue-globale/.test(pathname))
     return [{ label: 'Financements' }, { label: 'Statistiques sur règlements' }]
+  if (/^\/dashboard\/financements\/bilans/.test(pathname))
+    return [{ label: 'Financements' }, { label: 'Bilans annuels' }]
   if (pathname === '/dashboard/financements')
     return [{ label: 'Financements' }, { label: 'Situation financière' }]
 

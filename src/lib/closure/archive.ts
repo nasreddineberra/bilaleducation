@@ -13,7 +13,7 @@ import { chargerDeparts } from '@/lib/financements/departs'
 import { cleAdulte } from '@/lib/parents/participant'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, TablesInsert } from '@/types/supabase'
-import type { ArchiveBulletin, ArchiveCotisation, ArchiveCreneau, ArchiveParticipant, ArchivePeriode } from '@/types/json'
+import type { ArchiveBulletin, ArchiveCotisation, ArchiveCreneau, ArchiveParticipant, ArchivePeriode, ArchiveRemplacement, ArchiveSeance } from '@/types/json'
 import type { YearCtx } from './audits'
 
 // Lignes typees par les tables : une colonne mal nommee casse le type-check,
@@ -317,26 +317,80 @@ export async function generateArchive(supabase: SupabaseClient<Database>, ctx: Y
   })
 
   // ── class_year_history : composition de chaque classe ──
-  // Enseignants (titulaires + remplacements, avec leurs dates) et creneaux
-  // recurrents de l'annee. Ni notes, ni absences, ni montants (decision
-  // utilisateur) : seulement qui etait dans la classe, avec qui, et quand.
-  const [{ data: ct }, { data: slots }] = await Promise.all([
+  // Titulaires (avec leurs dates), creneaux recurrents de l'annee, remplacements
+  // seance par seance et cahier de texte (02/11). Ni notes, ni absences, ni
+  // montants (decision utilisateur).
+  const [{ data: ct }, { data: slots }, { data: decisions }, { data: journal }, { data: devoirs }] = await Promise.all([
     supabase.from('class_teachers')
       .select('class_id, is_main_teacher, effective_from, effective_until, teachers(last_name, first_name)')
-      .in('class_id', classIds),
+      .in('class_id', classIds)
+      .eq('is_main_teacher', true),
     supabase.from('schedule_slots')
       .select('class_id, day_of_week, start_time, end_time, effective_from, effective_until, rooms(name)')
       .in('class_id', classIds)
       .eq('school_year_id', ctx.yearId)
       .eq('is_recurring', true)
       .eq('is_active', true),
+    // Decisions d'absence : la purge les efface (cascade des creneaux), l'historique
+    // est leur seule trace. Les remplacements ne sont plus des lignes
+    // `class_teachers` depuis le lot 5.
+    supabase.from('absences_enseignants_seances')
+      .select('seance_date, remplacant_profile_id, schedule_slots!inner(class_id, start_time, end_time, school_year_id), absences_enseignants(teachers(last_name, first_name))')
+      .eq('schedule_slots.school_year_id', ctx.yearId),
+    supabase.from('class_journal')
+      .select('id, class_id, session_date, title, content_html')
+      .in('class_id', classIds),
+    supabase.from('homework')
+      .select('class_id, journal_entry_id, title, description_html, due_date, created_at')
+      .in('class_id', classIds),
   ])
+
+  const remplacantsIds = [...new Set((decisions ?? []).map(d => d.remplacant_profile_id).filter((x): x is string => !!x))]
+  const { data: remplacants } = remplacantsIds.length
+    ? await supabase.from('profiles').select('id, last_name, first_name').in('id', remplacantsIds)
+    : { data: [] }
+  const remplacantParId = new Map((remplacants ?? []).map(p => [p.id, nomEnseignant(p)]))
+
+  const remplacementsParClasse = new Map<string, ArchiveRemplacement[]>()
+  for (const d of decisions ?? []) {
+    const cid = d.schedule_slots.class_id
+    if (!cid) continue
+    if (!remplacementsParClasse.has(cid)) remplacementsParClasse.set(cid, [])
+    remplacementsParClasse.get(cid)!.push({
+      date: d.seance_date,
+      debut: heure(d.schedule_slots.start_time),
+      fin: heure(d.schedule_slots.end_time),
+      absent: nomEnseignant(d.absences_enseignants?.teachers ?? null),
+      remplacant: d.remplacant_profile_id ? (remplacantParId.get(d.remplacant_profile_id) ?? '?') : null,
+    })
+  }
+
+  // Cahier de texte : seances datees, devoirs rattaches ; un devoir hors seance a
+  // sa propre entree, a sa date de creation (jour de Paris).
+  const jourParis = (ts: string) => new Date(ts).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
+  const cahierParClasse = new Map<string, ArchiveSeance[]>()
+  const seanceParId = new Map<string, ArchiveSeance>()
+  for (const j of journal ?? []) {
+    const seance: ArchiveSeance = { date: j.session_date, titre: j.title, contenu: j.content_html, devoirs: [] }
+    seanceParId.set(j.id, seance)
+    if (!cahierParClasse.has(j.class_id)) cahierParClasse.set(j.class_id, [])
+    cahierParClasse.get(j.class_id)!.push(seance)
+  }
+  for (const h of devoirs ?? []) {
+    const devoir = { titre: h.title, rendu: h.due_date, consigne: h.description_html }
+    const seance = h.journal_entry_id ? seanceParId.get(h.journal_entry_id) : undefined
+    if (seance) { seance.devoirs.push(devoir); continue }
+    if (!cahierParClasse.has(h.class_id)) cahierParClasse.set(h.class_id, [])
+    cahierParClasse.get(h.class_id)!.push({ date: jourParis(h.created_at), titre: null, contenu: null, devoirs: [devoir] })
+  }
   const parDates = (a: { du: string | null }, b: { du: string | null }) => String(a.du ?? '').localeCompare(String(b.du ?? ''))
   const classRows = classList.map((c): TablesInsert<'class_year_history'> => {
     const affect = (ct ?? []).filter(x => x.class_id === c.id && x.teachers)
     const ligne = (x: typeof affect[number]): ArchivePeriode => ({ nom: nomEnseignant(x.teachers), du: x.effective_from ?? null, au: x.effective_until ?? null })
-    const titulaires = affect.filter(x => x.is_main_teacher).map(ligne).sort(parDates)
-    const remplacements = affect.filter(x => !x.is_main_teacher).map(ligne).sort(parDates)
+    const titulaires = affect.map(ligne).sort(parDates)
+    const remplacements = (remplacementsParClasse.get(c.id) ?? [])
+      .sort((a, b) => a.date.localeCompare(b.date) || String(a.debut ?? '').localeCompare(String(b.debut ?? '')))
+    const cahier_texte = (cahierParClasse.get(c.id) ?? []).sort((a, b) => a.date.localeCompare(b.date))
 
     let creneaux: ArchiveCreneau[] = (slots ?? []).filter(sl => sl.class_id === c.id).map(sl => ({
       jour: sl.day_of_week != null ? (JOUR_NUM[sl.day_of_week] ?? null) : null,
@@ -382,6 +436,7 @@ export async function generateArchive(supabase: SupabaseClient<Database>, ctx: Y
       max_students: c.max_students,
       titulaires,
       remplacements,
+      cahier_texte,
       creneaux,
       participants,
       effectif: participants.length,

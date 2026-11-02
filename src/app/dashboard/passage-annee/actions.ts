@@ -10,6 +10,9 @@ import { CLOSURE_STEPS, CLOSURE_STEP_BY_KEY } from '@/lib/closure/steps'
 import { runAuditFor, type YearCtx, type AuditResult } from '@/lib/closure/audits'
 import { generateArchive } from '@/lib/closure/archive'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
+import { etablirBilan } from '@/lib/financements/bilan'
+import { chargerEntreesBilan } from '@/lib/financements/bilan-donnees'
+import { nomEnseignant } from '@/lib/teachers/nom'
 import { accord, pluriel } from '@/lib/texte/pluriel'
 
 /**
@@ -292,6 +295,9 @@ export async function reopenYear(yearId: string): Promise<{ error?: string }> {
   ) ?? erreurEcritureLot(
     await supabase.from('class_year_history').delete().eq('school_year_id', yearId),
     'historique des classes',
+  ) ?? erreurEcritureLot(
+    await supabase.from('bilans_financiers').delete().eq('school_year_id', yearId),
+    'bilan financier',
   )
   if (echecHist) return { error: echecHist }
 
@@ -322,9 +328,11 @@ export async function reopenYear(yearId: string): Promise<{ error?: string }> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Archive l'année : génère les instantanés `student_year_history` et
- * `family_year_finance`, puis pose `archived_at`. Idempotent (on repart de zéro
- * pour cette année). Prérequis : année close.
+ * Archive l'année : génère les instantanés `student_year_history`,
+ * `family_year_finance`, `class_year_history` et le BILAN FINANCIER fige
+ * (`bilans_financiers`, avec le relevé des données de l'année que
+ * `verifier_historisation` compare avant la purge), puis pose `archived_at`.
+ * Idempotent (on repart de zéro pour cette année). Prérequis : année close.
  */
 export async function archiveYear(yearId: string): Promise<{ error?: string; students?: number; families?: number }> {
   const { error: roleError } = await requireRoleServer([...ROLES])
@@ -343,6 +351,18 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
 
   const { studentRows, familyRows, classRows } = await generateArchive(supabase, ctx)
 
+  // Bilan financier : meme calcul que la Situation financiere, fige. Releve pris au
+  // meme instant : une donnee ajoutee ou supprimee ensuite fera refuser la purge.
+  const [entrees, { data: releve, error: errReleve }, { data: { user } }] = await Promise.all([
+    chargerEntreesBilan(supabase, { id: ctx.yearId, label: ctx.yearLabel, start_date: ctx.startDate, end_date: ctx.endDate }),
+    supabase.rpc('releve_historisation', { p_year_id: yearId }),
+    supabase.auth.getUser(),
+  ])
+  if (errReleve || !releve) return { error: `Relevé de l’année : ${errReleve?.message ?? 'aucun résultat'}` }
+  const { data: auteur } = user
+    ? await supabase.from('profiles').select('first_name, last_name').eq('id', user.id).maybeSingle()
+    : { data: null }
+
   const echecVidage = erreurEcritureLot(
     await supabase.from('student_year_history').delete().eq('school_year_id', yearId),
     'historique des participants',
@@ -352,6 +372,9 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   ) ?? erreurEcritureLot(
     await supabase.from('class_year_history').delete().eq('school_year_id', yearId),
     'historique des classes',
+  ) ?? erreurEcritureLot(
+    await supabase.from('bilans_financiers').delete().eq('school_year_id', yearId),
+    'bilan financier',
   )
   if (echecVidage) return { error: echecVidage }
 
@@ -366,6 +389,18 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   if (classRows.length > 0) {
     const { error } = await supabase.from('class_year_history').insert(classRows)
     if (error) return { error: `Archivage classes : ${error.message}` }
+  }
+  {
+    const { error } = await supabase.from('bilans_financiers').insert({
+      etablissement_id: ctx.etablissementId,
+      school_year_id: yearId,
+      year_label: ctx.yearLabel,
+      chiffres: etablirBilan(entrees),
+      comptages: releve as unknown as { [donnee: string]: number },
+      etabli_par: user?.id ?? null,
+      etabli_par_nom: auteur ? nomEnseignant(auteur) : null,
+    })
+    if (error) return { error: `Bilan financier : ${error.message}` }
   }
 
   const echecMarque = erreurEcriture(
@@ -388,6 +423,9 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   revalidatePath('/dashboard/annee-scolaire', 'layout')
   return { students: studentRows.length, families: familyRows.length }
 }
+
+/** Manque d'historisation rendu par `verifier_historisation` (vide = purge possible). */
+export interface ManqueHistorisation { code: string; libelle: string; nombre: number }
 
 /**
  * Mémorise le choix « épurer la base ou non ». Simple drapeau : il met la carte

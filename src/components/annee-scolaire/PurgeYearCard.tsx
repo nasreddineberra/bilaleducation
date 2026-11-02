@@ -6,7 +6,9 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
-import { purgeYear } from '@/app/dashboard/passage-annee/actions'
+import { purgeYear, type ManqueHistorisation } from '@/app/dashboard/passage-annee/actions'
+import Tooltip from '@/components/ui/Tooltip'
+import { libelleManque } from '@/lib/closure/historisation'
 import { pluriel } from '@/lib/texte/pluriel'
 import { messageErreur } from '@/lib/erreur'
 
@@ -15,12 +17,14 @@ function fmt(d: string) {
 }
 
 export default function PurgeYearCard({
-  yearId, yearLabel, purgedAt, purgeIntent,
+  yearId, yearLabel, purgedAt, purgeIntent, manques,
 }: {
   yearId: string
   yearLabel: string
   purgedAt: string | null
   purgeIntent: 'purge' | 'keep' | null
+  /** `verifier_historisation` : vide = tout ce que la purge efface est historise. */
+  manques: ManqueHistorisation[]
 }) {
   const router = useRouter()
   const toast  = useToast()
@@ -95,9 +99,25 @@ export default function PurgeYearCard({
         cahier de texte, et finances des foyers <strong>soldés</strong>). Les <strong>bulletins PDF</strong>, les
         <strong> snapshots d’historique</strong> et les <strong>impayés</strong> sont conservés.
       </p>
-      <FloatButton type="button" variant="danger" onClick={() => { setTyped(''); setOpen(true) }}>
-        Purger l’année
-      </FloatButton>
+      {manques.length > 0 && (
+        <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
+          <p className="font-semibold">Historisation incomplète : relancez l’archivage depuis le passage d’année.</p>
+          <ul className="list-disc pl-4">
+            {manques.map(m => <li key={m.code}>{libelleManque(m)} ({m.nombre})</li>)}
+          </ul>
+        </div>
+      )}
+      {manques.length > 0 ? (
+        <Tooltip content="Historisation incomplète : relancez l’archivage.">
+          <span className="inline-block">
+            <FloatButton type="button" variant="danger" disabled>Purger l’année</FloatButton>
+          </span>
+        </Tooltip>
+      ) : (
+        <FloatButton type="button" variant="danger" onClick={() => { setTyped(''); setOpen(true) }}>
+          Purger l’année
+        </FloatButton>
+      )}
 
       {open && (
         <ConfirmModal

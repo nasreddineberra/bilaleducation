@@ -4,7 +4,8 @@ import { effectiveRole } from '@/lib/auth/effective-role'
 import HistoriqueClassesClient from '@/components/historique/HistoriqueClassesClient'
 
 // Historique des classes : composition des annees ARCHIVEES (classe, enseignants,
-// creneaux, eleves et adultes), figee au passage d'annee dans `class_year_history`.
+// creneaux, eleves et adultes, remplacements, cahier de texte), figee au passage
+// d'annee dans `class_year_history`.
 // Ouvert a tout le personnel, enseignant compris, pour toutes les classes
 // (decision utilisateur). La RLS de la table applique la meme regle.
 const ROLES = ['admin', 'direction', 'secretaire', 'responsable_pedagogique', 'comptable', 'enseignant']
@@ -18,7 +19,7 @@ export default async function HistoriqueClassesPage() {
 
   const { data } = await supabase
     .from('class_year_history')
-    .select('id, year_label, class_name, level, cotisation_label, is_adult, max_students, titulaires, remplacements, creneaux, participants, effectif')
+    .select('id, year_label, class_name, level, cotisation_label, is_adult, max_students, titulaires, remplacements, cahier_texte, creneaux, participants, effectif')
     .order('year_label', { ascending: false })
     .order('class_name')
 

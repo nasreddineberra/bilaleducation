@@ -1,5 +1,5 @@
 // FICHIER GENERE par `npm run types-db` (scripts/generer-types-db.mjs) : ne pas editer.
-// Structure du schema public du projet Supabase, le 2026-10-30.
+// Structure du schema public du projet Supabase, le 2026-11-02.
 
 import type { ColonnesJson } from './json'
 
@@ -946,6 +946,64 @@ export type Database = {
           },
         ]
       }
+      bilans_financiers: {
+        Row: {
+          chiffres: ColonnesJson['bilans_financiers.chiffres']
+          comptages: ColonnesJson['bilans_financiers.comptages']
+          etabli_le: string
+          etabli_par: string | null
+          etabli_par_nom: string | null
+          etablissement_id: string
+          id: string
+          school_year_id: string | null
+          year_label: string
+        }
+        Insert: {
+          chiffres: ColonnesJson['bilans_financiers.chiffres']
+          comptages: ColonnesJson['bilans_financiers.comptages']
+          etabli_le?: string
+          etabli_par?: string | null
+          etabli_par_nom?: string | null
+          etablissement_id: string
+          id?: string
+          school_year_id?: string | null
+          year_label: string
+        }
+        Update: {
+          chiffres?: ColonnesJson['bilans_financiers.chiffres']
+          comptages?: ColonnesJson['bilans_financiers.comptages']
+          etabli_le?: string
+          etabli_par?: string | null
+          etabli_par_nom?: string | null
+          etablissement_id?: string
+          id?: string
+          school_year_id?: string | null
+          year_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bilans_financiers_etabli_par_fkey"
+            columns: ["etabli_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bilans_financiers_etablissement_id_fkey"
+            columns: ["etablissement_id"]
+            isOneToOne: false
+            referencedRelation: "etablissements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bilans_financiers_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bulletin_appreciations: {
         Row: {
           appreciation: string
@@ -1207,6 +1265,7 @@ export type Database = {
       }
       class_year_history: {
         Row: {
+          cahier_texte: ColonnesJson['class_year_history.cahier_texte']
           class_id: string | null
           class_name: string
           cotisation_label: string | null
@@ -1225,6 +1284,7 @@ export type Database = {
           year_label: string
         }
         Insert: {
+          cahier_texte?: ColonnesJson['class_year_history.cahier_texte']
           class_id?: string | null
           class_name: string
           cotisation_label?: string | null
@@ -1243,6 +1303,7 @@ export type Database = {
           year_label: string
         }
         Update: {
+          cahier_texte?: ColonnesJson['class_year_history.cahier_texte']
           class_id?: string | null
           class_name?: string
           cotisation_label?: string | null
@@ -4935,6 +4996,7 @@ export type Database = {
       norm_name: { Args: { txt: string | null }; Returns: string }
       purge_school_year: { Args: { p_year_id: string | null }; Returns: Json }
       reinitialiser_ecole_demo: { Args: { p_id: string | null }; Returns: Json }
+      releve_historisation: { Args: { p_year_id: string | null }; Returns: Json }
       remplacants_possibles: {
         Args: { p_absence_id: string | null; p_seances: Json | null }
         Returns: {
@@ -4963,6 +5025,7 @@ export type Database = {
         Args: { p_date: string | null; p_slot_id: string | null }
         Returns: Json
       }
+      verifier_historisation: { Args: { p_year_id: string | null }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

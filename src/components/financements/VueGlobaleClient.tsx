@@ -10,6 +10,7 @@ import {
   LineChart, Line, ReferenceLine,
 } from 'recharts'
 import Tooltip from '@/components/ui/Tooltip'
+import { METHOD_LABELS } from '@/lib/financements/libelles'
 import type { FeeStatus } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -74,9 +75,6 @@ const STATUS_LABELS: Record<FeeStatus, string> = {
   overpaid: 'Trop perçu',
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

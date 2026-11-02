@@ -6,6 +6,7 @@ import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
 import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
 import PurgeYearCard from '@/components/annee-scolaire/PurgeYearCard'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import type { ManqueHistorisation } from '@/app/dashboard/passage-annee/actions'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -109,6 +110,11 @@ export default async function EditAnneeScolairePage({ params }: Props) {
   // vit désormais sur l'année elle-même (`school_years`), plus dans une table
   // annexe — il est donc déjà là, sans requête supplémentaire.
   const showPurge = isAdminDir && !schoolYear.is_current && !!schoolYear.archived_at
+  // Ce que la purge refuserait (la base repasse la meme verification dans sa transaction).
+  const { data: manquesBruts } = showPurge && !schoolYear.purged_at
+    ? await supabase.rpc('verifier_historisation', { p_year_id: schoolYear.id })
+    : { data: null }
+  const manques = (manquesBruts ?? []) as unknown as ManqueHistorisation[]
 
   // Auteur de la clôture : l'année ne porte que son identifiant.
   const { data: closedBy } = schoolYear.closed_by
@@ -162,6 +168,7 @@ export default async function EditAnneeScolairePage({ params }: Props) {
               yearLabel={schoolYear.label}
               purgedAt={schoolYear.purged_at}
               purgeIntent={schoolYear.purge_intent}
+              manques={manques}
             />
           </div>
         )}

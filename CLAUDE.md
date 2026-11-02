@@ -137,11 +137,16 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `definir_regle_ajustement(p_regle, p_retroactif)`) : Due en totalite (DEFAUT) / Au prorata (mois
   commence depuis la rentree, frais d'inscription toujours dus) / Au cas par cas (« Decider » dans
   Reglements) / Sans ajustement ; une arrivee doit l'annee ; departs charges par
-  `lib/financements/departs.ts`. Controles 21 a 23.
+  `lib/financements/departs.ts`. Controles 21 a 23. **Bilans annuels** (sous-menu, admin / direction /
+  comptable) : bilan FIGE de chaque annee archivee (`bilans_financiers`, etabli a l'archivage) + PROVISOIRE de
+  l'annee en cours (meme calcul `lib/financements/bilan.ts`), PDF + Excel de detail.
 - **Support** : demande ecrite en base AVANT l'email.
 - **Passage d'annee** (admin/direction) : 6 audits relancables, cloture apres la date de fin sans
   anomalie bloquante, archivage, purge (seul point de non-retour). Etat porte par `school_years`
-  (`closed_at`, `archived_at`, `purged_at`).
+  (`closed_at`, `archived_at`, `purged_at`). L'archivage fige aussi le bilan financier, les remplacements
+  seance par seance et le cahier de texte de chaque classe. **La purge REFUSE** tant que
+  `verifier_historisation` n'est pas vide (historique complet, bilan etabli, releve des donnees identique a
+  celui de l'archivage, rien de modifie depuis) : relancer l'archivage. Controle 36.
 - **Console editeur** : ecoles, Sante (`lib/tenant/sante.ts` : 1 signal = a surveiller, 2+ = critique,
   demo jamais), Facturation (releve mensuel pg_cron, tarif fige), Support, Interventions, recherche
   Ctrl+K. Depart d'une ecole : export ZIP OBLIGATOIRE puis effacement RGPD, fiche reouvrable.
@@ -218,7 +223,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (`estTypeSaisissable` : ni absence, ni cours, ni activite),
   `lib/erreur.ts` (`messageErreur` : message d'une erreur levee, `Error` ou PostgREST),
   `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
-  titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`).
+  titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`),
+  `lib/financements/bilan.ts` (bilan financier d'une annee, pur et teste), `lib/financements/libelles.ts`
+  (moyens de paiement, types d'ajustement), `lib/closure/historisation.ts` (libelles des manques avant purge).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
@@ -381,11 +388,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 Tous les modules sont faits et audites (accessibilite, charte, theme sombre, mobile, RLS role + tenant,
 ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console. Historique : journal.
 
-0. **A CHAQUE REPRISE · Node2Shell (CVE-2026-111497)** : projet en **24.x** (`engines` + reglage Vercel
-   « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
-   pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
-   redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
-1. **A la reprise (arret du 30/10 au soir, tout pousse, aucune migration en attente)** :
+1. **A la reprise (02/11 : historisation avant purge et bilans annuels livres)** :
    - **A TESTER a l'ecran** (demonstration) :
      - **Fiche classe · Planning EDT avec des seances DEJA VALIDEES** : ajouter, modifier, supprimer un creneau
        (et changer le titulaire) quand des seances passees de ce creneau sont validees. Attendu : les validations,
@@ -415,37 +418,11 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
        utilisateur, annee) depuis une liste filtree = on RESTE sur la fiche (message, donnees a jour) ; « Retour a la
        liste » garde le filtre ; fiche classe : ajouter un creneau, enregistrer 2 fois = pas de doublon ; creer = liste.
      - Email d'un nouveau devoir (30/10) : classe enfants (« Eleve » / « Eleves » nommes) puis classe adulte.
-   - **ENSUITE (chantier ouvert le 30/10, REPONSES DE L'UTILISATEUR ATTENDUES, rien n'est code)** :
-     **Passage d'annee : historisation avant purge + bilan financier annuel.** Demandes de l'utilisateur :
-     « avant la suppression des donnees on doit etre sur que les informations ont bien ete historisees » ;
-     « on a oublie de preparer un bilan financier pour la comptabilite avant de purger les donnees de l'annee, et il
-     faut garder un historique financier annee par annee ». Constat (lecture de `purge_school_year`) :
-     - seule garde aujourd'hui = annee archivee (ni archive COMPLETE, ni archive A JOUR : un paiement saisi apres
-       l'archivage serait efface sans trace) ;
-     - purges SANS trace : Temps de presence (`staff_time_entries` : heures ET cout du personnel, donc le bilan de
-       l'annee devient incalculable), validations de seances, cahier de texte (`homework`, `class_journal`),
-       messages / notifications / relances, remplacements (`class_year_history.remplacements` vide depuis le lot 5) ;
-     - Synthese de Financements = annee EN COURS seulement, aucun document pour le comptable ; depenses et autres
-       revenus ne sont pas purges ; paiements des foyers soldes conserves dans `family_year_finance`.
-     Plan PROPOSE (a confirmer, puis plan detaille migration / controle / ecrans avant de coder) :
-     1. Fonction SQL de verification : chaque participant a sa ligne d'historique ; chaque participant note sur une
-        periode a son bulletin archive ; chaque foyer solde efface figure dans `family_year_finance` ; chaque classe
-        a sa ligne ; rien a purger cree / modifie apres l'archivage ; bilan financier present et a jour.
-     2. `purge_school_year` REFUSE tant que la liste n'est pas vide (meme transaction) ; l'ecran de purge affiche le
-        resultat et grise le bouton. Controle 36 (ecole jetable : archive incomplete = purge refusee).
-     3. BILAN FINANCIER FIGE par annee (table, une ligne ecole x annee, chiffres figes + date + auteur), etabli a
-        l'archivage (re-etabli si on rearchive) : recettes (cotisations facturees / encaissees / reste du, foyers,
-        ajustements, autres revenus par source), depenses par categorie, cout du personnel (heures et cout par
-        personne et type de presence), resultat. Meme calcul que la Synthese (`getFamilyFinancials`,
-        `chargerCoutHeures`), fige.
-     4. Documents comptable : PDF « Bilan financier · annee » + Excel de detail (paiements, depenses, revenus, cout
-        du personnel).
-     5. Historique financier annee par annee : selecteur d'annee dans la Synthese (en cours = direct, passee = bilan
-        fige + documents).
-     QUESTIONS POSEES, SANS REPONSE : (a) contenu du bilan suffisant, ou ventilation par mois / par moyen de
-     paiement ? (b) PDF et Excel, ou un seul ? (c) cahier de texte : historiser ou accepter la perte ?
-     (d) messages / notifications : historiser ou accepter ? (e) remplacements : historiser depuis
-     `absences_enseignants_seances` ? (Temps de presence : couvert par le bilan, cout par personne.)
+   - **A TESTER (02/11) · Historisation avant purge et bilans annuels** (migration
+     `historisation-avant-purge.sql`, controle 36) : Financements -> Bilans annuels (provisoire de l'annee en cours :
+     chiffres = Situation financiere, PDF, Excel 6 feuilles) en direction puis en comptable ; Historique des classes
+     (onglets Remplacements et Cahier de texte, visibles apres un archivage). Le parcours complet (archivage, carte
+     de purge grisee avec la liste des manques, re-archivage) attend une vraie fin d'annee ou une ecole d'essai.
    - Ecart note : matiere du cahier de texte « General »
      a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces

@@ -33,6 +33,7 @@ import {
   School,
   UserCheck,
   Wallet,
+  FileSpreadsheet,
   Send,
   Inbox,
   UsersRound,
@@ -401,6 +402,13 @@ const navItems: NavItem[] = [
         name:  'Situation financière',
         href:  '/dashboard/financements',
         icon:  DollarSign,
+        roles: ['admin', 'direction', 'comptable'],
+      },
+      {
+        // Bilan financier fige de chaque annee archivee + provisoire de l'annee en cours (02/11).
+        name:  'Bilans annuels',
+        href:  '/dashboard/financements/bilans',
+        icon:  FileSpreadsheet,
         roles: ['admin', 'direction', 'comptable'],
       },
     ],

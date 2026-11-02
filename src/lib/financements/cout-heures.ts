@@ -6,6 +6,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import { nomEnseignant } from '@/lib/teachers/nom'
+import { libelleRole } from '@/lib/auth/role-labels'
 
 export interface AnneeCout {
   id: string
@@ -16,14 +18,16 @@ export interface AnneeCout {
 export interface CoutHeures {
   total: number
   byMonth: { month: string; cost: number }[]
-  byType: { label: string; cost: number }[]
+  byType: { label: string; cost: number; hours: number }[]
+  /** Heures valorisees par personne et par type (bilan annuel : la purge efface les saisies). */
+  byPerson: { nom: string; role: string; type: string; hours: number; cost: number }[]
   /** Heures dont le type n'a aucun taux (comptees 0 €), a signaler. */
   unratedTypes: { code: string; hours: number }[]
 }
 
 export async function chargerCoutHeures(supabase: SupabaseClient<Database>, annee: AnneeCout): Promise<CoutHeures> {
   // Sans bornes, aucune heure a valoriser (la lecture bornee par NULL rendait deja vide).
-  if (!annee.start_date || !annee.end_date) return { total: 0, byMonth: [], byType: [], unratedTypes: [] }
+  if (!annee.start_date || !annee.end_date) return { total: 0, byMonth: [], byType: [], byPerson: [], unratedTypes: [] }
   const [
     { data: timeEntries },
     { data: presenceTypes },
@@ -34,7 +38,7 @@ export async function chargerCoutHeures(supabase: SupabaseClient<Database>, anne
     // d'aout a aout — faux des qu'elle va de septembre a juin.
     supabase
       .from('staff_time_entries')
-      .select('entry_type, duration_minutes, entry_date')
+      .select('profile_id, entry_type, duration_minutes, entry_date')
       .gte('entry_date', annee.start_date)
       .lte('entry_date', annee.end_date)
       .gt('duration_minutes', 0),
@@ -73,6 +77,8 @@ export async function chargerCoutHeures(supabase: SupabaseClient<Database>, anne
 
   const costByMonth: Record<string, number> = {}
   const costByType: Record<string, number> = {}
+  const hoursByType: Record<string, number> = {}
+  const parPersonne = new Map<string, { profileId: string; type: string; hours: number; cost: number }>()
   let total = 0
 
   // Heures dont le type n'a aucun taux : elles comptaient pour 0 € EN SILENCE,
@@ -101,7 +107,30 @@ export async function chargerCoutHeures(supabase: SupabaseClient<Database>, anne
 
     const typeLabel = labelByCode[code] ?? code
     costByType[typeLabel] = (costByType[typeLabel] ?? 0) + cost
+    hoursByType[typeLabel] = (hoursByType[typeLabel] ?? 0) + hours
+
+    const cle = `${e.profile_id}|${typeLabel}`
+    const p = parPersonne.get(cle) ?? { profileId: e.profile_id, type: typeLabel, hours: 0, cost: 0 }
+    p.hours += hours
+    p.cost += cost
+    parPersonne.set(cle, p)
   }
+
+  const ids = [...new Set([...parPersonne.values()].map(p => p.profileId))]
+  const { data: profils } = ids.length
+    ? await supabase.from('profiles').select('id, first_name, last_name, role').in('id', ids)
+    : { data: [] }
+  const profilParId = new Map((profils ?? []).map(p => [p.id, p]))
+  const byPerson = [...parPersonne.values()].map(p => {
+    const profil = profilParId.get(p.profileId)
+    return {
+      nom: profil ? nomEnseignant(profil) : '?',
+      role: libelleRole(profil?.role),
+      type: p.type,
+      hours: Math.round(p.hours * 100) / 100,
+      cost: p.cost,
+    }
+  }).sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.type.localeCompare(b.type, 'fr'))
 
   return {
     total,
@@ -109,8 +138,9 @@ export async function chargerCoutHeures(supabase: SupabaseClient<Database>, anne
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, cost]) => ({ month, cost })),
     byType: Object.entries(costByType)
-      .map(([label, cost]) => ({ label, cost }))
+      .map(([label, cost]) => ({ label, cost, hours: Math.round((hoursByType[label] ?? 0) * 100) / 100 }))
       .sort((a, b) => b.cost - a.cost),
+    byPerson,
     unratedTypes: Object.entries(unratedHoursByCode)
       .map(([code, hours]) => ({ code, hours: Math.round(hours * 10) / 10 }))
       .sort((a, b) => b.hours - a.hours),

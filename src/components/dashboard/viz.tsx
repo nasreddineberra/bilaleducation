@@ -30,9 +30,7 @@ export const STATUS_LABELS: Record<FeeStatus, string> = {
   overpaid: 'Trop perçu',
 }
 
-export const METHOD_LABELS: Record<string, string> = {
-  cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
-}
+export { METHOD_LABELS } from '@/lib/financements/libelles'
 
 // Chrome des graphiques (ink recessif, jamais la couleur de serie sur le texte).
 export const INK = { muted: '#898781', grid: '#e1e0d9', axis: '#c3c2b7' }

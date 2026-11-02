@@ -3,9 +3,15 @@
 import { useMemo, useState } from 'react'
 import { FloatButton, FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
+import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { libelleTitulaires } from '@/lib/teachers/titulaire'
-import type { ArchiveCreneau as Creneau, ArchiveParticipant as Participant, ArchivePeriode as Periode } from '@/types/json'
+import { sanitize } from '@/lib/security/sanitize'
+import { pluriel } from '@/lib/texte/pluriel'
+import type {
+  ArchiveCreneau as Creneau, ArchiveParticipant as Participant, ArchivePeriode as Periode,
+  ArchiveRemplacement as Remplacement, ArchiveSeance as Seance,
+} from '@/types/json'
 
 export interface ClasseArchivee {
   id: string
@@ -16,7 +22,8 @@ export interface ClasseArchivee {
   is_adult: boolean
   max_students: number | null
   titulaires: Periode[]
-  remplacements: Periode[]
+  remplacements: Remplacement[]
+  cahier_texte: Seance[]
   creneaux: Creneau[]
   participants: Participant[]
   effectif: number
@@ -40,6 +47,18 @@ const plage = (du: string | null, au: string | null) => {
 const libelleCreneau = (c: Creneau) =>
   [c.jour, c.debut && c.fin ? `${c.debut}-${c.fin}` : c.debut, c.salle].filter(Boolean).join(' · ')
 
+/** « 3 séances remplacées · 1 séance annulée » : resume de la colonne Remplacements. */
+const resumeRemplacements = (r: Remplacement[]) => {
+  const annulees = r.filter(x => !x.remplacant).length
+  const remplacees = r.length - annulees
+  return [
+    remplacees ? pluriel(remplacees, 'séance remplacée', 'séances remplacées') : null,
+    annulees ? pluriel(annulees, 'séance annulée', 'séances annulées') : null,
+  ].filter(Boolean).join(' · ')
+}
+
+type Onglet = 'participants' | 'remplacements' | 'cahier'
+
 
 export default function HistoriqueClassesClient({ classes }: { classes: ClasseArchivee[] }) {
   const annees = useMemo(() => [...new Set(classes.map(c => c.year_label))], [classes])
@@ -51,6 +70,8 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
   const search = etat.search
 
   const [ouverte, setOuverte] = useState<ClasseArchivee | null>(null)
+  const [onglet, setOnglet] = useState<Onglet>('participants')
+  const ouvrir = (c: ClasseArchivee) => { setOnglet('participants'); setOuverte(c) }
 
   const lignes = useMemo(() => {
     const q = norm(search.trim())
@@ -61,7 +82,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
         // Classe, enseignants ou participants : « dans quelle classe etait X ? »
         const textes = [
           c.class_name, c.level ?? '', c.cotisation_label ?? '',
-          ...c.titulaires.map(t => t.nom), ...c.remplacements.map(r => r.nom),
+          ...c.titulaires.map(t => t.nom), ...c.remplacements.flatMap(r => [r.absent, r.remplacant ?? '']),
           ...c.participants.map(p => `${p.nom} ${p.prenom}`),
         ]
         return textes.some(t => norm(t).includes(q))
@@ -115,13 +136,13 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
             {lignes.map(c => (
               <tr
                 key={c.id}
-                onClick={() => setOuverte(c)}
+                onClick={() => ouvrir(c)}
                 className="cursor-pointer"
               >
                 <td className="list-td">
                   <button
                     type="button"
-                    onClick={e => { e.stopPropagation(); setOuverte(c) }}
+                    onClick={e => { e.stopPropagation(); ouvrir(c) }}
                     className="list-name text-left hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                   >
                     {c.class_name}
@@ -136,16 +157,8 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
                   {/* Historique : « initial puis remplacant » (decision du 30/10) ; le detail garde la liste datee. */}
                   {libelleTitulaires(c.titulaires) ?? <span className="text-warm-700">·</span>}
                 </td>
-                <td className="list-td text-warm-700">
-                  {c.remplacements.length === 0 ? <span className="text-warm-700">·</span> : (
-                    <div className="flex flex-col gap-0.5">
-                      {c.remplacements.map((r, i) => (
-                        <span key={i} className="whitespace-nowrap">
-                          {r.nom}{plage(r.du, r.au) ? <span className="text-warm-700"> · {plage(r.du, r.au)}</span> : null}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                <td className="list-td text-warm-700 whitespace-nowrap">
+                  {c.remplacements.length === 0 ? <span className="text-warm-700">·</span> : resumeRemplacements(c.remplacements)}
                 </td>
                 <td className="list-td text-warm-700">
                   {c.creneaux.length === 0 ? <span className="text-warm-700">·</span> : (
@@ -168,7 +181,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
         <FormModal
           title={`${ouverte.class_name} · ${ouverte.year_label}`}
           onClose={() => setOuverte(null)}
-          maxWidth="max-w-lg"
+          maxWidth="max-w-2xl"
           footer={
             <div className="flex justify-end w-full">
               <FloatButton variant="secondary" onClick={() => setOuverte(null)}>Fermer</FloatButton>
@@ -183,15 +196,6 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
                 ))}
               </dd>
             </div>
-            {ouverte.remplacements.length > 0 && (
-              <div className="flex gap-2"><dt className="stat-label w-28 shrink-0 pt-0.5">Remplacements</dt>
-                <dd className="text-secondary-800">
-                  {ouverte.remplacements.map((r, i) => (
-                    <div key={i}>{r.nom}{plage(r.du, r.au) ? <span className="text-warm-700 text-xs"> · {plage(r.du, r.au)}</span> : null}</div>
-                  ))}
-                </dd>
-              </div>
-            )}
             <div className="flex gap-2"><dt className="stat-label w-28 shrink-0 pt-0.5">Créneau</dt>
               <dd className="text-secondary-800">
                 {ouverte.creneaux.length === 0 ? '·' : ouverte.creneaux.map((cr, i) => <div key={i}>{libelleCreneau(cr)}</div>)}
@@ -199,10 +203,78 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
             </div>
           </dl>
 
-          <div className="mt-3">
-            <h3 className="section-title mb-1.5">
+          <Onglets ariaLabel="Détail de la classe archivée" actifIndex={onglet === 'participants' ? 0 : onglet === 'remplacements' ? 1 : 2} className="mt-3 mb-2">
+            <button type="button" role="tab" aria-selected={onglet === 'participants'} className={classeOnglet(onglet === 'participants')} onClick={() => setOnglet('participants')}>
               {ouverte.is_adult ? 'Participants' : 'Élèves'} ({ouverte.effectif})
-            </h3>
+            </button>
+            <button type="button" role="tab" aria-selected={onglet === 'remplacements'} className={classeOnglet(onglet === 'remplacements')} onClick={() => setOnglet('remplacements')}>
+              Remplacements ({ouverte.remplacements.length})
+            </button>
+            <button type="button" role="tab" aria-selected={onglet === 'cahier'} className={classeOnglet(onglet === 'cahier')} onClick={() => setOnglet('cahier')}>
+              Cahier de texte ({ouverte.cahier_texte.length})
+            </button>
+          </Onglets>
+
+          {onglet === 'remplacements' && (
+            ouverte.remplacements.length === 0 ? (
+              <p className="text-xs text-warm-700">Aucune séance remplacée ni annulée.</p>
+            ) : (
+              <div className="liste list-scroll max-h-72 overflow-y-auto">
+                <table className="w-full text-left text-xs" aria-label="Remplacements">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="liste-entete border-b border-[var(--card-border)]">
+                      <th scope="col" className="list-th">Séance</th>
+                      <th scope="col" className="list-th">Absent</th>
+                      <th scope="col" className="list-th">Décision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-warm-50">
+                    {ouverte.remplacements.map((r, i) => (
+                      <tr key={i}>
+                        <td className="list-td text-secondary-800 tabular-nums whitespace-nowrap">
+                          {fmtDate(r.date)}{r.debut && r.fin ? <span className="text-warm-700"> · {r.debut}-{r.fin}</span> : null}
+                        </td>
+                        <td className="list-td text-secondary-800">{r.absent || '·'}</td>
+                        <td className="list-td text-secondary-800">{r.remplacant ? `Remplacée par ${r.remplacant}` : 'Annulée'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+
+          {onglet === 'cahier' && (
+            ouverte.cahier_texte.length === 0 ? (
+              <p className="text-xs text-warm-700">Cahier de texte vide.</p>
+            ) : (
+              <div className="list-scroll max-h-96 overflow-y-auto space-y-2 pr-1">
+                {ouverte.cahier_texte.map((s, i) => (
+                  <article key={i} className="rounded-lg border border-[var(--card-border)] px-3 py-2 space-y-1">
+                    <p className="text-xs font-semibold text-secondary-800">
+                      <span className="tabular-nums">{fmtDate(s.date)}</span>{s.titre ? ` · ${s.titre}` : s.contenu ? '' : ' · Devoir hors séance'}
+                    </p>
+                    {s.contenu && (
+                      <div className="prose prose-sm max-w-none text-warm-700 text-xs" dangerouslySetInnerHTML={{ __html: sanitize(s.contenu) }} />
+                    )}
+                    {s.devoirs.map((d, j) => (
+                      <div key={j} className="border-l-2 border-[var(--brand-line)] pl-2">
+                        <p className="text-xs font-medium text-secondary-800">
+                          Devoir · {d.titre}{d.rendu ? <span className="text-warm-700"> · à rendre le {fmtDate(d.rendu)}</span> : null}
+                        </p>
+                        {d.consigne && (
+                          <div className="prose prose-sm max-w-none text-warm-700 text-xs" dangerouslySetInnerHTML={{ __html: sanitize(d.consigne) }} />
+                        )}
+                      </div>
+                    ))}
+                  </article>
+                ))}
+              </div>
+            )
+          )}
+
+          {onglet === 'participants' && (
+          <div>
             {ouverte.participants.length === 0 ? (
               <p className="text-xs text-warm-700">Aucun participant.</p>
             ) : (
@@ -226,6 +298,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
               </div>
             )}
           </div>
+          )}
         </FormModal>
       )}
     </div>

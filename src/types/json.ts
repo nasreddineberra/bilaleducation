@@ -6,6 +6,7 @@
 import type { Json } from './supabase'
 import type { DecisionAjustement } from '@/lib/financements/compute'
 import type { AuditResult } from '@/lib/closure/audits'
+import type { BilanChiffres } from '@/lib/financements/bilan'
 
 /** Etat d'une ligne (avant / apres) au journal d'activite : `to_jsonb(ligne)`. */
 export type EtatLigne = { [colonne: string]: Json | undefined }
@@ -92,6 +93,38 @@ export type ArchiveCreneau = {
   au:    string | null
 }
 
+/**
+ * Seance d'une absence d'enseignant (`class_year_history.remplacements`), figee a
+ * l'archivage depuis `absences_enseignants_seances` : la purge les efface (cascade
+ * des creneaux). `remplacant` NULL = seance annulee.
+ */
+export type ArchiveRemplacement = {
+  date:       string        // AAAA-MM-JJ
+  debut:      string | null // HH:MM
+  fin:        string | null
+  absent:     string
+  remplacant: string | null
+}
+
+/** Devoir du cahier de texte d'une classe archivee. */
+export type ArchiveDevoir = {
+  titre:    string
+  rendu:    string | null   // AAAA-MM-JJ
+  consigne: string | null   // HTML tel que saisi, assaini a l'affichage
+}
+
+/**
+ * Seance du cahier de texte (`class_year_history.cahier_texte`). Les devoirs
+ * donnes hors seance sont rattaches a une entree sans titre ni contenu, a leur
+ * date de creation.
+ */
+export type ArchiveSeance = {
+  date:    string           // AAAA-MM-JJ
+  titre:   string | null
+  contenu: string | null    // HTML tel que saisi, assaini a l'affichage
+  devoirs: ArchiveDevoir[]
+}
+
 /** Participant d'une classe (`class_year_history.participants`). */
 export type ArchiveParticipant = {
   type:   'eleve' | 'adulte'
@@ -112,8 +145,11 @@ export type ColonnesJson = {
   'family_year_finance.adjustments_json':  ArchiveAjustement[]
   'family_year_finance.cotisations_json':  ArchiveCotisation[]
   'class_year_history.titulaires':        ArchivePeriode[]
-  'class_year_history.remplacements':     ArchivePeriode[]
+  'class_year_history.remplacements':     ArchiveRemplacement[]
+  'class_year_history.cahier_texte':      ArchiveSeance[]
   'class_year_history.creneaux':          ArchiveCreneau[]
   'class_year_history.participants':      ArchiveParticipant[]
   'year_audits.recap_json':               AuditResult
+  'bilans_financiers.chiffres':           BilanChiffres
+  'bilans_financiers.comptages':          { [donnee: string]: number }
 }

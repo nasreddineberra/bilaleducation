@@ -10141,3 +10141,43 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - Demandes de l'utilisateur, rien n'est code : s'assurer que chaque donnee purgee a ete historisee ; un bilan
   financier pour la comptabilite avant la purge ; un historique financier annee par annee.
 - Etat des lieux, plan propose et questions en attente : CLAUDE.md, section 8, point 1 (« ENSUITE »).
+
+## 02/11 · Node2Shell corrige en production
+
+- La pastille de version de la console affiche **Node.js v24.22.2** (capture de l'utilisateur) : Vercel a publie une
+  version >= 24.22.1, la CVE-2026-111497 est corrigee en production sans redeploiement. Point 0 de CLAUDE.md
+  (verification a chaque reprise) retire.
+
+## 02/11 · Historisation avant purge et bilan financier annuel
+
+Reponses de l'utilisateur aux questions du 30/10 : (a) ventiler par mois et par moyen de paiement ; (b) PDF et
+Excel ; (c) cahier de texte historise, consultable dans l'Historique des classes ; (d) messages et notifications :
+perte acceptee ; (e) remplacements historises. Bilans dans un SOUS-MENU de Financements (admin, direction,
+comptable). « go » sans reponse aux deux questions suivantes = preconisations acceptees : `write-excel-file`
+(4.1.1, meme auteur que `read-excel-file`, seule dependance `fflate`) et bilan PROVISOIRE de l'annee en cours.
+
+- Constat de lecture : la purge supprime les creneaux, et `absences_enseignants_seances` part en CASCADE : les
+  decisions d'absence (remplacant, seance annulee) disparaissaient sans trace (historique vide depuis le lot 5).
+- Migration `historisation-avant-purge.sql` (additive) : table `bilans_financiers` (ecole x annee, `chiffres`
+  figes, `comptages`, date, auteur ; lecture trio Financements, ecriture admin / direction) ; colonne
+  `class_year_history.cahier_texte` ; `releve_historisation(annee)` (comptage des donnees purgees ou resumees) ;
+  `verifier_historisation(annee)` (manques : participants, bulletins, foyers soldes, classes, bilan, releve
+  different = ajout OU suppression depuis l'archivage, modification posterieure par date) ; `purge_school_year`
+  rapiecee (ancre verifiee) : refuse tant que la liste n'est pas vide, dans sa transaction.
+- Controle 36 (ecole jetable) : 9 essais, vu ROUGE sans la migration. Controles 05, 25, 26 rejoues avec la
+  migration : rien ne change.
+- Archivage (`archiveYear`) : bilan fige (`etablirBilan(chargerEntreesBilan(...))`, meme calcul que la Situation
+  financiere) et releve pris au meme instant ; remplacements seance par seance (date, horaire, absent, remplacant
+  ou annulee) ; cahier de texte (seances + devoirs rattaches, devoir hors seance a sa date de creation). Titulaires :
+  `class_teachers` filtre sur `is_main_teacher`. « Annuler la cloture » supprime aussi le bilan.
+- `chargerCoutHeures` : detail par personne et par type (`byPerson`), heures par type.
+- Carte de purge (fiche de l'annee) : liste des manques (`lib/closure/historisation.ts`, libelles accentues) et
+  bouton grise avec infobulle.
+- Financements -> Bilans annuels (`/dashboard/financements/bilans`) : selecteur d'annee (`?bilan=`), synthese,
+  cotisations, encaissements par mois et par moyen, depenses, autres revenus, cout du personnel ; PDF (nouvel
+  onglet) et Excel (Synthese, Paiements, Ajustements, Depenses, Autres revenus, Personnel). Une annee archivee lit
+  ses paiements dans `family_year_finance` : l'Excel reste reproductible apres la purge.
+- Historique des classes : colonne Remplacements resumee, detail en onglets (Eleves, Remplacements, Cahier de texte).
+- `lib/financements/libelles.ts` : moyens de paiement (3 copies retirees) et types d'ajustement.
+- Limite connue : une decision d'absence RETIREE apres l'archivage ne se voit que par le releve (nombre), pas par
+  une date.
