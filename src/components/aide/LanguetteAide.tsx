@@ -94,12 +94,15 @@ export default function LanguetteAide({ role }: { role: string | null | undefine
           aria-expanded={ouvert}
           aria-controls={panneauId}
           className={clsx(
-            'flex flex-col lg:flex-row items-center justify-center gap-0.5 lg:gap-0 w-4 h-14 lg:w-[30px] lg:h-9 rounded-l-lg shadow-md outline-none transition-colors',
+            // Hauteur 34 px sur ordinateur : celle des champs et encadres compacts de la
+            // premiere ligne des pages (`card px-3 py-1.5`, champs `bordure`).
+            'flex flex-col lg:flex-row items-center justify-center gap-0.5 lg:gap-0 w-4 h-14 lg:w-[30px] lg:h-[34px] rounded-l-lg border border-r-0 shadow-md outline-none transition-colors',
             // Rangee : vert de marque. Deroulee : orange dore de la charte, vif, pour
-            // se reperer d'un coup d'oeil ; encre foncee dessus (contraste).
+            // se reperer d'un coup d'oeil ; encre foncee dessus (contraste). Filet fin
+            // aux couleurs INVERSEES : orange sur la languette verte, vert sur l'orange.
             ouvert
-              ? 'bg-amber-500 text-secondary-800'
-              : 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]',
+              ? 'bg-amber-500 text-secondary-800 border-[var(--brand-surface)]'
+              : 'bg-[var(--brand-surface)] text-white border-amber-500 dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]',
             'focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
             signal && 'languette-signal',
           )}
