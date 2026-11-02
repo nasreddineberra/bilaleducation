@@ -13,6 +13,7 @@ import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import SeanceForm from './SeanceForm'
 import DevoirForm from './DevoirForm'
 import type { DonneesCahierTexte, SeanceCahier, DevoirCahier } from '@/lib/cahier-texte/donnees'
+import { libelleMatiere } from '@/lib/cahier-texte/matiere'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
 import { nomCompletEnseignant } from '@/lib/teachers/nom'
 import { seanceDeClasse } from '@/components/dashboard/classInfo'
@@ -87,8 +88,7 @@ export default function CahierTexteClient({
 
   // Ligne de bas de carte : « Enseignant · Cotisation · Jour HH:MM-HH:MM »
   const classById = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes])
-  const subjectsForClass = (classId: string) =>
-    [...new Set(((classById.get(classId)?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort()
+  const creneauxDe = (classId: string) => classById.get(classId)?.schedule_slots ?? []
   const entryMeta = (entry: SeanceCahier | DevoirCahier) => {
     const c = classById.get(entry.class_id)
     // Jour en francais (`seanceDeClasse`) : il s'affichait en anglais brut (« monday »).
@@ -109,10 +109,6 @@ export default function CahierTexteClient({
   const moiAuteur = !meCT && role === 'enseignant' ? moi : null
   const authorId = meCT?.teachers?.id ?? moiAuteur?.id ?? mainTeacherId
   const authorLabel = meCT?.teachers ? teacherName(meCT.teachers) : moiAuteur ? teacherName(moiAuteur) : mainTeacherLabel
-  const classSubjects = useMemo(
-    () => [...new Set(((selectedClass?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort(),
-    [selectedClass]
-  )
 
   // Sujets uniques pour le filtre
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
@@ -292,8 +288,8 @@ export default function CahierTexteClient({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-bold text-secondary-800 truncate">{j.title}</h3>
                     <Puce ton="neutre">{j.classes?.name}</Puce>
-                    {j.subject && j.subject !== 'General' && (
-                      <Puce ton="neutre">{j.subject}</Puce>
+                    {libelleMatiere(j.subject) && (
+                      <Puce ton="neutre">{libelleMatiere(j.subject)}</Puce>
                     )}
                   </div>
                   <p className="text-xs text-warm-700 mt-0.5 truncate">
@@ -336,8 +332,8 @@ export default function CahierTexteClient({
                       <h3 className="text-sm font-bold text-secondary-800 truncate">{h.title}</h3>
                       <Puce ton={typeInfo.ton}>{typeInfo.label}</Puce>
                       <Puce ton="neutre">{h.classes?.name}</Puce>
-                      {h.subject && h.subject !== 'General' && (
-                        <Puce ton="neutre">{h.subject}</Puce>
+                      {libelleMatiere(h.subject) && (
+                        <Puce ton="neutre">{libelleMatiere(h.subject)}</Puce>
                       )}
                     </div>
                     <p className="text-xs text-warm-700 mt-0.5 truncate">
@@ -363,7 +359,7 @@ export default function CahierTexteClient({
             className={selectedClass.name}
             teacherId={authorId}
             teacherLabel={authorLabel}
-            subjects={classSubjects}
+            creneaux={selectedClass.schedule_slots}
             onClose={() => setShowCreate(false)}
             onSaved={() => setShowCreate(false)}
           />
@@ -374,7 +370,7 @@ export default function CahierTexteClient({
             className={selectedClass.name}
             teacherId={authorId}
             teacherLabel={authorLabel}
-            subjects={classSubjects}
+            creneaux={selectedClass.schedule_slots}
             onClose={() => setShowCreate(false)}
             onSaved={() => setShowCreate(false)}
           />
@@ -386,7 +382,7 @@ export default function CahierTexteClient({
           journal={detail.entry}
           role={role}
           teacherId={teacherId}
-          subjects={subjectsForClass(detail.entry.class_id)}
+          creneaux={creneauxDe(detail.entry.class_id)}
           etablissementId={etablissementId}
           onClose={() => setDetail(null)}
         />
@@ -397,7 +393,7 @@ export default function CahierTexteClient({
           role={role}
           teacherId={teacherId}
           isAdult={!!classById.get(detail.entry.class_id)?.cotisation_types?.is_adult}
-          subjects={subjectsForClass(detail.entry.class_id)}
+          creneaux={creneauxDe(detail.entry.class_id)}
           etablissementId={etablissementId}
           onClose={() => setDetail(null)}
         />

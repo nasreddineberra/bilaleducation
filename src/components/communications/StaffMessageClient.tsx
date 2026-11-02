@@ -20,7 +20,7 @@ import { messageErreur } from '@/lib/erreur'
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 const BUCKET = 'communication-attachments'
-const MAX_ATTACHMENTS_BYTES = 1024 * 1024
+import { PJ_MAX_LIBELLE, PJ_MAX_OCTETS } from '@/lib/communications/limites'
 
 type StaffMember = { id: string; email: string | null; first_name: string; last_name: string; role: string }
 
@@ -168,8 +168,8 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
     if (added.length === 0) return
     setAttachments(prev => {
       const next = [...prev, ...added]
-      if (next.reduce((s, f) => s + f.size, 0) > MAX_ATTACHMENTS_BYTES) {
-        toast.error('Les pièces jointes ne peuvent pas dépasser 1 Mo au total.')
+      if (next.reduce((s, f) => s + f.size, 0) > PJ_MAX_OCTETS) {
+        toast.error(`Les pièces jointes ne peuvent pas dépasser ${PJ_MAX_LIBELLE} au total.`)
         return prev
       }
       return next
@@ -276,7 +276,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                 Pièces jointes
                 {attachments.length > 0 && (
                   <span className="ml-2 font-normal normal-case tracking-normal text-warm-700">
-                    {(attachmentsSize / 1024).toFixed(0)} Ko sur 1024 Ko
+                    {(attachmentsSize / 1024).toFixed(0)} Ko sur {PJ_MAX_OCTETS / 1024} Ko
                   </span>
                 )}
               </h2>

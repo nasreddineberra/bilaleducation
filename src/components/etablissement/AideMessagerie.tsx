@@ -84,7 +84,7 @@ export default function AideMessagerie({ onClose }: { onClose: () => void }) {
       <section className="space-y-1.5">
         <h3 className="section-title">Les quatre informations à réunir</h3>
         <ul className="text-sm text-secondary-800 space-y-1 list-disc pl-5">
-          <li><strong>Le serveur</strong> d&apos;envoi (SMTP) et son <strong>port</strong> — voir le tableau ci-dessous.</li>
+          <li><strong>Le serveur</strong> d&apos;envoi (SMTP) et son <strong>port</strong> (voir le tableau ci-dessous).</li>
           <li><strong>L&apos;identifiant</strong> : l&apos;adresse email complète de la boîte.</li>
           <li><strong>Un mot de passe d&apos;application</strong>, et non le mot de passe habituel.</li>
           <li><strong>L&apos;adresse d&apos;expédition</strong> : celle de cette même boîte.</li>
@@ -119,7 +119,7 @@ export default function AideMessagerie({ onClose }: { onClose: () => void }) {
         <p className="text-xs text-warm-700">
           Le port <strong>465</strong> avec le chiffrement <strong>SSL/TLS</strong> fonctionne
           aussi chez la plupart d&apos;entre eux. En cas de doute, la documentation
-          de votre fournisseur fait foi — cherchez-y « paramètres SMTP ».
+          de votre fournisseur fait foi : cherchez-y « paramètres SMTP ».
         </p>
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
           <strong>Microsoft 365</strong> désactive souvent l&apos;envoi SMTP par défaut.
@@ -133,8 +133,8 @@ export default function AideMessagerie({ onClose }: { onClose: () => void }) {
       <section className="space-y-1.5">
         <h3 className="section-title">Le mot de passe d&apos;application</h3>
         <p className="text-sm text-secondary-800 leading-relaxed">
-          Dès que la double authentification est active sur la boîte — ce qui est
-          le cas par défaut chez Google, et recommandé partout — le fournisseur
+          Dès que la double authentification est active sur la boîte (ce qui est
+          le cas par défaut chez Google, et recommandé partout), le fournisseur
           <strong> refuse le mot de passe habituel</strong> pour un envoi
           automatique. Il faut lui demander un mot de passe distinct, réservé à
           cet usage.
@@ -158,7 +158,7 @@ export default function AideMessagerie({ onClose }: { onClose: () => void }) {
         <h3 className="section-title">L&apos;adresse d&apos;expédition</h3>
         <p className="text-sm text-secondary-800 leading-relaxed">
           Elle doit être <strong>celle du compte dont vous venez de donner les
-          accès</strong>. Y mettre une autre adresse — même une adresse à vous —
+          accès</strong>. Y mettre une autre adresse, même une adresse à vous,
           fait classer vos messages en indésirables, parce que le fournisseur qui
           les reçoit constate que l&apos;expéditeur annoncé ne correspond pas au
           serveur qui envoie.
@@ -177,7 +177,7 @@ export default function AideMessagerie({ onClose }: { onClose: () => void }) {
         <p className="text-sm text-secondary-800 leading-relaxed">
           « Tester la connexion » <strong>envoie un vrai message</strong> à
           l&apos;email de contact de l&apos;établissement. Ce n&apos;est pas une
-          vérification de façade : un serveur qui répond ne prouve rien — le
+          vérification de façade : un serveur qui répond ne prouve rien : le
           compte peut avoir atteint son quota, refuser l&apos;adresse
           d&apos;expédition, ou être restreint par son administrateur. Seul un
           message réellement reçu le prouve.

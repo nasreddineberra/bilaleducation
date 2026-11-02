@@ -15,6 +15,7 @@ import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
 import { libelleRole } from '@/lib/auth/role-labels'
 import { formatDateFr } from '@/lib/dates'
+import { DOMAINE_COMPTES_DEMO } from '@/lib/tenant/demo-comptes'
 
 
 /**
@@ -57,8 +58,7 @@ function parRolePuisNom(a: Profile, b: Profile): number {
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
-/** Domaine des comptes de l'ecole de demonstration (voir `demo-actions.ts`). */
-const DOMAINE_DEMO = '@demonstration.invalid'
+const DOMAINE_DEMO = `@${DOMAINE_COMPTES_DEMO}`
 
 export default function EcoleUsersSection({ profiles, auth, etablissementId, etablissementNom, estDemo = false }: {
   profiles: Profile[]

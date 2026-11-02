@@ -116,7 +116,7 @@ const GABARITS = [
         bouton(LIEN_REINIT, 'Définir mon mot de passe'),
         // Le délai est RECOPIÉ du réglage Supabase, il n'est pas décidé ici.
         // Voir `VALIDITE`.
-        pDoux('Ce lien est valable <strong>' + VALIDITE + '</strong> et ne peut servir qu\'une seule fois. Passé ce délai, demandez-en un nouveau depuis l\'écran de connexion de votre établissement, par « Mot de passe oublié » — c\'est immédiat.'),
+        pDoux('Ce lien est valable <strong>' + VALIDITE + '</strong> et ne peut servir qu\'une seule fois. Passé ce délai, demandez-en un nouveau depuis l\'écran de connexion de votre établissement, par « Mot de passe oublié » : c\'est immédiat.'),
         // Repli texte : certains clients réécrivent ou tronquent les liens.
         // Groupé avec la note d'expiration — les deux parlent du lien, les
         // séparer d'un filet suggérerait à tort deux sujets distincts.

@@ -12,6 +12,10 @@ export const LIBELLE_TYPE_CRENEAU: Record<string, string> = {
   activite: 'Activité',
 }
 
+/** Choix du type a la creation d'un creneau (fiche classe, EDT), dans l'ordre affiche. */
+export const OPTIONS_TYPE_CRENEAU = (['cours', 'activite'] as const)
+  .map(valeur => ({ valeur, libelle: LIBELLE_TYPE_CRENEAU[valeur] }))
+
 /** Longueur maximale du nom d'une activite (CHECK `schedule_slots_libelle_check`). */
 export const NOM_ACTIVITE_MAX = 60
 

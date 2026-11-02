@@ -20,6 +20,7 @@ import { nomCompletEnseignant } from '@/lib/teachers/nom'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import { cleAdulte, lireCleAdulte } from '@/lib/parents/participant'
 import type { DevoirCahier } from '@/lib/cahier-texte/donnees'
+import { libelleMatiere, type CreneauMatiere } from '@/lib/cahier-texte/matiere'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 
@@ -43,12 +44,12 @@ interface Props {
   role: string
   teacherId: string | null
   isAdult: boolean
-  subjects: string[]
+  creneaux: CreneauMatiere[]
   etablissementId: string
   onClose: () => void
 }
 
-export default function DevoirDetailModal({ homework, role, teacherId, isAdult, subjects, etablissementId, onClose }: Props) {
+export default function DevoirDetailModal({ homework, role, teacherId, isAdult, creneaux, etablissementId, onClose }: Props) {
   const [showEdit, setShowEdit] = useState(false)
   const [confirmSuppr, setConfirmSuppr] = useState(false)
   const [suppression, setSuppression] = useState(false)
@@ -240,8 +241,8 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
     >
       <div className="flex items-center gap-2 text-[11px] text-warm-700 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{homework.classes?.name}</span>
-        {homework.subject && homework.subject !== 'General' && (
-          <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
+        {libelleMatiere(homework.subject) && (
+          <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{libelleMatiere(homework.subject)}</span>
         )}
         {/* Un seul bloc : sur telephone, le retour a la ligne commencait par « · ». */}
         <span>{teacherLabel}{classInfoOf(homework.classes) && ` · ${classInfoOf(homework.classes)}`}</span>
@@ -360,7 +361,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           className={homework.classes?.name ?? ''}
           teacherId={homework.teacher_id}
           teacherLabel={teacherLabel}
-          subjects={subjects}
+          creneaux={creneaux}
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); onClose() }}
           initialData={{

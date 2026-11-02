@@ -12,8 +12,9 @@ export type SeanceCahier = DonneesCahierTexte['journalEntries'][number]
 export type DevoirCahier = DonneesCahierTexte['homeworkEntries'][number]
 
 // `effective_until` : le titulaire propose comme auteur est celui EN POSTE
-// (`titulaireActuel`), jamais un ancien.
-const CLASSE = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, effective_until, subject, teachers(id, civilite, first_name, last_name)), cotisation_types(label, is_adult)' as const
+// (`titulaireActuel`), jamais un ancien. `schedule_slots` : matiere des seances et
+// devoirs (`lib/cahier-texte/matiere.ts`) ; vide pour un parent (RLS), qui ne saisit rien.
+const CLASSE = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, effective_until, subject, teachers(id, civilite, first_name, last_name)), cotisation_types(label, is_adult), schedule_slots(slot_type, day_of_week, is_recurring, slot_date, effective_from, effective_until, is_active, unites_enseignement(nom_fr))' as const
 const SEANCE = '*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))' as const
 const DEVOIR = '*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))' as const
 

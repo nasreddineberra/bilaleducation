@@ -130,7 +130,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   = unite d'enseignement, facultative) ou activite (nom facultatif) ; type FIGE apres creation (il decide du
   code de presence) ; enseignant facultatif (« Prof non affecte », en rouge). Intitule : `lib/edt/intitule.ts`.
 - **Cahier de texte** : seances (internes) et devoirs (email aux familles par foyer). Modification :
-  devoir avant la date de rendu, seance 7 j. Matiere forcee « General » en V1.
+  devoir avant la date de rendu, seance 7 j. **Matiere DEDUITE des creneaux de la classe** (unite d'enseignement,
+  `lib/cahier-texte/matiere.ts`) : aucune = « Général » ; une = verrouillee ; plusieurs = choix, propose sur celle
+  du jour (date de la seance, jour de saisie d'un devoir). Valeur stockee de « Général » : `MATIERE_GENERALE`.
 - **Communications** : 1 email par foyer, CCI direction, Reply-To = contact de l'ecole, PJ 1 Mo.
 - **Financements** : calcul unique `lib/financements/compute.ts` (`lignesCotisation`) ; ecritures
   d'argent atomiques (4 RPC). **Regle de depart** (encadre en tete de Cotisations,
@@ -225,7 +227,10 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
   titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`),
   `lib/financements/bilan.ts` (bilan financier d'une annee, pur et teste), `lib/financements/libelles.ts`
-  (moyens de paiement, types d'ajustement), `lib/closure/historisation.ts` (libelles des manques avant purge).
+  (moyens de paiement, types d'ajustement), `lib/closure/historisation.ts` (libelles des manques avant purge),
+  `lib/cahier-texte/matiere.ts` (matiere d'une seance ou d'un devoir), `lib/communications/limites.ts` (plafond des
+  pieces jointes d'un message), `lib/tenant/demo-comptes.ts` (domaine des comptes de demonstration),
+  `OPTIONS_TYPE_CRENEAU` (`lib/edt/intitule.ts`), `estHeureDeLEdt` (`lib/temps-presence/saisie.ts`).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
@@ -423,8 +428,12 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      chiffres = Situation financiere, PDF, Excel 6 feuilles) en direction puis en comptable ; Historique des classes
      (onglets Remplacements et Cahier de texte, visibles apres un archivage). Le parcours complet (archivage, carte
      de purge grisee avec la liste des manques, re-archivage) attend une vraie fin d'annee ou une ecole d'essai.
-   - Ecart note : matiere du cahier de texte « General »
-     a relier un jour a celle du creneau.
+   - **A TESTER (02/11) · Matiere du cahier de texte et passe valeurs en dur** : seance et devoir dans une classe a
+     une matiere (champ verrouille sur elle), a plusieurs (choix ; changer la date de la seance change la
+     proposition), sans matiere (« Général ») ; modifier une ancienne seance « Général » ; pastille de matiere dans
+     la liste et le detail ; email d'un devoir (ligne Matiere). Pieces jointes d'un message (1 Mo, jauge). Creneau :
+     choix Cours / Activite (fiche classe, EDT). **Gabarit « Reset Password » a recoller dans Supabase**
+     (`supabase/email-templates/reset-password.html`, tiret long retire).
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
    conservees). Jour J : essai dans son etablissement -> lever la borne, remplir la facturation, retirer
@@ -441,9 +450,9 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    `lib/communications/donnees.ts`, `lib/communications/notifications.ts`), lots 8 et suivants FAITS (tableau de
    bord `lib/dashboard/commun.ts` et `parent.ts`, puis tout le reste) ; colonnes a defaut NOT NULL FAIT le 30/10
    (72 colonnes, migration `colonnes-defaut-not-null.sql`, controle 35).
-5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
+5. **Passes de fin de V1** : plan de test, tracabilite globale (valeurs en dur et tirets longs FAITS le 02/11).
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
-   matieres, `isDndActive = false`, matiere « General »).
+   matieres, `isDndActive = false`).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

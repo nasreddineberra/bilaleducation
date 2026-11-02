@@ -7,6 +7,7 @@ import { effectiveRole } from '@/lib/auth/effective-role'
 import { sendNotificationEmail, SMTP_NOT_CONFIGURED } from '@/lib/email'
 import { escapeHtml, escapeHtmlMultiline } from '@/lib/security/escape-html'
 import { formatDateHeureFr } from '@/lib/dates'
+import { schoolUrl } from '@/lib/tenant/console-url'
 import { coque, pDoux, filet, C } from '@/lib/email/shell.mjs'
 import {
   SUPPORT_CATEGORIES,
@@ -319,7 +320,7 @@ function corpsEmail(d: {
 }): string {
   return coque({
     titre: d.objet,
-    apercu: `${d.categorie} — ${d.ecole}`,
+    apercu: `${d.categorie} · ${d.ecole}`,
     corps: [
       pDoux(`${escapeHtml(d.categorie)}${d.impact ? ` &middot; impact ${escapeHtml(d.impact.toLowerCase())}` : ''}`),
       // Le message est du TEXTE BRUT saisi dans un champ : echappe, jamais
@@ -329,7 +330,7 @@ function corpsEmail(d: {
       filet,
       [
         ['Ecole', d.ecole],
-        ['Adresse', d.adresse ? `${d.adresse}.bilaleducation.fr` : ''],
+        ['Adresse', d.adresse ? schoolUrl(d.adresse, '') : ''],
         ['Auteur', `${d.auteur} (${d.auteurRole})`],
         ['Email', d.auteurEmail],
         ['Envoyee le', d.date],

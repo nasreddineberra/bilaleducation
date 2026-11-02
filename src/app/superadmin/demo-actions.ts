@@ -10,6 +10,7 @@ import { requireEditor } from '@/lib/auth/requireEditor'
 import { tracerActionEditeur } from '@/lib/support/actions-editeur'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { pluriel } from '@/lib/texte/pluriel'
+import { DOMAINE_COMPTES_DEMO } from '@/lib/tenant/demo-comptes'
 
 /**
  * ECOLE DE DEMONSTRATION (console de l'editeur).
@@ -28,7 +29,7 @@ import { pluriel } from '@/lib/texte/pluriel'
  */
 
 const SLUG_DEMO = 'demonstration'
-const DOMAINE = 'demonstration.invalid'
+const DOMAINE = DOMAINE_COMPTES_DEMO
 
 // Noms fictifs et cosmopolites : l'application ne vise aucune communaute en
 // particulier. Ils sont remis a jour a chaque remise a zero (`appliquerComptes`),

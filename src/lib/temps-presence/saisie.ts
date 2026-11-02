@@ -7,6 +7,14 @@
  * proposes) et pour le bouton « Ajouter » (grise quand il n'en reste aucun).
  */
 export function estTypeSaisissable(pt: { is_absence: boolean; reserved_kind?: string | null }): boolean {
-  return !pt.is_absence && pt.reserved_kind !== 'absence'
-    && pt.reserved_kind !== 'cours' && pt.reserved_kind !== 'activite'
+  return !pt.is_absence && pt.reserved_kind !== 'absence' && !estHeureDeLEdt(pt)
+}
+
+/**
+ * Heure de COURS ou d'ACTIVITE : nee d'une seance de l'EDT et de sa validation.
+ * Elle ne se modifie ni ne se supprime dans Temps de presence (la retirer
+ * laisserait la seance « validee » sans heure).
+ */
+export function estHeureDeLEdt(pt: { reserved_kind?: string | null } | null | undefined): boolean {
+  return pt?.reserved_kind === 'cours' || pt?.reserved_kind === 'activite'
 }

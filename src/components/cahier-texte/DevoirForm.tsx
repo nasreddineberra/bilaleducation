@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { modifierDevoir } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import ChampMatiere, { useMatiere } from './ChampMatiere'
+import { aujourdhui } from './commun'
+import { MATIERE_GENERALE, type CreneauMatiere } from '@/lib/cahier-texte/matiere'
 import FormModal from '@/components/ui/FormModal'
 import { messageErreur } from '@/lib/erreur'
 import type { DevoirCahier } from '@/lib/cahier-texte/donnees'
@@ -14,9 +17,7 @@ import type { TypeDevoir } from '@/components/cahier-texte/commun'
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 // Matière obligatoire côté BDD (homework.subject NOT NULL) : « Général » = valeur
-// littérale 'General' ; la sentinelle sert juste à faire monter le label flottant.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-const GENERAL = '__general__'
+// littérale `MATIERE_GENERALE`.
 
 interface Props {
   etablissementId: string
@@ -25,30 +26,29 @@ interface Props {
   className: string
   teacherId: string
   teacherLabel: string
-  subjects: string[]          // matières disponibles pour la classe
+  creneaux: CreneauMatiere[]  // creneaux de la classe : la matiere en est deduite
   onClose: () => void
   onSaved: () => void
   initialData?: Pick<DevoirCahier, 'id' | 'subject' | 'title' | 'homework_type' | 'due_date' | 'description_html'>   // présent en édition
 }
 
-// Champ en lecture seule (classe / enseignant / matiere) : champ verrouille de la charte.
+// Champ en lecture seule (classe / enseignant) : champ verrouille de la charte.
 function LockedField({ label, value }: { label: string; value: string }) {
   return <FloatInput label={label} value={value || '·'} locked readOnly />
 }
 
 export default function DevoirForm({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-  etablissementId, classId, className, teacherId, teacherLabel, subjects,
+  etablissementId, classId, className, teacherId, teacherLabel, creneaux,
   onClose, onSaved, initialData,
 }: Props) {
   const router = useRouter()
   const toast  = useToast()
   const isEdit = !!initialData
 
-  // '' = Général (converti en littéral 'General' à l'enregistrement)
-  const initialSubject = initialData?.subject && initialData.subject !== 'General' ? initialData.subject : ''
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-  const [subject, setSubject] = useState<string>(initialSubject)
+  // '' = Général (converti en `MATIERE_GENERALE` à l'enregistrement). Un devoir se
+  // donne le jour de sa saisie : la matiere proposee est celle du jour.
+  const enregistree = initialData ? (initialData.subject === MATIERE_GENERALE ? '' : initialData.subject) : null
+  const matiere = useMatiere(creneaux, aujourdhui(), enregistree)
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [type, setType] = useState<TypeDevoir>(initialData?.homework_type ?? 'exercice')
   const [dueDate, setDueDate] = useState(initialData?.due_date ?? '')
@@ -73,7 +73,7 @@ export default function DevoirForm({
       const payload = {
         class_id: classId,
         teacher_id: teacherId,
-        subject: subject || 'General',
+        subject: matiere.valeur || MATIERE_GENERALE,
         title: title.trim(),
         description_html: descriptionHtml,
         homework_type: type,
@@ -134,9 +134,7 @@ export default function DevoirForm({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* V1 (mono-mode Primaire) : Matière forcée sur « Général » (verrouillée).
-              En Secondaire, réactiver un select alimenté par les matières de la classe. */}
-          <LockedField label="Matière" value="Général" />
+          <ChampMatiere options={matiere.options} valeur={matiere.valeur} onChange={matiere.choisir} />
 
           <FloatSelect label="Type" required value={type} onChange={e => setType(e.target.value as TypeDevoir)}>
             <option value="exercice">Exercice</option>

@@ -10,7 +10,7 @@ import { useToast } from '@/lib/toast-context'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { fmtDuration, findPresenceType } from '@/lib/temps-presence/format'
-import { estTypeSaisissable } from '@/lib/temps-presence/saisie'
+import { estHeureDeLEdt, estTypeSaisissable } from '@/lib/temps-presence/saisie'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -1138,10 +1138,7 @@ export default function TempsPresenceClient({
                       const label = pt?.label ?? e.entry_type
                       const isAbs = pt?.is_absence ?? false
                       const targetIsTeacher = staffMap[e.profile_id]?.role === 'enseignant'
-                      // Heure de COURS ou d'ACTIVITE : nee d'une seance de l'EDT et de sa
-                      // validation (decision du 28/10). Elle ne se modifie ni ne se
-                      // supprime ici : la retirer laisserait la seance « validee » sans heure.
-                      const issueDeLEdt = pt?.reserved_kind === 'cours' || pt?.reserved_kind === 'activite'
+                      const issueDeLEdt = estHeureDeLEdt(pt)
                       const canEdit = !issueDeLEdt && (canWriteAll
                         || (isRespPedago && (targetIsTeacher || e.profile_id === currentUserId)))
                       return (

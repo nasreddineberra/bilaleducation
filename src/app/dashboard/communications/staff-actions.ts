@@ -16,7 +16,7 @@ import { coque, POLICE, C } from '@/lib/email/shell.mjs'
 const STAFF_SEND_ROLES: UserRole[] = ['admin', 'direction', 'secretaire', 'responsable_pedagogique', 'comptable']
 
 const BUCKET = 'communication-attachments'
-const MAX_ATTACHMENTS_BYTES = 1024 * 1024   // 1 Mo, tous fichiers confondus
+import { PJ_MAX_LIBELLE, PJ_MAX_OCTETS } from '@/lib/communications/limites'
 const SEND_BATCH_SIZE = 20
 
 export type StaffChannel = 'email' | 'notification' | 'both'
@@ -107,7 +107,7 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
   // ─── Pieces jointes (plafond garde serveur, pas seulement dans l'UI) ───────
   const attachmentMeta = payload.attachments ?? []
   const totalBytes = attachmentMeta.reduce((sum, a) => sum + (a.size ?? 0), 0)
-  if (totalBytes > MAX_ATTACHMENTS_BYTES) return { error: 'Les pièces jointes dépassent 1 Mo au total.' }
+  if (totalBytes > PJ_MAX_OCTETS) return { error: `Les pièces jointes dépassent ${PJ_MAX_LIBELLE} au total.` }
 
   const attachments: EmailAttachment[] = []
   if (wantsEmail) {

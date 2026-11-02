@@ -10192,3 +10192,24 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   contient bien U+202F, verifie). Montant, mois et libelle de cotisation d'ecran dans `lib/financements/libelles.ts`.
 - « ADULTES (adultes) » : la mention n'est ajoutee que si le libelle ne dit pas deja « adulte » (`libelleCotisation`).
 - Bilan : type-check 0, lint 0, 192 tests, build OK.
+
+## 02/11 · Passe « valeurs en dur », tirets longs, matiere du cahier de texte
+
+- **Valeurs en dur** : les codes de presence (`'ABS'`...) avaient deja disparu ; les chaines `'cours'`, `'activite'`,
+  `'absence'` restantes sont des valeurs de CHECK lues en unions par les types generes (une faute de frappe ne compile
+  pas) : laissees. Corrige ce qui etait RECOPIE : plafond des pieces jointes (4 copies -> `lib/communications/limites.ts`,
+  messages et jauge compris) ; choix Cours / Activite (2 copies -> `OPTIONS_TYPE_CRENEAU`) ; regle « heure nee de
+  l'EDT » (Temps de presence -> `estHeureDeLEdt`, reutilisee par `estTypeSaisissable`) ; domaine des comptes de
+  demonstration (2 copies -> `lib/tenant/demo-comptes.ts`) ; adresse de l'ecole dans l'email de support
+  (`schoolUrl`). Gardes en dur a dessein (commentes) : adresses de l'editeur (`contact@`, `superadmin@`).
+- **Tirets longs et « (s) »** : inventaire par l'analyseur TypeScript (chaines et texte JSX seulement, hors
+  commentaires). Aucun « (s) » ni « (e) » affiche. Tirets retires : aide de la messagerie (5), lien de
+  reinitialisation tronque, apercu de l'email de support, gabarit « Reset Password » (regenere : a recoller dans
+  Supabase). Restent ceux des journaux console et des scripts (non affiches).
+- **Matiere du cahier de texte** : n'est plus forcee a « Général ». Deduite des creneaux de cours de la classe
+  (unite d'enseignement) en vigueur a la date : aucune -> « Général » ; une -> verrouillee ; plusieurs -> choix,
+  propose sur celle du jour, « Général » possible. En creation la valeur suit la date de la seance tant que rien
+  n'est choisi ; en modification la matiere enregistree est conservee meme sortie de l'EDT. Regle pure et testee
+  (`lib/cahier-texte/matiere.ts`, 6 tests), champ commun `ChampMatiere`. Valeurs stockees inchangees (pas de
+  migration). L'archive du cahier de texte porte desormais la matiere (champ facultatif, anciennes archives sans).
+- Bilan : type-check 0, lint 0, 198 tests, build OK.

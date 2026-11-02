@@ -252,7 +252,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
                 {ouverte.cahier_texte.map((s, i) => (
                   <article key={i} className="rounded-lg border border-[var(--card-border)] px-3 py-2 space-y-1">
                     <p className="text-xs font-semibold text-secondary-800">
-                      <span className="tabular-nums">{fmtDate(s.date)}</span>{s.titre ? ` · ${s.titre}` : s.contenu ? '' : ' · Devoir hors séance'}
+                      <span className="tabular-nums">{fmtDate(s.date)}</span>{s.titre ? ` · ${s.titre}` : s.contenu ? '' : ' · Devoir hors séance'}{s.matiere ? ` · ${s.matiere}` : ''}
                     </p>
                     {s.contenu && (
                       <div className="prose prose-sm max-w-none text-warm-700 text-xs" dangerouslySetInnerHTML={{ __html: sanitize(s.contenu) }} />
@@ -260,7 +260,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
                     {s.devoirs.map((d, j) => (
                       <div key={j} className="border-l-2 border-[var(--brand-line)] pl-2">
                         <p className="text-xs font-medium text-secondary-800">
-                          Devoir · {d.titre}{d.rendu ? <span className="text-warm-700"> · à rendre le {fmtDate(d.rendu)}</span> : null}
+                          Devoir · {d.titre}{d.matiere ? ` · ${d.matiere}` : ''}{d.rendu ? <span className="text-warm-700"> · à rendre le {fmtDate(d.rendu)}</span> : null}
                         </p>
                         {d.consigne && (
                           <div className="prose prose-sm max-w-none text-warm-700 text-xs" dangerouslySetInnerHTML={{ __html: sanitize(d.consigne) }} />

@@ -16,7 +16,7 @@ import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
-import { intitulePropre, LIBELLE_TYPE_CRENEAU, NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
+import { intitulePropre, LIBELLE_TYPE_CRENEAU, NOM_ACTIVITE_MAX, OPTIONS_TYPE_CRENEAU } from '@/lib/edt/intitule'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 import { accord, pluriel } from '@/lib/texte/pluriel'
 
@@ -1182,7 +1182,7 @@ function SlotFormModal({
                   ariaLabel="Type de créneau"
                   actif={slotType}
                   onChange={v => setSlotType(v as TypeCreneau)}
-                  options={[{ valeur: 'cours', libelle: 'Cours' }, { valeur: 'activite', libelle: 'Activité' }]}
+                  options={OPTIONS_TYPE_CRENEAU}
                 />
               )}
             </div>

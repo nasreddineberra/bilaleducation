@@ -24,7 +24,7 @@ const PARENT_COMM_ROLES: UserRole[] = ['admin', 'direction', 'secretaire', 'resp
 const ALL_REGISTERED_ROLES: UserRole[] = ['admin', 'direction', 'secretaire']
 
 const BUCKET = 'communication-attachments'
-const MAX_ATTACHMENTS_BYTES = 1024 * 1024   // 1 Mo, tous fichiers confondus
+import { PJ_MAX_LIBELLE, PJ_MAX_OCTETS } from '@/lib/communications/limites'
 const SEND_BATCH_SIZE = 20
 
 export type ParentTargetType = 'all_active' | 'all_registered' | 'class' | 'selected'
@@ -261,8 +261,8 @@ export async function sendParentMessage(
   // ─── Pieces jointes : plafond garde cote serveur, pas seulement dans l'UI ──
   const attachmentMeta = payload.attachments ?? []
   const totalBytes = attachmentMeta.reduce((sum, a) => sum + (a.size ?? 0), 0)
-  if (totalBytes > MAX_ATTACHMENTS_BYTES) {
-    return { error: 'Les pièces jointes dépassent 1 Mo au total.' }
+  if (totalBytes > PJ_MAX_OCTETS) {
+    return { error: `Les pièces jointes dépassent ${PJ_MAX_LIBELLE} au total.` }
   }
 
   const attachments: EmailAttachment[] = []

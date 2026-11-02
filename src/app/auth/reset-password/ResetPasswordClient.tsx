@@ -56,7 +56,7 @@ const MOTIFS: Record<string, { titre: string; texte: string }> = {
   'sans-jeton': {
     titre: 'Lien incomplet',
     texte:
-      "Ce lien ne contient pas les informations attendues — il a probablement été tronqué par la messagerie. " +
+      "Ce lien ne contient pas les informations attendues : il a probablement été tronqué par la messagerie. " +
       "Demandez-en un nouveau, et cliquez dessus plutôt que de le recopier.",
   },
 }

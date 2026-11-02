@@ -6,7 +6,7 @@ import FormModal from '@/components/ui/FormModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
-import { NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
+import { NOM_ACTIVITE_MAX, OPTIONS_TYPE_CRENEAU } from '@/lib/edt/intitule'
 
 /**
  * NOUVELLE SEANCE PONCTUELLE (EDT).
@@ -50,11 +50,6 @@ interface RoomData {
   room_type: string
   capacity: number | null
 }
-
-const SLOT_TYPES = [
-  { value: 'cours', label: 'Cours' },
-  { value: 'activite', label: 'Activité' },
-]
 
 interface Props {
   prefillDay: number | null
@@ -184,7 +179,7 @@ export default function SlotFormModal({
             ariaLabel="Type de créneau"
             actif={slotType}
             onChange={setSlotType}
-            options={SLOT_TYPES.map(st => ({ valeur: st.value, libelle: st.label }))}
+            options={OPTIONS_TYPE_CRENEAU}
           />
         </div>
       </div>

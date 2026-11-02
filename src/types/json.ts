@@ -109,6 +109,7 @@ export type ArchiveRemplacement = {
 /** Devoir du cahier de texte d'une classe archivee. */
 export type ArchiveDevoir = {
   titre:    string
+  matiere?: string | null   // absente des archives anterieures au 02/11
   rendu:    string | null   // AAAA-MM-JJ
   consigne: string | null   // HTML tel que saisi, assaini a l'affichage
 }
@@ -121,6 +122,7 @@ export type ArchiveDevoir = {
 export type ArchiveSeance = {
   date:    string           // AAAA-MM-JJ
   titre:   string | null
+  matiere?: string | null   // absente des archives anterieures au 02/11
   contenu: string | null    // HTML tel que saisi, assaini a l'affichage
   devoirs: ArchiveDevoir[]
 }

@@ -11,6 +11,7 @@ import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { lignesCotisation } from '@/lib/financements/compute'
 import { chargerDeparts } from '@/lib/financements/departs'
 import { cleAdulte } from '@/lib/parents/participant'
+import { libelleMatiere } from '@/lib/cahier-texte/matiere'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, TablesInsert } from '@/types/supabase'
 import type { ArchiveBulletin, ArchiveCotisation, ArchiveCreneau, ArchiveParticipant, ArchivePeriode, ArchiveRemplacement, ArchiveSeance } from '@/types/json'
@@ -338,10 +339,10 @@ export async function generateArchive(supabase: SupabaseClient<Database>, ctx: Y
       .select('seance_date, remplacant_profile_id, schedule_slots!inner(class_id, start_time, end_time, school_year_id), absences_enseignants(teachers(last_name, first_name))')
       .eq('schedule_slots.school_year_id', ctx.yearId),
     supabase.from('class_journal')
-      .select('id, class_id, session_date, title, content_html')
+      .select('id, class_id, session_date, subject, title, content_html')
       .in('class_id', classIds),
     supabase.from('homework')
-      .select('class_id, journal_entry_id, title, description_html, due_date, created_at')
+      .select('class_id, journal_entry_id, subject, title, description_html, due_date, created_at')
       .in('class_id', classIds),
   ])
 
@@ -371,13 +372,13 @@ export async function generateArchive(supabase: SupabaseClient<Database>, ctx: Y
   const cahierParClasse = new Map<string, ArchiveSeance[]>()
   const seanceParId = new Map<string, ArchiveSeance>()
   for (const j of journal ?? []) {
-    const seance: ArchiveSeance = { date: j.session_date, titre: j.title, contenu: j.content_html, devoirs: [] }
+    const seance: ArchiveSeance = { date: j.session_date, titre: j.title, matiere: libelleMatiere(j.subject), contenu: j.content_html, devoirs: [] }
     seanceParId.set(j.id, seance)
     if (!cahierParClasse.has(j.class_id)) cahierParClasse.set(j.class_id, [])
     cahierParClasse.get(j.class_id)!.push(seance)
   }
   for (const h of devoirs ?? []) {
-    const devoir = { titre: h.title, rendu: h.due_date, consigne: h.description_html }
+    const devoir = { titre: h.title, matiere: libelleMatiere(h.subject), rendu: h.due_date, consigne: h.description_html }
     const seance = h.journal_entry_id ? seanceParId.get(h.journal_entry_id) : undefined
     if (seance) { seance.devoirs.push(devoir); continue }
     if (!cahierParClasse.has(h.class_id)) cahierParClasse.set(h.class_id, [])

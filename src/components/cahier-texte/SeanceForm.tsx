@@ -6,17 +6,14 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { modifierSeance } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import ChampMatiere, { useMatiere } from './ChampMatiere'
+import type { CreneauMatiere } from '@/lib/cahier-texte/matiere'
 import FormModal from '@/components/ui/FormModal'
 import { messageErreur } from '@/lib/erreur'
 import type { SeanceCahier } from '@/lib/cahier-texte/donnees'
 import { aujourdhui } from './commun'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
-
-// Valeur sentinelle pour « Général » : garde une valeur non vide dans le select
-// (sinon le label flottant de FloatSelect ne monte pas et chevauche le texte).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-const GENERAL = '__general__'
 
 interface Props {
   etablissementId: string
@@ -25,29 +22,28 @@ interface Props {
   className: string
   teacherId: string
   teacherLabel: string
-  subjects: string[]          // matières disponibles pour la classe
+  creneaux: CreneauMatiere[]  // creneaux de la classe : la matiere en est deduite
   onClose: () => void
   onSaved: () => void
   initialData?: Pick<SeanceCahier, 'id' | 'subject' | 'session_date' | 'title' | 'content_html'>   // présent en édition
 }
 
-// Champ en lecture seule (classe / enseignant / matiere) : champ verrouille de la charte.
+// Champ en lecture seule (classe / enseignant) : champ verrouille de la charte.
 function LockedField({ label, value }: { label: string; value: string }) {
   return <FloatInput label={label} value={value || '·'} locked readOnly />
 }
 
 export default function SeanceForm({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-  etablissementId, classId, className, teacherId, teacherLabel, subjects,
+  etablissementId, classId, className, teacherId, teacherLabel, creneaux,
   onClose, onSaved, initialData,
 }: Props) {
   const router = useRouter()
   const toast  = useToast()
   const isEdit = !!initialData
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-  const [subject, setSubject] = useState<string>(initialData?.subject ?? '')  // '' = Général
   const [sessionDate, setSessionDate] = useState(initialData?.session_date ?? aujourdhui())
+  // '' = Général (NULL en base). Suit la date de la seance en creation.
+  const matiere = useMatiere(creneaux, sessionDate, initialData ? (initialData.subject ?? '') : null)
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [contentHtml, setContentHtml] = useState(initialData?.content_html ?? '')
 
@@ -70,7 +66,7 @@ export default function SeanceForm({
       const journalPayload = {
         class_id: classId,
         teacher_id: teacherId,
-        subject: subject || null,
+        subject: matiere.valeur || null,
         session_date: sessionDate,
         title: title.trim(),
         content_html: contentHtml,
@@ -119,9 +115,7 @@ export default function SeanceForm({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* V1 (mono-mode Primaire) : Matière forcée sur « Général » (verrouillée).
-              En Secondaire, réactiver un select alimenté par les matières de la classe. */}
-          <LockedField label="Matière" value="Général" />
+          <ChampMatiere options={matiere.options} valeur={matiere.valeur} onChange={matiere.choisir} />
 
           <FloatInput
             label="Date de séance"

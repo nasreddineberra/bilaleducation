@@ -15,6 +15,7 @@ import { supprimerSeance } from '@/app/dashboard/cahier-texte/actions'
 import { nomCompletEnseignant } from '@/lib/teachers/nom'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import type { SeanceCahier } from '@/lib/cahier-texte/donnees'
+import { libelleMatiere, type CreneauMatiere } from '@/lib/cahier-texte/matiere'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 
@@ -29,13 +30,13 @@ interface Props {
   journal: SeanceCahier
   role: string
   teacherId: string | null
-  subjects: string[]
+  creneaux: CreneauMatiere[]
   etablissementId: string
   onClose: () => void
 }
 
 // Détail d'une séance en modale verrouillée (fermable uniquement par X / Fermer).
-export default function SeanceDetailModal({ journal, role, teacherId, subjects, etablissementId, onClose }: Props) {
+export default function SeanceDetailModal({ journal, role, teacherId, creneaux, etablissementId, onClose }: Props) {
   const [showEdit, setShowEdit] = useState(false)
 
   const teacherLabel = teacherLabelOf(journal.teachers)
@@ -101,7 +102,7 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
     >
       <div className="flex items-center gap-2 text-[11px] text-warm-700 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{journal.classes?.name}</span>
-        {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
+        {libelleMatiere(journal.subject) && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{libelleMatiere(journal.subject)}</span>}
         {/* Un seul bloc : sur telephone, le retour a la ligne commencait par « · ». */}
         <span>{teacherLabel}{classInfoOf(journal.classes) && ` · ${classInfoOf(journal.classes)}`}</span>
       </div>
@@ -135,7 +136,7 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
           className={journal.classes?.name ?? ''}
           teacherId={journal.teacher_id}
           teacherLabel={teacherLabel}
-          subjects={subjects}
+          creneaux={creneaux}
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); onClose() }}
           initialData={{

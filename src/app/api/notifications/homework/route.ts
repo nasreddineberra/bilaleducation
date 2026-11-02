@@ -9,6 +9,7 @@ import { sanitize } from '@/lib/security/sanitize'
 import { destinatairesDeLaClasse } from '@/lib/email/destinataires-classe'
 import { messageErreur } from '@/lib/erreur'
 import { nomCompletEnseignant } from '@/lib/teachers/nom'
+import { libelleMatiere, LIBELLE_MATIERE_GENERALE } from '@/lib/cahier-texte/matiere'
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,9 +53,8 @@ export async function POST(req: NextRequest) {
       autre: 'Devoir',
     }
     const typeLabel = HW_TYPE_LABELS[hw.homework_type] ?? 'Devoir'
-    // 'General' est la valeur stockee (sentinelle sans accent, cf. DevoirForm) ;
-    // la famille lit « Général ».
-    const matiere = hw.subject === 'General' ? 'Général' : hw.subject
+    // `MATIERE_GENERALE` est la valeur stockee (sentinelle sans accent) ; la famille lit « Général ».
+    const matiere = libelleMatiere(hw.subject) ?? LIBELLE_MATIERE_GENERALE
 
     const ecole = await marqueEcole(supabase, etablissementId)
 
