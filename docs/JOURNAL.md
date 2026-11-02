@@ -10267,3 +10267,10 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   du guide PDF : un tableau par module (fonctionnalite, a quoi elle sert, roles qui y accedent), tire des procedures
   (`presentationParModule`), pour tout lecteur. Guide genere hors navigateur pour chaque role (direction 49 pages)
   sans erreur ; rendu visuel non controle (aucun outil de rendu PDF sur le poste).
+
+## 02/11 · Liste des apprenants en lecture seule pour l'enseignant
+
+- Releve pendant l'aide (lot 2) : l'enseignant voyait « Ajouter », « Mettre a jour les statuts », la limite d'inscrits
+  et les actions de ligne (modifier, supprimer), que la RLS lui refuse. Masques (jamais possibles pour ce role).
+  La page de creation renvoie a la liste. Regle unique `lib/students/droits.ts` (`peutEcrireEleves`), reprise par la
+  fiche (qui la portait seule). La ligne ouvre toujours la fiche, en lecture.

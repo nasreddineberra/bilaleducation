@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import StudentsClient from '@/components/students/StudentsClient'
 import { classInfoOf } from '@/components/dashboard/classInfo'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
+import { effectiveRole } from '@/lib/auth/effective-role'
+import { peutEcrireEleves } from '@/lib/students/droits'
 
 const PAGE_SIZE = 20
 // Sentinelle pour un `.in()` sur un ensemble vide (sinon PostgREST renvoie tout).
@@ -18,6 +20,12 @@ export default async function StudentsPage({
   const to   = from + PAGE_SIZE - 1
 
   const supabase = await createClient()
+
+  // L'enseignant consulte ses eleves sans les modifier : ni ajout, ni statuts, ni
+  // suppression ne lui sont montres (`lib/students/droits.ts`).
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profil } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user?.id ?? '').single()
+  const lectureSeule = !peutEcrireEleves(effectiveRole(profil))
 
   // ── 1. Contexte de l'année + ensembles globaux (compteurs ET filtres) ──────
   const [{ data: curYear }, { data: currentPeriods }, { data: activeRows }] = await Promise.all([
@@ -142,6 +150,7 @@ export default async function StudentsPage({
       totalDiscipline={flaggedIds.size}
       maxStudents={etablissement?.max_students ?? null}
       baseFacturable={baseFacturable}
+      lectureSeule={lectureSeule}
     />
   )
 }

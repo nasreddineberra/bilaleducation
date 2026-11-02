@@ -4,9 +4,17 @@ import { ChevronLeft, AlertCircle } from 'lucide-react'
 import StudentForm from '@/components/students/StudentForm'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { SELECTION_PARENTS } from '@/lib/students/fiche'
+import { redirect } from 'next/navigation'
+import { effectiveRole } from '@/lib/auth/effective-role'
+import { peutEcrireEleves } from '@/lib/students/droits'
 
 export default async function NewStudentPage() {
   const supabase = await createClient()
+  // Seuls les roles qui ecrivent les fiches eleves creent un eleve.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profil } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user?.id ?? '').single()
+  if (!peutEcrireEleves(effectiveRole(profil))) redirect('/dashboard/students')
+
   const now   = new Date()
   const year  = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')

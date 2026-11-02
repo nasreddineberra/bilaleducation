@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import StudentDetail from '@/components/students/StudentDetail'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { peutEcrireEleves } from '@/lib/students/droits'
 import { chargerFicheEleve } from '@/lib/students/fiche'
 
 interface Props {
@@ -36,8 +37,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     .select('role, etablissement_id')
     .eq('id', user?.id ?? '')
     .single()
-  const ROLES_ECRITURE = ['admin', 'direction', 'responsable_pedagogique', 'secretaire']
-  const lectureSeule = !ROLES_ECRITURE.includes(effectiveRole(profil) ?? '')
+  const lectureSeule = !peutEcrireEleves(effectiveRole(profil))
 
   // Lectures de la fiche : `lib/students/fiche.ts` (les types de l'ecran en derivent).
   const fiche = await chargerFicheEleve(supabase, id, lectureSeule)

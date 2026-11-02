@@ -34,6 +34,8 @@ interface StudentsClientProps {
   maxStudents?:  number | null
   /** Eleves actifs + adultes inscrits : la mesure de la limite d'inscrits. */
   baseFacturable?: { eleves: number; adultes: number; total: number } | null
+  /** Enseignant : consultation seule (ni ajout, ni statuts, ni suppression). */
+  lectureSeule?: boolean
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 
 export default function StudentsClient({
   students, filteredCount, page, q, filter,
-  totalAll, totalActive, totalNoParent, totalUnassigned, totalDiscipline, maxStudents, baseFacturable,
+  totalAll, totalActive, totalNoParent, totalUnassigned, totalDiscipline, maxStudents, baseFacturable, lectureSeule = false,
 }: StudentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -154,7 +156,7 @@ export default function StudentsClient({
             ...(totalNoParent > 0 ? [{ valeur: 'no_parent', nombre: totalNoParent, libelle: 'sans rattachement', couleur: 'text-red-500' }] : []),
           ]}
         />
-        {maxStudents != null && baseFacturable != null && (
+        {!lectureSeule && maxStudents != null && baseFacturable != null && (
           <Tooltip content={`${baseFacturable.eleves} élève${baseFacturable.eleves > 1 ? 's' : ''} actif${baseFacturable.eleves > 1 ? 's' : ''} + ${baseFacturable.adultes} adulte${baseFacturable.adultes > 1 ? 's' : ''} inscrit${baseFacturable.adultes > 1 ? 's' : ''}`}>
             <ListStatCard
               value={`${baseFacturable.total}/${maxStudents}`}
@@ -175,12 +177,14 @@ export default function StudentsClient({
         />
 
         {/* Mise à jour des statuts selon les inscriptions */}
+        {!lectureSeule && (
         <FloatButton type="button" variant="secondary" onClick={() => setShowSync(true)}>
           Mettre à jour les statuts
         </FloatButton>
+        )}
 
         {/* Ajouter */}
-        {limitReached ? (
+        {lectureSeule ? null : limitReached ? (
           <Tooltip content={`Limite de l'abonnement atteinte : ${maxStudents} inscrits au maximum`}>
           <span>
             <FloatButton type="button" variant="submit" disabled>
@@ -196,7 +200,7 @@ export default function StudentsClient({
       </div>
 
       {/* Tableau */}
-      <StudentsTable students={students} />
+      <StudentsTable students={students} lectureSeule={lectureSeule} />
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">

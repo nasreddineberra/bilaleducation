@@ -13,6 +13,8 @@ import type { StudentWithClass, Discipline } from './StudentsClient'
 
 interface StudentsTableProps {
   students: StudentWithClass[]
+  /** Enseignant : la ligne ouvre la fiche (en lecture), sans actions. */
+  lectureSeule?: boolean
 }
 
 interface DeleteDeps {
@@ -66,7 +68,7 @@ function calcAge(dob: string): string {
   return `${age} ans`
 }
 
-export default function StudentsTable({ students }: StudentsTableProps) {
+export default function StudentsTable({ students, lectureSeule = false }: StudentsTableProps) {
   const router = useRouter()
   // Le filtre, la recherche et la page vivent dans l'URL de la liste : on les
   // transporte jusqu'a la fiche pour que le retour les retrouve. Voir
@@ -281,6 +283,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
 
                 {/* Actions */}
                 <td className="list-td" onClick={(e) => e.stopPropagation()}>
+                  {!lectureSeule && (
                   <div className="flex items-center justify-end gap-1">
                     <Tooltip content="Modifier">
                       <button
@@ -301,6 +304,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       </button>
                     </Tooltip>
                   </div>
+                  )}
                 </td>
 
               </tr>
