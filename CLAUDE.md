@@ -432,8 +432,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      une matiere (champ verrouille sur elle), a plusieurs (choix ; changer la date de la seance change la
      proposition), sans matiere (« Général ») ; modifier une ancienne seance « Général » ; pastille de matiere dans
      la liste et le detail ; email d'un devoir (ligne Matiere). Pieces jointes d'un message (1 Mo, jauge). Creneau :
-     choix Cours / Activite (fiche classe, EDT). **Gabarit « Reset Password » a recoller dans Supabase**
-     (`supabase/email-templates/reset-password.html`, tiret long retire).
+     choix Cours / Activite (fiche classe, EDT). Gabarit « Reset Password » recolle dans Supabase le 02/11.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
    conservees). Jour J : essai dans son etablissement -> lever la borne, remplir la facturation, retirer
