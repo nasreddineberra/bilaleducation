@@ -1756,6 +1756,17 @@
   .nom-vague { animation: none; }
 }
 
+/* Languette de l'aide (02/11) : signal d'arrivee, trois pulsations la premiere fois qu'un
+   ecran est ouvert dans la session. La languette avance de 4 px et s'auréole du halo de marque. */
+.languette-signal { animation: languette-signal 0.9s ease-in-out 3; }
+@keyframes languette-signal {
+  0%, 100% { transform: translateX(0); box-shadow: 0 0 0 0 transparent; }
+  50%      { transform: translateX(-4px); box-shadow: 0 0 0 4px var(--brand-focus); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .languette-signal { animation: none; }
+}
+
 /* Listes, theme sombre : le vert de marque (#18242a) se confond avec l'ardoise. */
 :root[data-theme="dark"] .liste-entete { background-color: color-mix(in srgb, var(--brand-accent) 12%, var(--surface-card)); }
 :root[data-theme="dark"] .liste-entete > th { color: var(--brand-accent); }

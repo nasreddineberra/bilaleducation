@@ -10,7 +10,7 @@ import { useTheme } from './ThemeContext'
 import Tooltip from '@/components/ui/Tooltip'
 import SupportBanner from './SupportBanner'
 import BoutonPleinEcran from './BoutonPleinEcran'
-import BoutonAide from '@/components/aide/BoutonAide'
+import LanguetteAide from '@/components/aide/LanguetteAide'
 import { effectiveRole } from '@/lib/auth/effective-role'
 import { authRepository } from '@/lib/database/auth'
 import { libelleRole } from '@/lib/auth/role-labels'
@@ -314,14 +314,15 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
             coupe EN BIAIS a gauche, elements separes par des barres obliques.
             Pleine hauteur et colle au bord droit (le <nav> n'a plus de marge
             droite). Resserre sous 768 px : l'avatar sortait de l'ecran (23/10). */}
-        {/* Aide de l'ecran (toutes tailles, si l'ecran en a une) et plein ecran
-            (ordinateur seulement) : dans la partie blanche, a gauche de la coupe
-            en biais. Ce groupe porte la marge automatique. */}
-        <div className="flex items-center gap-1 ml-auto mr-2">
-          <BoutonAide role={effectiveRole(profile)} />
-          <BoutonPleinEcran className="hidden lg:flex" />
+        {/* Plein ecran : dans la partie blanche, a gauche de la coupe en biais
+            (ordinateur seulement). Il porte la marge automatique ; sous 1024 px,
+            masque, c'est la zone compte qui la reprend. */}
+        <div className="hidden lg:flex ml-auto mr-2">
+          <BoutonPleinEcran />
         </div>
-        <div className="self-stretch flex items-center gap-2 md:gap-3 pl-10 md:pl-14 pr-4 md:pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
+        {/* Aide de l'ecran : languette au bord droit de la page (portee dans <body>). */}
+        <LanguetteAide role={effectiveRole(profile)} />
+        <div className="ml-auto lg:ml-0 self-stretch flex items-center gap-2 md:gap-3 pl-10 md:pl-14 pr-4 md:pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
           {/* ── Bascule thème clair / sombre — sélecteur segmenté ──────────────
               MASQUÉE PENDANT UNE INTERVENTION DE SUPPORT. Le thème est une
               préférence PERSONNELLE, rangée dans `profiles.theme` — donc dans le

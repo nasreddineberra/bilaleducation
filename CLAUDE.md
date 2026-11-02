@@ -144,8 +144,11 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   l'annee en cours (meme calcul `lib/financements/bilan.ts`), PDF + Excel de detail.
 - **Support** : demande ecrite en base AVANT l'email.
 - **Aide integree** (02/11) : procedures utilisateur par ecran, contenu TypeScript dans `lib/aide/procedures/`
-  (modele `lib/aide/types.ts`, registre `lib/aide/index.ts`). Icone « ? » de la barre du haut = TIROIR SUPERPOSE
-  (jamais pousse : aucun ecran ne perd de largeur) + « Ouvrir dans un onglet » ; menu « Aide » (bas de la barre
+  (modele `lib/aide/types.ts`, registre `lib/aide/index.ts`). INTERCALAIRE (`LanguetteAide`) : languette « ? » au
+  bord droit, sous la barre du haut (dans la marge de page), qui fait coulisser un panneau SUPERPOSE SOUS la barre du
+  haut (zone profil jamais recouverte ; jamais pousse :
+  aucun ecran ne perd de largeur) et le range ; 3 pulsations a la 1re ouverture de l'ecran dans la session ;
+  « Ouvrir dans un onglet » ; menu « Aide » (bas de la barre
   laterale, tout le personnel, pas le parent) avec recherche et « Guide PDF ». Contenu filtre par role (`admin` =
   `direction`, jamais nomme). Noms de boutons entre « ... ». **Un ecran modifie = sa procedure relue dans le meme
   commit.** Test `lib/aide/index.test.ts` (ecrans existants, roles, ni tiret long ni « (s) »).
@@ -435,8 +438,9 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      (onglets Remplacements et Cahier de texte, visibles apres un archivage). Le parcours complet (archivage, carte
      de purge grisee avec la liste des manques, re-archivage) attend une vraie fin d'annee ou une ecole d'essai.
    - **A TESTER (02/11) · Aide integree** (cadre + procedure Reglements, A VALIDER avant les autres lots) : Reglements en
-     direction puis comptable : icone « ? », tiroir (ecran derriere inchange, Echap, telephone plein ecran, theme
-     sombre), « Ouvrir dans un onglet » ; menu « Aide » (recherche, « Guide PDF ») ; enseignant : pas d'icone sur les
+     direction puis comptable : languette « ? » au bord droit (pulsations a la 1re visite de la session seulement),
+     panneau qui coulisse et se range (ecran derriere inchange, Echap, telephone plein ecran, theme sombre),
+     « Ouvrir dans un onglet » ; menu « Aide » (recherche, « Guide PDF ») ; enseignant : pas de languette sur les
      ecrans sans procedure, Aide vide. Lots suivants : 1 (Financements, Passage d'annee, Absences enseignants,
      Messagerie), 2 (quotidien), 3 (reste).
    - **A TESTER (02/11) · Matiere du cahier de texte et passe valeurs en dur** : seance et devoir dans une classe a

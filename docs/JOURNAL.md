@@ -10231,3 +10231,11 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Premiere procedure : Reglements (9 taches, relue contre `FinancementsClient`, `PaymentModal`, `ImpayesAnterieurs`).
   A valider par l'utilisateur avant les lots suivants. Console editeur : pas d'aide (decision).
 - Bilan : type-check 0, lint 0, 205 tests, build OK.
+
+- Revu le meme jour a la demande de l'utilisateur : l'icone « ? » de la barre du haut devient un INTERCALAIRE.
+  Languette « ? » au bord droit de la page, sous la zone profil, a la hauteur de la premiere ligne (`top-[81px]` =
+  barre 61 px + marge 20 px), logee dans la marge droite (24 px sur ordinateur, 16 px en dessous de 1024 px). Le
+  panneau coulisse de droite a gauche, languette accrochee a son bord ; second clic = rangement. Panneau `inert`
+  une fois range. Signal : 3 pulsations (`.languette-signal`, halo `--brand-focus`) la premiere fois qu'un ecran est
+  ouvert dans la session (`sessionStorage`), coupe par `prefers-reduced-motion`. Icone seule, masquee sans procedure.
+  Le panneau commence sous la barre du haut (`top-[61px]`) : la zone profil n'est jamais recouverte.
