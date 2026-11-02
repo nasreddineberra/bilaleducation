@@ -30,6 +30,12 @@ test('procedure de la page selon le role', () => {
   assert.equal(procedureDeLaPage('/dashboard/financements/reglements', 'enseignant'), null)
   assert.equal(procedureParSlug('reglements', 'secretaire'), null)
   assert.equal(procedureDeLaPage('/dashboard/inconnu', 'direction'), null)
+  // Fiche d'une absence (prefixe) et taches de gestion retirees en lecture seule.
+  assert.equal(procedureDeLaPage('/dashboard/absences-enseignants/abc', 'enseignant')?.slug, 'absences-enseignants')
+  const lecture = procedureParSlug('absences-enseignants', 'enseignant')!
+  const gestion = procedureParSlug('absences-enseignants', 'secretaire')!
+  assert.ok(lecture.taches.length < gestion.taches.length)
+  assert.ok(!lecture.taches.some(x => x.titre === 'Déclarer une absence'))
 })
 
 test('recherche sans accents, tous les mots', () => {
@@ -55,7 +61,7 @@ test('chaque procedure est bien formee', () => {
     assert.ok((ORDRE_MODULES as readonly string[]).includes(p.module), `${p.slug} : module inconnu ${p.module}`)
     assert.ok(p.roles.length > 0 && p.roles.every(r => ROLES.includes(r)), `${p.slug} : roles`)
     assert.ok(p.taches.length > 0, `${p.slug} : aucune tache`)
-    for (const l of [...(p.taches), ...(p.regles ?? []), ...(p.grise ?? []), ...(p.faq ?? []), ...(p.droits ?? [])]) {
+    for (const l of [...(p.taches), ...(p.regles ?? []), ...(p.grise ?? []), ...(p.faq ?? [])]) {
       for (const r of l.roles ?? []) assert.ok(p.roles.includes(r), `${p.slug} : role ${r} hors procedure`)
     }
     for (const s of p.voirAussi ?? []) assert.ok(PROCEDURES.some(x => x.slug === s), `${p.slug} : voir aussi ${s} inconnu`)

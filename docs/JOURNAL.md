@@ -10226,8 +10226,9 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   sans accents, « Guide PDF » (procedures du role, sommaire, pagination). La fin d'abonnement reste reservee a
   admin / direction (le bloc du bas s'affiche desormais pour tout le personnel).
 - Contenu en TypeScript type (`lib/aide/types.ts`) plutot qu'en Markdown : filtrage par role element par element,
-  meme source pour l'ecran, la recherche et le PDF, aucune dependance. Gabarit : a quoi sert l'ecran, qui peut faire
-  quoi, pas a pas, regles, bouton grise ou absent, questions frequentes, voir aussi.
+  meme source pour l'ecran, la recherche et le PDF, aucune dependance. Gabarit : a quoi sert l'ecran, pas a pas,
+  regles, bouton grise ou absent, questions frequentes, voir aussi. Rubrique « Qui peut faire quoi » RETIREE a la
+  relecture de l'utilisateur : qui accede a l'ecran y a droit (le filtrage par role retire le reste).
 - Premiere procedure : Reglements (9 taches, relue contre `FinancementsClient`, `PaymentModal`, `ImpayesAnterieurs`).
   A valider par l'utilisateur avant les lots suivants. Console editeur : pas d'aide (decision).
 - Bilan : type-check 0, lint 0, 205 tests, build OK.
@@ -10243,3 +10244,9 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   ne pas etre comprimee contre le bord) ; chevron au-dessus du « ? » (‹ rangee, › depliee) ; couleur : vert de marque
   rangee, orange dore `amber-500` + encre `secondary-800` depliee (couleur vive voulue par l'utilisateur ; l'orange
   sert ici d'ETAT, pas d'avertissement).
+- Lot 1 ecrit (8 procedures au total) : Situation financiere, Statistiques sur reglements, Bilans annuels
+  (`financements.ts`), Cotisations et taux, Audits & Passage d'annee (purge comprise, depuis la fiche de l'annee),
+  Absences enseignants (liste + fiches `/*` ; taches de gestion reservees a direction / resp. pedago / secretaire,
+  lecture seule pour enseignant et comptable), Etablissement et messagerie. Chaque procedure relue contre son ecran
+  (libelles des boutons et champs releves dans le code). Test : fiche d'absence couverte par prefixe, taches de
+  gestion absentes de la version enseignant.

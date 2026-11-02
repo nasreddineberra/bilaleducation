@@ -437,12 +437,14 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      chiffres = Situation financiere, PDF, Excel 6 feuilles) en direction puis en comptable ; Historique des classes
      (onglets Remplacements et Cahier de texte, visibles apres un archivage). Le parcours complet (archivage, carte
      de purge grisee avec la liste des manques, re-archivage) attend une vraie fin d'annee ou une ecole d'essai.
-   - **A TESTER (02/11) · Aide integree** (cadre + procedure Reglements, A VALIDER avant les autres lots) : Reglements en
+   - **A TESTER (02/11) · Aide integree** (cadre + procedure Reglements, contenu VALIDE le 02/11 ; plus de rubrique
+     « Qui peut faire quoi ») : Reglements en
      direction puis comptable : languette « ? » au bord droit (pulsations a la 1re visite de la session seulement),
      panneau qui coulisse et se range (ecran derriere inchange, Echap, telephone plein ecran, theme sombre),
      « Ouvrir dans un onglet » ; menu « Aide » (recherche, « Guide PDF ») ; enseignant : pas de languette sur les
-     ecrans sans procedure, Aide vide. Lots suivants : 1 (Financements, Passage d'annee, Absences enseignants,
-     Messagerie), 2 (quotidien), 3 (reste).
+     ecrans sans procedure. Lot 1 ECRIT le 02/11 (Situation financiere, Statistiques, Bilans annuels, Cotisations,
+     Audits & Passage d'annee, Absences enseignants, Etablissement et messagerie) : a relire. Restent les lots 2
+     (quotidien : apprenants, parents, affectations, appel, cahier de texte, EDT, temps de presence) et 3 (reste).
    - **A TESTER (02/11) · Matiere du cahier de texte et passe valeurs en dur** : seance et devoir dans une classe a
      une matiere (champ verrouille sur elle), a plusieurs (choix ; changer la date de la seance change la
      proposition), sans matiere (« Général ») ; modifier une ancienne seance « Général » ; pastille de matiere dans

@@ -36,14 +36,6 @@ export default function ContenuProcedure({ procedure: p, compact = false }: { pr
         <p className="text-xs text-warm-700">Menu : {p.acces}</p>
       </div>
 
-      {p.droits && p.droits.length > 0 && (
-        <Section titre="Qui peut faire quoi">
-          <ul className="list-disc pl-5 space-y-1">
-            {p.droits.map((d, i) => <li key={i}><Texte>{d.texte}</Texte></li>)}
-          </ul>
-        </Section>
-      )}
-
       <Section titre="Pas à pas">
         <div className="space-y-4">
           {p.taches.map((t, i) => (

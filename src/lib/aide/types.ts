@@ -2,15 +2,17 @@
  * AIDE INTEGREE (02/11) : modele d'une procedure utilisateur.
  *
  * Une procedure decrit UN ecran (ou un groupe d'ecrans) pour les ecoles : a quoi
- * il sert, qui peut faire quoi, les taches pas a pas, les regles, pourquoi un
+ * il sert, les taches pas a pas, les regles, pourquoi un
  * bouton est grise, les questions frequentes. Le contenu vit dans le depot
  * (`lib/aide/procedures/`), relu et mis a jour dans le MEME commit que l'ecran.
  *
  * Ecriture : le nom exact d'un bouton, d'un champ ou d'un onglet s'ecrit entre
  * guillemets « ... » (mis en valeur a l'ecran). Ni tiret long, ni « (s) ».
  *
- * Droits : `admin` a partout les droits de `direction` ; il n'est donc jamais
- * nomme dans le contenu (voir `concerne`). Le parent et l'editeur n'ont pas
+ * Pas de rubrique « qui peut faire quoi » (decision du 02/11) : qui accede a
+ * l'ecran y a droit ; ce qu'un role ne peut pas faire est simplement retire de
+ * SA procedure (`roles` d'une tache, d'une regle...). `admin` a partout les
+ * droits de `direction` ; il n'est donc jamais nomme dans le contenu (voir `concerne`). Le parent et l'editeur n'ont pas
  * d'aide en V1.
  */
 import type { UserRole } from '@/types/database'
@@ -40,7 +42,6 @@ export interface Procedure {
   resume: string
   /** Ou le trouver dans le menu (« Gestion · Financements · Règlements »). */
   acces: string
-  droits?: (Pour & { texte: string })[]
   taches: Tache[]
   regles?: (Pour & { texte: string })[]
   grise?: (Pour & { element: string; raison: string; solution: string })[]

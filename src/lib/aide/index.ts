@@ -5,12 +5,24 @@
  */
 import type { Procedure, RoleAide } from './types.ts'
 import { reglements } from './procedures/reglements.ts'
+import { situationFinanciere, statistiquesReglements, bilansAnnuels } from './procedures/financements.ts'
+import { cotisations } from './procedures/cotisations.ts'
+import { passageAnnee } from './procedures/passage-annee.ts'
+import { absencesEnseignants } from './procedures/absences-enseignants.ts'
+import { etablissement } from './procedures/etablissement.ts'
 
 /** Ordre des modules dans le menu Aide : celui de la barre de navigation. */
 export const ORDRE_MODULES = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Clôture', 'Paramètres'] as const
 
 export const PROCEDURES: Procedure[] = [
   reglements,
+  situationFinanciere,
+  statistiquesReglements,
+  bilansAnnuels,
+  cotisations,
+  passageAnnee,
+  absencesEnseignants,
+  etablissement,
 ]
 
 /** `admin` a les droits de `direction` partout (regle du projet). */
@@ -31,7 +43,6 @@ export function procedurePour(p: Procedure, role: string | null | undefined): Pr
   const garder = <T extends { roles?: RoleAide[] }>(l?: T[]) => l?.filter(x => concerne(x.roles, role))
   return {
     ...p,
-    droits: garder(p.droits),
     taches: garder(p.taches) ?? [],
     regles: garder(p.regles),
     grise: garder(p.grise),
@@ -76,7 +87,6 @@ export function normaliser(s: string): string {
 export function texteProcedure(p: Procedure): string {
   return [
     p.titre, p.module, p.resume, p.acces,
-    ...(p.droits ?? []).map(d => d.texte),
     ...p.taches.flatMap(t => [t.titre, ...t.etapes, ...(t.aSavoir ?? [])]),
     ...(p.regles ?? []).map(r => r.texte),
     ...(p.grise ?? []).flatMap(g => [g.element, g.raison, g.solution]),

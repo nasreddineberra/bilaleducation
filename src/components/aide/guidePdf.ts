@@ -46,10 +46,6 @@ export async function genererGuidePdf(procedures: Procedure[], etablissement: st
     ecrire(`Menu : ${p.acces}`, { taille: 8.5, couleur: DOUX, apres: 3 })
     ecrire(p.resume, { apres: 3 })
 
-    if (p.droits?.length) {
-      titreSection('Qui peut faire quoi')
-      for (const d of p.droits) ecrire(`•  ${d.texte}`, { retrait: 2 })
-    }
     titreSection('Pas à pas')
     for (const t of p.taches) {
       place(14)

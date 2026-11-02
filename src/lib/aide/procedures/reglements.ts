@@ -13,10 +13,6 @@ export const reglements: Procedure = {
     "Suivre le règlement des cotisations de chaque famille pour l'année en cours : ce qu'elle doit, ce qu'elle a payé, ce qui reste. "
     + "On y enregistre les paiements, les réductions, les relances et les attestations.",
 
-  droits: [
-    { texte: 'La direction et la comptabilité ont accès à tout l’écran, y compris la suppression des lignes du journal « Communication comptable ».' },
-  ],
-
   taches: [
     {
       titre: 'Trouver une famille',
