@@ -10239,3 +10239,7 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   une fois range. Signal : 3 pulsations (`.languette-signal`, halo `--brand-focus`) la premiere fois qu'un ecran est
   ouvert dans la session (`sessionStorage`), coupe par `prefers-reduced-motion`. Icone seule, masquee sans procedure.
   Le panneau commence sous la barre du haut (`top-[61px]`) : la zone profil n'est jamais recouverte.
+- Retouches : infobulle de la languette a GAUCHE (nouvelle position `left` de `Tooltip`, ancree par la droite pour
+  ne pas etre comprimee contre le bord) ; chevron au-dessus du « ? » (‹ rangee, › depliee) ; couleur : vert de marque
+  rangee, orange dore `amber-500` + encre `secondary-800` depliee (couleur vive voulue par l'utilisateur ; l'orange
+  sert ici d'ETAT, pas d'avertissement).

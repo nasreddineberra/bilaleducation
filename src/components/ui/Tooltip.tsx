@@ -9,8 +9,10 @@ interface TooltipProps {
   content:   React.ReactNode
   /** Position du tooltip par rapport au déclencheur (défaut : 'top').
    *  'bottom' : indispensable pour les contrôles collés en haut de page (header),
-   *  où une bulle au-dessus sortirait de la fenêtre. */
-  position?: 'top' | 'top-right' | 'bottom'
+   *  où une bulle au-dessus sortirait de la fenêtre.
+   *  'left' : pour un contrôle collé au bord DROIT (languette de l'aide), où une
+   *  bulle centrée serait écrasée contre le bord et passerait à la ligne. */
+  position?: 'top' | 'top-right' | 'bottom' | 'left'
   /** Largeur max du tooltip (défaut : 'max-w-xs') */
   maxWidth?: string
   /** Classes ajoutées au wrapper déclencheur (ex. flex-1 min-w-0 pour un libellé tronqué) */
@@ -19,13 +21,17 @@ interface TooltipProps {
 
 export default function Tooltip({ children, content, position = 'top', maxWidth = 'max-w-xs', className }: TooltipProps) {
   const triggerRef = useRef<HTMLSpanElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  // `right` (position 'left') : ancrée par la DROITE, la bulle prend sa largeur
+  // vers la gauche ; ancrée par `left` près du bord, elle serait comprimée.
+  const [pos, setPos] = useState<{ top: number; left?: number; right?: number } | null>(null)
 
   const show = useCallback(() => {
     const el = triggerRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    if (position === 'top-right') {
+    if (position === 'left') {
+      setPos({ top: r.top + r.height / 2, right: window.innerWidth - r.left + 8 })
+    } else if (position === 'top-right') {
       setPos({ top: r.top - 8, left: r.right + r.width / 2 })
     } else if (position === 'bottom') {
       setPos({ top: r.bottom + 8, left: r.left + r.width / 2 })
@@ -77,12 +83,13 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed z-[10050] pointer-events-none"
+          className={`fixed z-[10050] pointer-events-none${position === 'left' ? ' flex items-center' : ''}`}
           style={{
-            top:  pos.top,
-            left: pos.left,
-            transform: position === 'bottom'
-              ? 'translate(-50%, 0)'
+            top:   pos.top,
+            left:  pos.left,
+            right: pos.right,
+            transform: position === 'left' ? 'translateY(-50%)'
+              : position === 'bottom' ? 'translate(-50%, 0)'
               : position === 'top-right' ? 'translate(-100%, -100%)' : 'translate(-50%, -100%)',
           }}
         >
@@ -98,7 +105,14 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
           <div className={`bg-[var(--brand-surface)] text-white rounded-xl shadow-xl px-3 py-2 text-xs leading-relaxed dark:border dark:border-[var(--brand-accent)] ${maxWidth}`}>
             {content}
           </div>
-          {position !== 'bottom' && (
+          {/* Flèche à droite, pointée vers le déclencheur, quand la bulle est à sa gauche. */}
+          {position === 'left' && (
+            <span className="relative w-[5px] h-[12px] -ml-px flex-shrink-0">
+              <span className="hidden dark:block absolute left-0 top-1/2 -translate-y-1/2 border-y-[6px] border-l-[6px] border-y-transparent border-l-[var(--brand-accent)]" />
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 border-y-[5px] border-l-[5px] border-y-transparent border-l-[var(--brand-surface)]" />
+            </span>
+          )}
+          {(position === 'top' || position === 'top-right') && (
             <div className="relative h-[5px] -mt-px">
               <span className={`hidden dark:block absolute top-0 border-x-[6px] border-t-[6px] border-x-transparent border-t-[var(--brand-accent)] ${position === 'top-right' ? 'right-2' : 'left-1/2 -translate-x-1/2'}`} />
               <span className={`absolute top-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-[var(--brand-surface)] ${position === 'top-right' ? 'right-2' : 'left-1/2 -translate-x-1/2'}`} />

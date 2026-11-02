@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { CircleHelp, ExternalLink, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleHelp, ExternalLink, X } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
 import { procedureDeLaPage } from '@/lib/aide'
 import ContenuProcedure from './ContenuProcedure'
@@ -84,7 +84,7 @@ export default function LanguetteAide({ role }: { role: string | null | undefine
       {/* Languette : accrochee au bord GAUCHE du panneau, elle depasse dans la
           page quand il est range. 16 px sous 1024 px (marge de page plus
           etroite), 24 px au-dela. */}
-      <Tooltip content={libelle} position="bottom" className={clsx('absolute right-full', HAUT_LANGUETTE)}>
+      <Tooltip content={<span className="whitespace-nowrap">{libelle}</span>} position="left" maxWidth="max-w-none" className={clsx('absolute right-full', HAUT_LANGUETTE)}>
         <button
           ref={languette}
           type="button"
@@ -94,12 +94,20 @@ export default function LanguetteAide({ role }: { role: string | null | undefine
           aria-expanded={ouvert}
           aria-controls={panneauId}
           className={clsx(
-            'flex items-center justify-center w-4 lg:w-6 h-10 rounded-l-lg shadow-md outline-none',
-            'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]',
+            'flex flex-col items-center justify-center gap-0.5 w-4 lg:w-6 h-14 rounded-l-lg shadow-md outline-none transition-colors',
+            // Rangee : vert de marque. Deroulee : orange dore de la charte, vif, pour
+            // se reperer d'un coup d'oeil ; encre foncee dessus (contraste).
+            ouvert
+              ? 'bg-amber-500 text-secondary-800'
+              : 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]',
             'focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
             signal && 'languette-signal',
           )}
         >
+          {/* Chevron : le sens du geste (tirer vers la gauche, repousser vers la droite). */}
+          {ouvert
+            ? <ChevronRight className="w-3 h-3 lg:w-3.5 lg:h-3.5" aria-hidden="true" />
+            : <ChevronLeft className="w-3 h-3 lg:w-3.5 lg:h-3.5" aria-hidden="true" />}
           <CircleHelp className="w-3.5 h-3.5 lg:w-4 lg:h-4" aria-hidden="true" />
         </button>
       </Tooltip>
