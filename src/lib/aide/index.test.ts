@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
-  PROCEDURES, ORDRE_MODULES, concerne, couvre, procedureDeLaPage, procedureParSlug,
+  PROCEDURES, ORDRE_MODULES, concerne, couvre, procedureDeLaPage, procedureParSlug, presentationParModule,
   proceduresDuRole, rechercher, segments, texteProcedure,
 } from './index.ts'
 
@@ -36,6 +36,16 @@ test('procedure de la page selon le role', () => {
   const gestion = procedureParSlug('absences-enseignants', 'secretaire')!
   assert.ok(lecture.taches.length < gestion.taches.length)
   assert.ok(!lecture.taches.some(x => x.titre === 'Déclarer une absence'))
+})
+
+test('mise en route en tete, presentation complete', () => {
+  assert.equal(proceduresDuRole('direction')[0].slug, 'mise-en-route')
+  assert.equal(proceduresDuRole('enseignant').some(p => p.slug === 'mise-en-route'), false)
+  const n = presentationParModule().reduce((t, m) => t + m.fonctionnalites.length, 0)
+  assert.equal(n, PROCEDURES.length - 1)
+  // La fiche d'un message est couverte par « Messages envoyes », pas l'ecriture.
+  assert.equal(procedureDeLaPage('/dashboard/communications/new', 'direction')?.slug, 'message-parents')
+  assert.equal(procedureDeLaPage('/dashboard/communications/abc', 'direction')?.slug, 'messages-envoyes')
 })
 
 test('recherche sans accents, tous les mots', () => {

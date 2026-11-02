@@ -1,16 +1,23 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { textePdf } from '@/lib/pdf/nombres'
+import { finDuTableau } from '@/lib/pdf/tableau'
+import { libelleRole } from '@/lib/auth/role-labels'
+import { presentationParModule, ROLES_PRESENTATION } from '@/lib/aide'
 import type { Procedure } from '@/lib/aide/types'
 
-// Guide d'utilisation en PDF (02/11) : les procedures LISIBLES par le role qui
-// l'edite, dans l'ordre du menu Aide. Meme contenu que l'ecran, en texte simple
-// (les « ... » des noms de boutons restent des guillemets).
+// Guide d'utilisation en PDF (02/11) : page de garde et sommaire, PRESENTATION
+// de l'application (chaque fonctionnalite et les roles qui y accedent, pour tout
+// lecteur), puis les procedures LISIBLES par le role qui l'edite, dans l'ordre du
+// menu Aide (la mise en route de la direction en tete). Meme contenu que l'ecran,
+// en texte simple (les « ... » des noms de boutons restent des guillemets).
 
 const ENCRE: [number, number, number] = [31, 46, 53]
 const DOUX:  [number, number, number] = [110, 110, 110]
 
 export async function genererGuidePdf(procedures: Procedure[], etablissement: string): Promise<JsPDFType> {
   const { default: jsPDF } = await import('jspdf')
+  await import('jspdf-autotable')
   const doc: JsPDFType = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
   const largeur = doc.internal.pageSize.getWidth()
   const hauteur = doc.internal.pageSize.getHeight()
@@ -38,7 +45,32 @@ export async function genererGuidePdf(procedures: Procedure[], etablissement: st
   ecrire(etablissement, { taille: 12, couleur: DOUX, apres: 2 })
   ecrire(`Édité le ${new Date().toLocaleDateString('fr-FR')}`, { taille: 9, couleur: DOUX, apres: 10 })
   ecrire('Sommaire', { taille: 11, gras: true, apres: 2 })
+  ecrire('Présentation de l’application', { taille: 10, retrait: 2, apres: 0.8 })
   for (const p of procedures) ecrire(`${p.module} · ${p.titre}`, { taille: 10, retrait: 2, apres: 0.8 })
+
+  // Presentation : toutes les fonctionnalites, quel que soit le lecteur, avec les
+  // roles qui y accedent (un point = acces).
+  doc.addPage(); y = marge
+  ecrire('Présentation de l’application', { taille: 16, gras: true, apres: 2 })
+  ecrire('Chaque fonctionnalité, rangée comme dans le menu, avec ce à quoi elle sert et les rôles qui y ont accès (•). '
+    + 'L’administrateur a partout les droits de la direction. Les familles n’ont pas encore de compte.', { apres: 3 })
+  const colonnesRoles = Object.fromEntries(ROLES_PRESENTATION.map((_, i) => [i + 2, { halign: 'center' as const, cellWidth: 16 }]))
+  for (const m of presentationParModule()) {
+    titreSection(m.module)
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marge, right: marge },
+      head: [['Fonctionnalité', 'À quoi elle sert', ...ROLES_PRESENTATION.map(r => libelleRole(r, 'court'))]],
+      body: m.fonctionnalites.map(f => [
+        textePdf(f.titre), textePdf(f.resume), ...ROLES_PRESENTATION.map(r => (f.roles.includes(r) ? '•' : '')),
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 1.4, textColor: ENCRE, valign: 'middle' },
+      headStyles: { fillColor: [240, 245, 248], textColor: ENCRE, fontStyle: 'bold', fontSize: 7 },
+      columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold' }, ...colonnesRoles },
+    })
+    y = finDuTableau(doc) + 4
+  }
 
   for (const p of procedures) {
     doc.addPage(); y = marge

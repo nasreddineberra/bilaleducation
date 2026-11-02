@@ -151,7 +151,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   « Ouvrir dans un onglet » ; menu « Aide » (bas de la barre
   laterale, tout le personnel, pas le parent) avec recherche et « Guide PDF ». Contenu filtre par role (`admin` =
   `direction`, jamais nomme). Noms de boutons entre « ... ». **Un ecran modifie = sa procedure relue dans le meme
-  commit.** Test `lib/aide/index.test.ts` (ecrans existants, roles, ni tiret long ni « (s) »).
+  commit.** Test `lib/aide/index.test.ts` (ecrans existants, roles, ni tiret long ni « (s) »). Guide PDF : presentation
+  des fonctionnalites par role (`presentationParModule`, tiree des procedures) puis « Mise en route » (direction).
+  Un ordre de parametrage qui change = `procedures/mise-en-route.ts` relu.
 - **Passage d'annee** (admin/direction) : 6 audits relancables, cloture apres la date de fin sans
   anomalie bloquante, archivage, purge (seul point de non-retour). Etat porte par `school_years`
   (`closed_at`, `archived_at`, `purged_at`). L'archivage fige aussi le bilan financier, les remplacements
@@ -444,8 +446,10 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      « Ouvrir dans un onglet » ; menu « Aide » (recherche, « Guide PDF ») ; enseignant : pas de languette sur les
      ecrans sans procedure. Lot 1 ECRIT le 02/11 (Situation financiere, Statistiques, Bilans annuels, Cotisations,
      Audits & Passage d'annee, Absences enseignants, Etablissement et messagerie) ; lot 2 ECRIT le 02/11 (Apprenants,
-     Parents, Affectations, Feuille d'appel, Cahier de texte, Emploi du temps, Temps de presence) : a relire. Reste
-     le lot 3 (notes, gabarits, bulletins, communications, importation, parametres, mon compte, classes archivees).
+     Parents, Affectations, Feuille d'appel, Cahier de texte, Emploi du temps, Temps de presence) ; lot 3 ECRIT le 02/11
+     (33 procedures : tous les ecrans du personnel + « Mise en route de l'etablissement », ordre du parametrage pour la
+     direction). Guide PDF : presentation des fonctionnalites par role (tableau) en tete, puis la mise en route. A
+     relire, et a verifier a l'ecran (le PDF n'a pu etre controle visuellement).
    - **A TESTER (02/11) · Matiere du cahier de texte et passe valeurs en dur** : seance et devoir dans une classe a
      une matiere (champ verrouille sur elle), a plusieurs (choix ; changer la date de la seance change la
      proposition), sans matiere (« Général ») ; modifier une ancienne seance « Général » ; pastille de matiere dans

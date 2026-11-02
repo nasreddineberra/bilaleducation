@@ -10256,3 +10256,14 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   le glisser-deposer, desactive, n'est pas decrit), Temps de presence (saisie direction / secretaire / resp. pedago,
   couts selon le role). Releve : la liste des apprenants montre a l'enseignant « Ajouter » et « Mettre a jour les
   statuts », que la RLS lui refuse (non corrige, signale).
+- Lot 3 ecrit (33 procedures, tous les ecrans du personnel) : Tableau de bord, Notifications, Mon compte, Support,
+  Importation, Gabarits, Saisie des notes, Bulletins, Classes archivees, Message aux parents, Message a l'equipe,
+  Messages envoyes (le `/*` couvre la fiche d'un message ; ecriture placee AVANT dans le registre), Annees scolaires,
+  Utilisateurs, Enseignants, Classes, Referentiel des cours, Types de presence, Ressources, Journal d'activite.
+- Demande de l'utilisateur : le guide complet presente d'abord l'application et l'ordre de parametrage. Ajoute :
+  « Mise en route de l'etablissement » (direction, 10 etapes dans l'ordre impose par les dependances : etablissement
+  et messagerie, annee, salles, types de presence et cotisations, referentiel, equipe, classes, familles,
+  affectations, puis chacun dans son role), en tete du menu Aide et du guide ; page « Presentation de l'application »
+  du guide PDF : un tableau par module (fonctionnalite, a quoi elle sert, roles qui y accedent), tire des procedures
+  (`presentationParModule`), pour tout lecteur. Guide genere hors navigateur pour chaque role (direction 49 pages)
+  sans erreur ; rendu visuel non controle (aucun outil de rendu PDF sur le poste).

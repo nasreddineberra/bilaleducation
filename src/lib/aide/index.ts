@@ -12,11 +12,31 @@ import { absencesEnseignants } from './procedures/absences-enseignants.ts'
 import { etablissement } from './procedures/etablissement.ts'
 import { apprenants, parents, affectations } from './procedures/vie-scolaire.ts'
 import { feuilleAppel, cahierTexte, emploiDuTemps, tempsPresence } from './procedures/pedagogie.ts'
+import {
+  anneesScolaires, utilisateurs, enseignants, classes, referentielCours, typesPresence, ressources, journalActivite,
+} from './procedures/parametres.ts'
+import { gabaritsEvaluations, saisieNotes, bulletins } from './procedures/evaluations.ts'
+import {
+  tableauDeBord, notifications, messageParents, messageEquipe, messagesEnvoyes, monCompte, support, importation,
+  classesArchivees,
+} from './procedures/general.ts'
+import { miseEnRoute } from './procedures/mise-en-route.ts'
 
 /** Ordre des modules dans le menu Aide : celui de la barre de navigation. */
 export const ORDRE_MODULES = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Clôture', 'Paramètres'] as const
 
+/** Procedure de demarrage de la direction : en tete du menu Aide et du guide. */
+export const SLUG_MISE_EN_ROUTE = 'mise-en-route'
+
+// La PREMIERE procedure qui couvre une page l'emporte : `messageParents` et
+// `messageEquipe` restent AVANT `messagesEnvoyes`, dont le `/*` couvre aussi
+// leurs adresses.
 export const PROCEDURES: Procedure[] = [
+  miseEnRoute,
+  tableauDeBord,
+  notifications,
+  monCompte,
+  support,
   reglements,
   situationFinanciere,
   statistiquesReglements,
@@ -32,6 +52,22 @@ export const PROCEDURES: Procedure[] = [
   cahierTexte,
   emploiDuTemps,
   tempsPresence,
+  importation,
+  gabaritsEvaluations,
+  saisieNotes,
+  bulletins,
+  classesArchivees,
+  messageParents,
+  messageEquipe,
+  messagesEnvoyes,
+  anneesScolaires,
+  utilisateurs,
+  enseignants,
+  classes,
+  referentielCours,
+  typesPresence,
+  ressources,
+  journalActivite,
 ]
 
 /** `admin` a les droits de `direction` partout (regle du projet). */
@@ -81,10 +117,31 @@ export function proceduresDuRole(role: string | null | undefined): Procedure[] {
     const i = (ORDRE_MODULES as readonly string[]).indexOf(m)
     return i < 0 ? ORDRE_MODULES.length : i
   }
+  const premiere = (p: Procedure) => (p.slug === SLUG_MISE_EN_ROUTE ? 0 : 1)
   return PROCEDURES
     .map(p => procedurePour(p, role))
     .filter((p): p is Procedure => !!p)
-    .sort((a, b) => rang(a.module) - rang(b.module) || a.titre.localeCompare(b.titre, 'fr'))
+    .sort((a, b) => premiere(a) - premiere(b) || rang(a.module) - rang(b.module) || a.titre.localeCompare(b.titre, 'fr'))
+}
+
+/** Roles cites dans la presentation des fonctionnalites, dans l'ordre des colonnes. */
+export const ROLES_PRESENTATION: RoleAide[] = ['direction', 'responsable_pedagogique', 'secretaire', 'comptable', 'enseignant']
+
+/**
+ * Presentation de l'application (debut du guide PDF) : chaque fonctionnalite,
+ * par module, avec les roles qui y accedent. Tiree des procedures (une
+ * fonctionnalite = un ecran decrit), donc sans liste a tenir a part.
+ */
+export function presentationParModule(): { module: string; fonctionnalites: { titre: string; resume: string; roles: RoleAide[] }[] }[] {
+  return ORDRE_MODULES
+    .map(module => ({
+      module,
+      fonctionnalites: PROCEDURES
+        .filter(p => p.module === module && p.slug !== SLUG_MISE_EN_ROUTE)
+        .sort((a, b) => a.titre.localeCompare(b.titre, 'fr'))
+        .map(p => ({ titre: p.titre, resume: p.resume, roles: p.roles })),
+    }))
+    .filter(m => m.fonctionnalites.length > 0)
 }
 
 /** Minuscules sans accents, pour une recherche tolerante. */
