@@ -2,6 +2,7 @@ import type { jsPDF as JsPDFType } from 'jspdf'
 import { FUSEAU } from '@/lib/dates'
 import autoTable from 'jspdf-autotable'
 import { afficherPdf } from '@/lib/pdf/ouvrir'
+import { eurosPdf } from '@/lib/pdf/nombres'
 
 // ─── Couleurs (alignees sur bulletinPdf) ─────────────────────────────────────
 const COLORS = {
@@ -42,9 +43,6 @@ function fmtDuration(mins: number): string {
   return m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`
 }
 
-function fmtEur(n: number): string {
-  return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-}
 
 
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -118,7 +116,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput, onglet: Win
       for (const c of rated) {
         const rgb = c.color ? hexToRgb(c.color) : null
         doc.setTextColor(...(rgb ?? COLORS.gray))
-        doc.text(`${c.label} : ${fmtEur(c.rate)}/h`, rightX, ry, { align: 'right' })
+        doc.text(`${c.label} : ${eurosPdf(c.rate)}/h`, rightX, ry, { align: 'right' })
         ry += 4
       }
       headerBottom = Math.max(headerBottom, ry)
@@ -144,7 +142,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput, onglet: Win
     }),
     r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·',
     r.absenceMinutes > 0 ? fmtDuration(r.absenceMinutes) : '·',
-    ...(input.showCosts ? [fmtEur(r.cost)] : []),
+    ...(input.showCosts ? [eurosPdf(r.cost)] : []),
   ])
 
   const foot = [[
@@ -155,7 +153,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput, onglet: Win
     }),
     input.totals.workedMinutes > 0 ? fmtDuration(input.totals.workedMinutes) : '·',
     input.totals.absenceMinutes > 0 ? fmtDuration(input.totals.absenceMinutes) : '·',
-    ...(input.showCosts ? [fmtEur(input.totals.cost)] : []),
+    ...(input.showCosts ? [eurosPdf(input.totals.cost)] : []),
   ]]
 
   const lastCol = head[0].length - 1

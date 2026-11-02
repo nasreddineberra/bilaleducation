@@ -10181,3 +10181,14 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - `lib/financements/libelles.ts` : moyens de paiement (3 copies retirees) et types d'ajustement.
 - Limite connue : une decision d'absence RETIREE apres l'archivage ne se voit que par le releve (nombre), pas par
   une date.
+
+## 02/11 · PDF : montants de 1 000 € et plus mal affiches
+
+- Capture du bilan PDF de l'utilisateur : « 7 /990,00 € », cellules debordees. Cause : `toLocaleString('fr-FR')`
+  separe les milliers par U+202F et colle « € » par U+00A0 ; Helvetica (police standard de jsPDF) n'a pas ces
+  glyphes. Meme defaut latent dans l'attestation de paiement et le PDF du Temps de presence (jamais vu : montants
+  inferieurs a 1 000 €).
+- `lib/pdf/nombres.ts` (source unique : `eurosPdf`, `nombrePdf`, `textePdf`) dans les 3 PDF ; test (le format brut
+  contient bien U+202F, verifie). Montant, mois et libelle de cotisation d'ecran dans `lib/financements/libelles.ts`.
+- « ADULTES (adultes) » : la mention n'est ajoutee que si le libelle ne dit pas deja « adulte » (`libelleCotisation`).
+- Bilan : type-check 0, lint 0, 192 tests, build OK.

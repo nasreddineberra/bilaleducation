@@ -1,7 +1,8 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { finDuTableau } from '@/lib/pdf/tableau'
-import { libelleAjustement, libelleMoyen } from '@/lib/financements/libelles'
+import { libelleAjustement, libelleCotisation, libelleMois, libelleMoyen } from '@/lib/financements/libelles'
+import { eurosPdf, nombrePdf, textePdf } from '@/lib/pdf/nombres'
 import type { BilanChiffres } from '@/lib/financements/bilan'
 
 // Bilan financier annuel en PDF, pour la comptabilite (02/11). Memes chiffres que
@@ -25,18 +26,7 @@ export interface BilanPdfInput {
   provisoire:           boolean
 }
 
-export function fmtEuro(n: number): string {
-  return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-/** AAAA-MM -> « septembre 2025 ». */
-export function libelleMois(mois: string): string {
-  const [a, m] = mois.split('-').map(Number)
-  return `${MOIS[m - 1] ?? mois} ${a}`
-}
-
-const heures = (h: number) => `${h.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} h`
+const heures = (h: number) => `${nombrePdf(h)} h`
 
 async function loadImageAsBase64(url: string): Promise<string | null> {
   try {
@@ -72,7 +62,7 @@ export async function genererBilanPdf(input: BilanPdfInput): Promise<JsPDFType> 
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
-  doc.text(input.etablissementNom, margin + logoOffset, y + 7)
+  doc.text(textePdf(input.etablissementNom), margin + logoOffset, y + 7)
   if (input.etablissementAdresse) {
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
@@ -123,47 +113,47 @@ export async function genererBilanPdf(input: BilanPdfInput): Promise<JsPDFType> 
   // ── 1. Synthese ──
   titre('Synthèse')
   tableau(['', 'Montant'], [
-    ['Cotisations encaissées', fmtEuro(b.cotisations.encaisse)],
-    ['Autres revenus', fmtEuro(b.autres_revenus.total)],
-    ['Dépenses', `- ${fmtEuro(b.depenses.total)}`],
-    ['Coût du personnel', `- ${fmtEuro(b.personnel.total)}`],
-  ], [1], ['Résultat', fmtEuro(b.resultat)])
+    ['Cotisations encaissées', eurosPdf(b.cotisations.encaisse)],
+    ['Autres revenus', eurosPdf(b.autres_revenus.total)],
+    ['Dépenses', `- ${eurosPdf(b.depenses.total)}`],
+    ['Coût du personnel', `- ${eurosPdf(b.personnel.total)}`],
+  ], [1], ['Résultat', eurosPdf(b.resultat)])
 
   // ── 2. Cotisations ──
   titre('Cotisations')
   tableau(['Facturé', 'Encaissé', 'Reste dû', 'Trop-perçu', 'Foyers', 'Recouvrement'], [[
-    fmtEuro(b.cotisations.facture), fmtEuro(b.cotisations.encaisse), fmtEuro(b.cotisations.reste_du),
-    fmtEuro(b.cotisations.trop_percu), b.cotisations.foyers, `${b.cotisations.taux} %`,
+    eurosPdf(b.cotisations.facture), eurosPdf(b.cotisations.encaisse), eurosPdf(b.cotisations.reste_du),
+    eurosPdf(b.cotisations.trop_percu), b.cotisations.foyers, `${b.cotisations.taux} %`,
   ]], [0, 1, 2, 3, 4, 5])
   tableau(['Cotisation', 'Inscrits', 'Facturé'],
-    b.cotisations.par_cotisation.map(c => [c.adulte ? `${c.libelle} (adultes)` : c.libelle, c.inscrits, fmtEuro(c.facture)]),
+    b.cotisations.par_cotisation.map(c => [libelleCotisation(c.libelle, c.adulte), c.inscrits, eurosPdf(c.facture)]),
     [1, 2])
   if (b.ajustements.length > 0) {
     tableau(['Ajustement', 'Nombre', 'Montant'],
-      b.ajustements.map(a => [libelleAjustement(a.type), a.nombre, fmtEuro(a.montant)]), [1, 2])
+      b.ajustements.map(a => [libelleAjustement(a.type), a.nombre, eurosPdf(a.montant)]), [1, 2])
   }
 
   // ── 3. Encaissements ──
   titre('Encaissements')
-  tableau(['Mois', 'Encaissé'], b.encaissements.par_mois.map(m => [libelleMois(m.mois), fmtEuro(m.montant)]), [1])
-  tableau(['Moyen de paiement', 'Encaissé'], b.encaissements.par_moyen.map(m => [libelleMoyen(m.moyen), fmtEuro(m.montant)]), [1])
+  tableau(['Mois', 'Encaissé'], b.encaissements.par_mois.map(m => [libelleMois(m.mois), eurosPdf(m.montant)]), [1])
+  tableau(['Moyen de paiement', 'Encaissé'], b.encaissements.par_moyen.map(m => [libelleMoyen(m.moyen), eurosPdf(m.montant)]), [1])
 
   // ── 4. Autres revenus et depenses ──
   titre('Autres revenus')
-  tableau(['Source', 'Montant'], b.autres_revenus.par_source.map(s => [s.libelle, fmtEuro(s.montant)]), [1],
-    ['Total', fmtEuro(b.autres_revenus.total)])
+  tableau(['Source', 'Montant'], b.autres_revenus.par_source.map(s => [s.libelle, eurosPdf(s.montant)]), [1],
+    ['Total', eurosPdf(b.autres_revenus.total)])
   titre('Dépenses')
-  tableau(['Catégorie', 'Montant'], b.depenses.par_categorie.map(c => [c.libelle, fmtEuro(c.montant)]), [1],
-    ['Total', fmtEuro(b.depenses.total)])
-  tableau(['Mois', 'Dépenses'], b.depenses.par_mois.map(m => [libelleMois(m.mois), fmtEuro(m.montant)]), [1])
+  tableau(['Catégorie', 'Montant'], b.depenses.par_categorie.map(c => [c.libelle, eurosPdf(c.montant)]), [1],
+    ['Total', eurosPdf(b.depenses.total)])
+  tableau(['Mois', 'Dépenses'], b.depenses.par_mois.map(m => [libelleMois(m.mois), eurosPdf(m.montant)]), [1])
 
   // ── 5. Personnel ──
   titre('Coût du personnel')
-  tableau(['Type de présence', 'Heures', 'Coût'], b.personnel.par_type.map(t => [t.type, heures(t.heures), fmtEuro(t.cout)]), [1, 2],
-    ['Total', heures(b.personnel.heures), fmtEuro(b.personnel.total)])
+  tableau(['Type de présence', 'Heures', 'Coût'], b.personnel.par_type.map(t => [t.type, heures(t.heures), eurosPdf(t.cout)]), [1, 2],
+    ['Total', heures(b.personnel.heures), eurosPdf(b.personnel.total)])
   tableau(['Personne', 'Rôle', 'Type', 'Heures', 'Coût'],
-    b.personnel.par_personne.map(p => [p.nom, p.role, p.type, heures(p.heures), fmtEuro(p.cout)]), [3, 4])
-  tableau(['Mois', 'Coût'], b.personnel.par_mois.map(m => [libelleMois(m.mois), fmtEuro(m.montant)]), [1])
+    b.personnel.par_personne.map(p => [p.nom, p.role, p.type, heures(p.heures), eurosPdf(p.cout)]), [3, 4])
+  tableau(['Mois', 'Coût'], b.personnel.par_mois.map(m => [libelleMois(m.mois), eurosPdf(m.montant)]), [1])
   if (b.personnel.sans_taux.length > 0) {
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')

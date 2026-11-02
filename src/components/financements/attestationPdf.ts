@@ -1,6 +1,7 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { finDuTableau } from '@/lib/pdf/tableau'
+import { eurosPdf } from '@/lib/pdf/nombres'
 
 // ─── Couleurs (alignees sur bulletinPdf) ─────────────────────────────────────
 const COLORS = {
@@ -39,9 +40,6 @@ export interface AttestationPdfInput {
   dateStr:               string     // jj/mm/aaaa
 }
 
-function fmtEur(n: number): string {
-  return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 async function loadImageAsBase64(url: string): Promise<string | null> {
   try {
@@ -144,20 +142,20 @@ export async function generateAttestationPdfBase64(input: AttestationPdfInput): 
   const intro =
     `L'établissement mentionné ci-dessus atteste que ${qui} ${aOnt} réglé ${portee} ` +
     `${dues} au titre ${inscriptions} pour des activités culturelles et linguistiques listées ci-dessous ` +
-    `pour l'année scolaire ${input.yearLabel}, pour un montant total de ${fmtEur(input.total)}.`
+    `pour l'année scolaire ${input.yearLabel}, pour un montant total de ${eurosPdf(input.total)}.`
   const introLines = doc.splitTextToSize(intro, pageWidth - margin * 2)
   doc.text(introLines, margin, y)
   y += introLines.length * 6 + 6
 
   // Tableau des inscriptions.
-  const body = input.lines.map(l => [l.nom, l.detail, fmtEur(l.montant)])
-  if (input.reduction > 0) body.push(['Réduction / avoir', '', `- ${fmtEur(input.reduction)}`])
+  const body = input.lines.map(l => [l.nom, l.detail, eurosPdf(l.montant)])
+  if (input.reduction > 0) body.push(['Réduction / avoir', '', `- ${eurosPdf(input.reduction)}`])
 
   autoTable(doc, {
     startY: y,
     head: [['Inscription', 'Classe / activité', 'Montant']],
     body,
-    foot: [['', 'Total réglé', fmtEur(input.total)]],
+    foot: [['', 'Total réglé', eurosPdf(input.total)]],
     theme: 'grid',
     styles: { font: 'helvetica', fontSize: 10, cellPadding: 2.5, textColor: [40, 40, 40] },
     headStyles: { fillColor: COLORS.headerBg, textColor: COLORS.secondary, fontStyle: 'bold' },

@@ -8,10 +8,10 @@ import { useToast } from '@/lib/toast-context'
 import { messageErreur } from '@/lib/erreur'
 import { pluriel } from '@/lib/texte/pluriel'
 import { afficherPdf, fermerOngletPdf, ouvrirOngletPdf } from '@/lib/pdf/ouvrir'
-import { libelleAjustement, libelleMoyen } from '@/lib/financements/libelles'
+import { fmtEuro, libelleAjustement, libelleCotisation, libelleMois, libelleMoyen } from '@/lib/financements/libelles'
 import type { BilanChiffres } from '@/lib/financements/bilan'
 import { detailBilan } from '@/app/dashboard/financements/bilans/actions'
-import { fmtEuro, genererBilanPdf, libelleMois } from './bilanPdf'
+import { genererBilanPdf } from './bilanPdf'
 
 export interface OptionBilan { cle: string; libelle: string }
 
@@ -166,7 +166,7 @@ export default function BilansClient({ options, cle, chiffres, mention, etabliss
             <Chiffre label="Recouvrement" valeur={`${b.cotisations.taux} % · ${pluriel(b.cotisations.foyers, 'foyer')}`} />
           </div>
           <Liste label="Par cotisation" colonnes={['Cotisation', 'Inscrits', 'Facturé']}
-            lignes={b.cotisations.par_cotisation.map(c => [c.adulte ? `${c.libelle} (adultes)` : c.libelle, c.inscrits, fmtEuro(c.facture)])} />
+            lignes={b.cotisations.par_cotisation.map(c => [libelleCotisation(c.libelle, c.adulte), c.inscrits, fmtEuro(c.facture)])} />
           {b.ajustements.length > 0 && (
             <Liste label="Ajustements" colonnes={['Ajustement', 'Nombre', 'Montant']}
               lignes={b.ajustements.map(a => [libelleAjustement(a.type), a.nombre, fmtEuro(a.montant)])} />

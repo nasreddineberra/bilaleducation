@@ -1,8 +1,7 @@
 import type { Cell, Row, Sheet } from 'write-excel-file/browser'
-import { libelleAjustement, libelleMoyen } from '@/lib/financements/libelles'
+import { libelleAjustement, libelleMois, libelleMoyen } from '@/lib/financements/libelles'
 import type { BilanChiffres } from '@/lib/financements/bilan'
 import type { DetailBilan } from '@/lib/financements/bilan-donnees'
-import { libelleMois } from './bilanPdf'
 
 // Excel de detail du bilan financier, pour la comptabilite (02/11) : une feuille
 // de synthese, puis une ligne par paiement, ajustement, depense, revenu, et le

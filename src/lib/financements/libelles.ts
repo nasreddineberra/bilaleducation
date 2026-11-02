@@ -19,3 +19,21 @@ const AJUSTEMENT_LABELS: Record<string, string> = {
 export function libelleAjustement(type: string): string {
   return AJUSTEMENT_LABELS[type] ?? type
 }
+
+/** Montant a l'ecran, 2 decimales (dans un PDF : `eurosPdf` de `lib/pdf/nombres`). */
+export function fmtEuro(n: number): string {
+  return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+
+/** AAAA-MM -> « septembre 2025 ». */
+export function libelleMois(mois: string): string {
+  const [a, m] = mois.split('-').map(Number)
+  return `${MOIS[m - 1] ?? mois} ${a}`
+}
+
+/** Cotisation d'une classe adulte : « (adultes) » ajoute si le libelle ne le dit pas deja. */
+export function libelleCotisation(libelle: string, adulte: boolean): string {
+  return adulte && !/adulte/i.test(libelle) ? `${libelle} (adultes)` : libelle
+}
