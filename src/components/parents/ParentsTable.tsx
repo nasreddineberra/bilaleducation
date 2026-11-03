@@ -14,6 +14,7 @@ import { suffixeFiche } from '@/lib/navigation/retour'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent } from '@/types/database'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
+import { Puce } from '@/components/dashboard/tdb'
 
 interface ParentsTableProps {
   parents: Parent[]
@@ -24,6 +25,8 @@ interface ParentsTableProps {
    *  roles finance. Bouton MASQUE, pas grise — il n'y a aucun cas ou il
    *  aboutirait pour les autres roles. */
   canDelete?: boolean
+  /** Option espace famille : colonne « Acces en ligne » (decision 15). */
+  espaceFamille?: boolean
 }
 
 interface DeleteDeps {
@@ -41,7 +44,7 @@ const RELATION_LABEL: Record<string, string> = {
 }
 
 
-export default function ParentsTable({ parents, enfantsParFoyer, canDelete = false }: ParentsTableProps) {
+export default function ParentsTable({ parents, enfantsParFoyer, canDelete = false, espaceFamille = false }: ParentsTableProps) {
   const router = useRouter()
   // L'etat de CETTE liste (filtre, recherche, page) voyage jusqu'a la fiche pour
   // que le retour le retrouve. Voir `lib/navigation/retour`.
@@ -168,6 +171,11 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
               <th className="text-center list-th w-2/12">
                 Situation familiale
               </th>
+              {espaceFamille && (
+                <th className="text-center list-th w-1/12">
+                  Accès en ligne
+                </th>
+              )}
               <th className="px-4 py-1.5 w-2/12" />
             </tr>
           </thead>
@@ -233,6 +241,24 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
                     </span>
                   </td>
 
+                  {/* Acces en ligne : un badge par tuteur dont le compte est configure */}
+                  {espaceFamille && (
+                    <td className="list-td text-center">
+                      {parent.tutor1_acces_configure_le || parent.tutor2_acces_configure_le ? (
+                        <div className="flex items-center justify-center gap-1">
+                          {parent.tutor1_acces_configure_le && (
+                            <Tooltip content={`${parent.tutor1_last_name} ${parent.tutor1_first_name}`}><span><Puce ton="ok">T1</Puce></span></Tooltip>
+                          )}
+                          {parent.tutor2_acces_configure_le && (
+                            <Tooltip content={`${parent.tutor2_last_name ?? ''} ${parent.tutor2_first_name ?? ''}`.trim()}><span><Puce ton="ok">T2</Puce></span></Tooltip>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-warm-700">·</span>
+                      )}
+                    </td>
+                  )}
+
                   {/* Actions */}
                   <td className="list-td" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
@@ -278,7 +304,7 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
                 {/* Ligne enfants (expandable) */}
                 {expandedId === parent.id && (
                   <tr className="sans-survol bg-warm-50">
-                    <td colSpan={4} className="px-6 py-2">
+                    <td colSpan={espaceFamille ? 5 : 4} className="px-6 py-2">
                       {loadingChildrenId === parent.id ? (
                         <p className="text-sm text-warm-700">Chargement...</p>
                       ) : childrenMap[parent.id]?.length === 0 ? (

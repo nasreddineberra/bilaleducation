@@ -42,6 +42,10 @@ const COMPTES = [
   { role: 'enseignant',              civilite: 'Mme', nom: 'LEFEBVRE',  prenom: 'Camille',  email: 'enseignant1' },
   { role: 'enseignant',              civilite: 'M.',  nom: 'OKAFOR',    prenom: 'Daniel',   email: 'enseignant2' },
   { role: 'enseignant',              civilite: 'Mme', nom: 'BENSAID',   prenom: 'Yasmina',  email: 'enseignant3' },
+  // Espace famille : deux comptes parents, relies apres chaque peuplement a un
+  // foyer de la demonstration (`relierParentsDemo`), dont ils prennent le nom.
+  { role: 'parent',                  civilite: null,  nom: 'PARENT',    prenom: 'Fratrie',  email: 'parent1' },
+  { role: 'parent',                  civilite: null,  nom: 'PARENT',    prenom: 'Adulte',   email: 'parent2' },
 ] as const
 
 const LIGNE_MDP = 'Mot de passe commun des comptes : '
@@ -104,6 +108,54 @@ async function creerCompteDemo(
     return { error: `Création du profil ${email} impossible : ${eProfil.message}` }
   }
   return { id: auth.user.id }
+}
+
+/**
+ * Relie les deux comptes parents de la demonstration a leurs foyers, apres le
+ * peuplement (qui recree les foyers) : `parent1` = tuteur 1 du premier foyer a
+ * deux enfants actifs ou plus, `parent2` = le premier tuteur inscrit a un cours
+ * adulte d'un AUTRE foyer. Acces marque configure (les comptes ont le mot de
+ * passe commun), profil renomme comme le tuteur. Rend un message si rien n'a pu
+ * etre relie ; non bloquant pour la remise a zero.
+ */
+async function relierParentsDemo(admin: ReturnType<typeof createAdminClient>, etablissementId: string): Promise<string | null> {
+  const [{ data: comptes }, { data: eleves }, { data: foyers }, { data: adultes }] = await Promise.all([
+    admin.from('profiles').select('id, email').eq('etablissement_id', etablissementId).eq('role', 'parent'),
+    admin.from('students').select('parent_id').eq('etablissement_id', etablissementId).eq('is_active', true),
+    admin.from('parents').select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name')
+      .eq('etablissement_id', etablissementId).order('tutor1_last_name').order('tutor1_first_name'),
+    admin.from('parent_class_enrollments').select('parent_id, tutor_number')
+      .eq('etablissement_id', etablissementId).eq('status', 'active').order('parent_id'),
+  ])
+  const compte = (cle: string) => (comptes ?? []).find(c => c.email === `${cle}@${DOMAINE}`)?.id
+  const enfants = new Map<string, number>()
+  for (const e of eleves ?? []) if (e.parent_id) enfants.set(e.parent_id, (enfants.get(e.parent_id) ?? 0) + 1)
+
+  const fratrie = (foyers ?? []).find(f => (enfants.get(f.id) ?? 0) >= 2)
+  const adulte = (adultes ?? []).find(a => a.parent_id !== fratrie?.id)
+  const liens: { compte: string | undefined; foyer: string | undefined; n: number }[] = [
+    { compte: compte('parent1'), foyer: fratrie?.id, n: 1 },
+    { compte: compte('parent2'), foyer: adulte?.parent_id, n: adulte?.tutor_number ?? 1 },
+  ]
+  const maintenant = new Date().toISOString()
+  const echecs: string[] = []
+  for (const l of liens) {
+    if (!l.compte || !l.foyer) { echecs.push('foyer ou compte introuvable'); continue }
+    const maj = l.n === 2
+      ? { tutor2_user_id: l.compte, tutor2_invite_le: maintenant, tutor2_acces_configure_le: maintenant }
+      : { tutor1_user_id: l.compte, tutor1_invite_le: maintenant, tutor1_acces_configure_le: maintenant }
+    const { error } = await admin.from('parents').update(maj).eq('id', l.foyer).select('id')
+    if (error) { echecs.push(error.message); continue }
+    const f = (foyers ?? []).find(x => x.id === l.foyer)
+    const nom = l.n === 2 ? f?.tutor2_last_name : f?.tutor1_last_name
+    const prenom = l.n === 2 ? f?.tutor2_first_name : f?.tutor1_first_name
+    if (nom) {
+      const { error: eNom } = await admin.from('profiles').update({ last_name: nom, first_name: prenom ?? '' }).eq('id', l.compte).select('id')
+      if (eNom) console.error('[demo] nom du compte parent :', eNom.message)
+    }
+  }
+  if (echecs.length) console.error('[demo] comptes parents :', echecs.join(' · '))
+  return echecs.length ? `Comptes parents non reliés : ${echecs.join(' · ')}` : null
 }
 
 type Fichier = { bucket: string; nom: string }
@@ -178,7 +230,7 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
   }
 
   const { data: ecole, error: eEtab } = await admin.from('etablissements')
-    .insert({ slug: SLUG_DEMO, nom: 'ÉCOLE DÉMONSTRATION', is_active: true, est_demo: true, week_start_day: 1, working_days: 7 })
+    .insert({ slug: SLUG_DEMO, nom: 'ÉCOLE DÉMONSTRATION', is_active: true, est_demo: true, week_start_day: 1, working_days: 7, option_espace_famille: true })
     .select('id').single()
   if (eEtab || !ecole) return { error: `Création de l'école impossible : ${eEtab?.message ?? 'réponse vide'}` }
 
@@ -200,6 +252,7 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
 
   const { error: ePeuple } = await admin.rpc('reinitialiser_ecole_demo', { p_id: ecole.id })
   if (ePeuple) return annuler(`Peuplement impossible : ${ePeuple.message}`)
+  await relierParentsDemo(admin, ecole.id)
 
   // Le mot de passe n'est affiche qu'une fois a l'ecran : on le garde aussi dans
   // les notes de l'EDITEUR (table serveur uniquement), seul endroit ou il le
@@ -417,6 +470,7 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   }
   // Apres la base : sur un echec de la base, rien n'est perdu ; ici un echec ne
   // laisse que des fichiers orphelins.
+  await relierParentsDemo(admin, etablissementId)
   const fichiers = await effacerFichiers(admin, data.fichiers ?? [])
   const logo = await poserLogoDemo(admin, etablissementId)
 

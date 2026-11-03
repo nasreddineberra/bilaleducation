@@ -76,4 +76,11 @@ fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa r
   « Ce lien n'est plus valable » ; nouvelle invitation = l'ancien lien refuse ; compte parent d'une ecole sans
   l'option = ecran de connexion « L'espace famille n'est pas disponible. »
 - Creation d'une fiche parents : plus aucun mot de passe affiche, retour a la liste.
+- Lot 5b (03/11), demonstration APRES « Reinitialiser » (console) : comptes `parent1@` et `parent2@demonstration.invalid`
+  presents, relies a leurs foyers (badge sur la fiche, colonne de la liste) ; Utilisateurs > Parents : statut,
+  derniere connexion apres une connexion parent, « Desactiver » puis « Reactiver » ; « Inviter les familles » : les
+  deux tuteurs configures coches et verrouilles, sans email verrouilles ; une ecole SANS l'option : ni onglet
+  Parents, ni colonne, ni badge.
+- Email d'un tuteur modifie sur sa fiche : connexion avec la nouvelle adresse ; adresse deja prise = refus, fiche
+  inchangee. Foyer supprime : son compte en ligne disparait d'Utilisateurs > Parents.
 

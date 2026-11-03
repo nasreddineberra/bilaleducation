@@ -27,6 +27,8 @@ interface ParentsClientProps {
   totalAdultCourses:   number
   enfantsParFoyer: Record<string, number>
   parentsWithPAI:      Set<string>
+  /** Option espace famille de l'ecole : colonne « Acces en ligne ». */
+  espaceFamille?:      boolean
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -94,7 +96,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 export default function ParentsClient({
   parents, filteredCount, page, q, filter,
   totalAll, totalAdultCourses, totalUnassigned,
-  enfantsParFoyer, parentsWithPAI, canDelete = false,
+  enfantsParFoyer, parentsWithPAI, canDelete = false, espaceFamille = false,
 }: ParentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -167,7 +169,7 @@ export default function ParentsClient({
       {showAdult && <ParentsAdultSyncModal onClose={() => setShowAdult(false)} />}
 
       {/* Tableau */}
-      <ParentsTable parents={parents} enfantsParFoyer={enfantsParFoyer} parentsWithPAI={parentsWithPAI} canDelete={canDelete} />
+      <ParentsTable parents={parents} enfantsParFoyer={enfantsParFoyer} parentsWithPAI={parentsWithPAI} canDelete={canDelete} espaceFamille={espaceFamille} />
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">

@@ -1,16 +1,21 @@
 'use client'
 
 import Onglets, { classeOnglet } from '@/components/ui/Onglets'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import UtilisateursTable from './UtilisateursTable'
+import ParentsComptesTable, { type CompteParent } from './ParentsComptesTable'
+import InviterFamillesModal from './InviterFamillesModal'
 import type { Profile, UserRole } from '@/types/database'
 
 interface UtilisateursClientProps {
   profiles: Profile[]
   twoFactorUserIds?: string[]
+  /** Option espace famille active : onglet Parents (comptes, invitations). */
+  espaceFamille?: boolean
+  comptesParents?: CompteParent[]
 }
 
 const STAFF_ROLES: UserRole[] = ['super_admin', 'admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
@@ -37,12 +42,15 @@ function byRoleThenName(a: Profile, b: Profile): number {
 }
 
 type Tab = 'staff' | 'parents'
-const TABS: { key: Tab; label: string }[] = [
+const TOUS_LES_ONGLETS: { key: Tab; label: string }[] = [
   { key: 'staff',   label: 'Équipe'  },
   { key: 'parents', label: 'Parents' },
 ]
 
-export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: UtilisateursClientProps) {
+export default function UtilisateursClient({ profiles, twoFactorUserIds = [], espaceFamille = false, comptesParents = [] }: UtilisateursClientProps) {
+  // Sans l'option, l'onglet Parents n'existe pas (decision 15).
+  const TABS = espaceFamille ? TOUS_LES_ONGLETS : TOUS_LES_ONGLETS.filter(t => t.key === 'staff')
+  const [inviter, setInviter] = useState(false)
   // Onglet, recherche et filtre MEMORISES : on ouvre une fiche, on revient, et
   // la liste est retrouvee telle qu'on l'avait laissee. Cet ecran filtre cote
   // CLIENT (sur un tableau deja charge), son etat n'existe donc pas dans l'URL —
@@ -52,7 +60,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
     tab: 'staff', search: '', filter: '',
   })
   // Le hook garantit une chaine, pas une valeur valide : on valide ici.
-  const tab: Tab = etat.tab === 'parents' ? 'parents' : 'staff'
+  const tab: Tab = espaceFamille && etat.tab === 'parents' ? 'parents' : 'staff'
   const search = etat.search
   const activeFilter: '' | 'active' = etat.filter === 'active' ? 'active' : ''
   const setSearch = (v: string) => setEtat({ search: v })
@@ -89,27 +97,29 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
   }
 
   const staffProfiles  = profiles.filter(p => STAFF_ROLES.includes(p.role))
-  const parentProfiles = profiles.filter(p => p.role === 'parent')
 
-  const currentProfiles = tab === 'staff' ? staffProfiles : parentProfiles
+  const correspond = (p: { last_name: string | null; first_name: string | null; email: string | null }) => {
+    const q = search.trim().toLowerCase()
+    return !q
+      || !!p.last_name?.toLowerCase().includes(q)
+      || !!p.first_name?.toLowerCase().includes(q)
+      || !!p.email?.toLowerCase().includes(q)
+  }
 
-  const searched = search.trim() === ''
-    ? currentProfiles
-    : currentProfiles.filter(p => {
-        const q = search.toLowerCase()
-        return (
-          p.last_name?.toLowerCase().includes(q)  ||
-          p.first_name?.toLowerCase().includes(q) ||
-          p.email?.toLowerCase().includes(q)
-        )
-      })
-
-  const filtered = searched
+  const filtered = staffProfiles
+    .filter(correspond)
     .filter(p => activeFilter === 'active' ? p.is_active : true)
     .slice()
     .sort(byRoleThenName)
 
-  const totalActifs = currentProfiles.filter(p => p.is_active).length
+  const comptesFiltres = comptesParents
+    .filter(correspond)
+    .filter(c => activeFilter === 'active' ? c.is_active : true)
+
+  const totalCourant = tab === 'staff' ? staffProfiles.length : comptesParents.length
+  const totalActifs  = tab === 'staff'
+    ? staffProfiles.filter(p => p.is_active).length
+    : comptesParents.filter(c => c.is_active).length
 
   return (
     <div className="space-y-2 animate-fade-in">
@@ -118,7 +128,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
       <Onglets ariaLabel="Type d'utilisateur" actifIndex={TABS.findIndex(t => t.key === tab)}>
         {TABS.map((t, idx) => {
           const active = tab === t.key
-          const count = t.key === 'staff' ? staffProfiles.length : parentProfiles.length
+          const count = t.key === 'staff' ? staffProfiles.length : comptesParents.length
           return (
             <button
               key={t.key}
@@ -145,7 +155,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
           actif={activeFilter}
           onChange={v => toggleFilter(v as '' | 'active')}
           options={[
-            { valeur: '',       nombre: currentProfiles.length, libelle: 'au total' },
+            { valeur: '',       nombre: totalCourant, libelle: 'au total' },
             { valeur: 'active', nombre: totalActifs,            libelle: `actif${totalActifs > 1 ? 's' : ''}`, couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
           ]}
         />
@@ -161,17 +171,25 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
           className="w-64"
         />
 
-        {tab === 'staff' && (
+        {tab === 'staff' ? (
           <FloatButton href="/dashboard/utilisateurs/new" variant="submit" className="whitespace-nowrap">
             Ajouter
+          </FloatButton>
+        ) : (
+          <FloatButton type="button" variant="submit" className="whitespace-nowrap" onClick={() => setInviter(true)}>
+            Inviter les familles
           </FloatButton>
         )}
       </div>
 
       {/* Tableau */}
       <div role="tabpanel" id="panel-utilisateurs" aria-labelledby={`tab-${tab}`}>
-        <UtilisateursTable profiles={filtered} twoFactorUserIds={twoFactorUserIds} />
+        {tab === 'staff'
+          ? <UtilisateursTable profiles={filtered} twoFactorUserIds={twoFactorUserIds} />
+          : <ParentsComptesTable comptes={comptesFiltres} />}
       </div>
+
+      {inviter && <InviterFamillesModal onClose={() => setInviter(false)} />}
 
     </div>
   )

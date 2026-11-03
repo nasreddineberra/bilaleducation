@@ -4831,6 +4831,22 @@ export type Database = {
         Args: { p_profile_id: string | null }
         Returns: undefined
       }
+      comptes_parents_ecole: {
+        Args: never
+        Returns: {
+          configure_le: string
+          derniere_connexion: string
+          email: string
+          first_name: string
+          invitation_expire_le: string
+          invite_le: string
+          is_active: boolean
+          last_name: string
+          parent_id: string
+          profile_id: string
+          tutor_number: number
+        }[]
+      }
       create_parent_login_profile: {
         Args: {
           p_email: string | null

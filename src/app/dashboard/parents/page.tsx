@@ -109,6 +109,9 @@ export default async function ParentsPage({
     (studentLinks ?? []).filter(s => s.has_pai).map(s => s.parent_id as string)
   )
 
+  // Colonne « Acces en ligne » : option espace famille de l'ecole seulement.
+  const { data: etab } = await supabase.from('etablissements').select('option_espace_famille').maybeSingle()
+
   return (
     <ParentsClient
       parents={parents ?? []}
@@ -122,6 +125,7 @@ export default async function ParentsPage({
       enfantsParFoyer={enfantsParFoyer}
       parentsWithPAI={parentsWithPAI}
       canDelete={canDelete}
+      espaceFamille={etab?.option_espace_famille === true}
     />
   )
 }

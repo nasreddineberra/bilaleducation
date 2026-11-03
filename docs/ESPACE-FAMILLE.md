@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 à 4 terminés, lot 5a fait (03/11)**. Prochain : lot 5b.
+État : **lots 1 à 5 terminés (03/11)**. Prochain : lot 6 (écrans de l'espace famille).
 
 ---
 
@@ -45,7 +45,7 @@ l'option se vend école par école depuis la console.
 | 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | fait (migration jouée, contrôle 38 vert) |
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | fait (migration jouée après déploiement, contrôle 39 vert) |
 | 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
-| 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | 5a fait (base, invitation, activation, middleware) ; 5b à faire |
+| 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | fait (5a et 5b) ; procédures d'aide reportées au lot 7 |
 | 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | à faire |
 | 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
 
@@ -293,7 +293,7 @@ Le push n'existe que pour les parents (bouton « Activer les notifications » de
 
 ---
 
-## Lot 5 · détail (révisé le 03/11 ; 5a fait)
+## Lot 5 · détail (révisé le 03/11 ; fait)
 
 ### Décisions (03/11)
 
@@ -371,3 +371,26 @@ d'une autre école ou non parent = refusé.
 - Retirés : `CREATE_PARENT_ACCOUNTS`, la création de comptes à la création d'une fiche parents, l'affichage des
   mots de passe temporaires, `createParentAccount` (jamais appelé).
 - Reporté au 5b : email du tuteur modifié = email du compte.
+
+### Fait au 5b (03/11)
+
+- Migration `espace-famille-comptes-parents.sql` (jouée) : `comptes_parents_ecole()` (admin, direction) rend chaque
+  compte parent de l'école avec ses dates et sa DERNIÈRE CONNEXION (`auth.users`). Contrôle 41 (vert).
+- Migration `espace-famille-depart.sql` (jouée) : `invitations_famille` effacée au départ d'une école mais jamais
+  exportée (données techniques, comme `push_subscriptions`). Contrôle 08 vert (62 tables exportées).
+- Utilisateurs > Parents (`ParentsComptesTable`) : tuteur, email, statut (Désactivé / Accès en ligne / Invité le ...
+  / Invitation expirée), dernière connexion ; « Renvoyer l'invitation », « Désactiver » (confirmation) /
+  « Réactiver » ; la ligne ouvre la fiche du foyer. Onglet absent sans l'option.
+- « Inviter les familles » (`InviterFamillesModal`, modèle `ParentsAdultSyncModal`) : verrous « Accès en ligne
+  configuré », « Aucun email », « Accès désactivé » ; envoi par paquets de 5, progression, échecs listés.
+- Liste des parents : colonne « Accès en ligne » (T1 / T2) ; fiche : badge « Accès en ligne · NOM Prénom ».
+- Email du tuteur modifié = adresse du compte modifiée AVANT la fiche (adresse prise = fiche inchangée), profil
+  suivi, alerte à l'ancienne adresse. Foyer supprimé = comptes en ligne supprimés (ils restaient orphelins).
+- Démonstration : `parent1@` (tuteur 1 du premier foyer à deux enfants) et `parent2@demonstration.invalid`
+  (tuteur d'un cours adulte, autre foyer), mot de passe commun, accès configuré, reliés après chaque peuplement
+  (`relierParentsDemo`) ; une démonstration créée a l'option active.
+- **Constat** : l'écran Utilisateurs est réservé à l'admin et à la direction ; les boutons y étant tous
+  (décision 15), seule la direction invite en pratique. Le serveur accepterait aussi la secrétaire et le
+  responsable pédagogique (décision 13) : à trancher si un bouton doit leur être ouvert ailleurs.
+- **Reporté au lot 7** : procédures d'aide (« Inviter les familles », « Renvoyer une invitation », « Désactiver
+  l'accès d'un parent ») ; l'aide n'a pas de condition d'option, elle les montrerait à toutes les écoles.

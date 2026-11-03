@@ -10350,3 +10350,18 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   apres ; tous les controles rejoues : le 26 liste maintenant la nouvelle table serveur.
 - Middleware : compte `parent` d'une ecole sans l'option = connexion, message dedie (role EXPLICITE : verifie qu'aucun
   compte n'a de jeton sans role). Ancien code V1 retire (comptes a la creation de fiche, mots de passe temporaires).
+
+## 03/11 · Espace famille, lot 5b : comptes parents, envoi en lot, demonstration
+
+- Migrations jouees : `espace-famille-comptes-parents.sql` (`comptes_parents_ecole`, admin / direction : comptes,
+  dates, derniere connexion lue dans `auth.users`, controle 41) ; `espace-famille-depart.sql` (rapiecage ancre de
+  `fn_depart_tables` : `invitations_famille` effacee au depart, jamais exportee ; controle 08 vert, 62 tables).
+- Utilisateurs > Parents (statut, derniere connexion, renvoyer, desactiver / reactiver), fenetre « Inviter les
+  familles » (modele cours adultes en lot, envoi par paquets), colonne et badge « Acces en ligne » ; rien sans
+  l'option.
+- Releve en chemin : supprimer un foyer laissait ses comptes en ligne orphelins (supprimes desormais) ; l'email d'un
+  tuteur modifie ne suivait pas sur son compte (adresse du compte changee AVANT la fiche, retour arriere si la fiche
+  echoue, alerte a l'ancienne adresse).
+- Demonstration : comptes `parent1` / `parent2` ajoutes a la liste, relies apres chaque peuplement.
+- Constat : Utilisateurs reserve a admin / direction, donc seule la direction invite en pratique. Aide reportee au
+  lot 7 (pas de condition d'option dans l'aide).

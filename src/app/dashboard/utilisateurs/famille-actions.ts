@@ -118,3 +118,82 @@ export async function inviterTuteur(
   }
   return { email: t.email }
 }
+
+// ─── Inviter les familles (envoi en lot, decision 13 : direction) ────────────
+
+export interface TuteurInvitation {
+  nom: string
+  email: boolean
+  /** Compte relie (invite au moins une fois). */
+  compte: boolean
+  /** Mot de passe choisi : acces en ligne configure. */
+  configure: boolean
+  /** Compte desactive dans Utilisateurs > Parents. */
+  desactive: boolean
+  inviteLe: string | null
+}
+
+export interface FoyerInvitation {
+  id: string
+  tuteur1: TuteurInvitation
+  tuteur2: TuteurInvitation | null
+}
+
+/** Foyers de l'ecole et etat de chaque tuteur, pour la fenetre « Inviter les familles ». */
+export async function chargerFoyersInvitation(): Promise<{ error?: string; foyers?: FoyerInvitation[] }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const session = await createClient()
+  const { data: parents, error } = await session
+    .from('parents')
+    .select('id, tutor1_last_name, tutor1_first_name, tutor1_email, tutor1_user_id, tutor1_invite_le, tutor1_acces_configure_le, tutor2_last_name, tutor2_first_name, tutor2_email, tutor2_user_id, tutor2_invite_le, tutor2_acces_configure_le')
+    .order('tutor1_last_name')
+    .order('tutor1_first_name')
+  if (error) return { error: 'Les foyers n’ont pas pu être chargés.' }
+
+  const comptes = (parents ?? []).flatMap(p => [p.tutor1_user_id, p.tutor2_user_id]).filter((id): id is string => !!id)
+  const { data: profils } = comptes.length
+    ? await session.from('profiles').select('id, is_active').in('id', comptes)
+    : { data: [] }
+  const actif = new Map((profils ?? []).map(p => [p.id, p.is_active]))
+
+  const tuteur = (nom: string, email: string | null, compte: string | null, inviteLe: string | null, configureLe: string | null): TuteurInvitation => ({
+    nom,
+    email: !!email?.trim(),
+    compte: !!compte,
+    configure: !!configureLe,
+    desactive: !!compte && actif.get(compte) === false,
+    inviteLe,
+  })
+
+  return {
+    foyers: (parents ?? []).map(p => ({
+      id: p.id,
+      tuteur1: tuteur(`${p.tutor1_last_name} ${p.tutor1_first_name}`, p.tutor1_email, p.tutor1_user_id, p.tutor1_invite_le, p.tutor1_acces_configure_le),
+      tuteur2: p.tutor2_last_name || p.tutor2_first_name
+        ? tuteur(`${p.tutor2_last_name ?? ''} ${p.tutor2_first_name ?? ''}`.trim(), p.tutor2_email, p.tutor2_user_id, p.tutor2_invite_le, p.tutor2_acces_configure_le)
+        : null,
+    })),
+  }
+}
+
+/**
+ * Un PAQUET d'invitations (la fenetre envoie par paquets et affiche la
+ * progression). Chaque tuteur passe par `inviterTuteur` : memes gardes, meme
+ * email. Rend le sort de chacun.
+ */
+export async function inviterTuteurs(
+  liste: { parentId: string; tutorNumber: NumeroTuteur }[],
+): Promise<{ error?: string; resultats?: { parentId: string; tutorNumber: NumeroTuteur; error?: string }[] }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+  if (liste.length > 20) return { error: 'Paquet trop grand.' }
+
+  const resultats: { parentId: string; tutorNumber: NumeroTuteur; error?: string }[] = []
+  for (const t of liste) {
+    const r = await inviterTuteur(t.parentId, t.tutorNumber)
+    resultats.push({ ...t, error: r.error })
+  }
+  return { resultats }
+}

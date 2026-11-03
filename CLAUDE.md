@@ -83,6 +83,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/parents/foyer.ts`. Seances du cahier de texte jamais lues par une famille. Familles prevenues par email
   et notification dans l'espace, jamais d'automatisme pour les bulletins ; push en sommeil (`lib/push-actif.ts`).
 - **Ecran Utilisateurs** = comptes SANS fiche metier (direction, comptable, secretaire, resp. pedago).
+  Onglet Parents (option espace famille) : comptes parents, invitations (`famille-actions.ts`).
   Enseignant -> fiche enseignant (compte + profil + `teachers` atomique) ; parent -> fiche parents.
 - **Enseignant** : ses classes (`teaches_class`, fenetre `effective_from/until`), ses eleves
   (`teaches_student`), sa propre ligne `teachers`. Lit l'EDT de toute l'ecole (document collectif)

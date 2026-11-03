@@ -27,9 +27,11 @@ interface Props {
   adultsNonAffectes: { tutor_number: number; last_name: string; first_name: string }[]
   /** Regle et bornes de l'annee pour « Declarer un depart » (`null` sans cours adulte cette annee). */
   contexteDepart?: { regle: string; rentree: string | null; fin: string | null } | null
+  /** Option espace famille : badge « Acces en ligne » (fiche). */
+  espaceFamille?: boolean
 }
 
-export default function ParentDetail({ parent, backHref, tutor1AdultEnrolled, tutor2AdultEnrolled, adultHistory, adultCurrent, adultsNonAffectes, contexteDepart = null }: Props) {
+export default function ParentDetail({ parent, backHref, tutor1AdultEnrolled, tutor2AdultEnrolled, adultHistory, adultCurrent, adultsNonAffectes, contexteDepart = null, espaceFamille = false }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
 
@@ -81,7 +83,7 @@ export default function ParentDetail({ parent, backHref, tutor1AdultEnrolled, tu
       {/* Contenu */}
       {activeTab === 'identite' && (
         <div role="tabpanel" id="panel-identite" aria-labelledby="tab-identite">
-          <ParentForm key={parent.updated_at} parent={parent} backHref={backHref} tutor1AdultEnrolled={tutor1AdultEnrolled} tutor2AdultEnrolled={tutor2AdultEnrolled} />
+          <ParentForm key={parent.updated_at} parent={parent} backHref={backHref} tutor1AdultEnrolled={tutor1AdultEnrolled} tutor2AdultEnrolled={tutor2AdultEnrolled} espaceFamille={espaceFamille} />
         </div>
       )}
 

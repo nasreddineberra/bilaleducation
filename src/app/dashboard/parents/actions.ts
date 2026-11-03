@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
 import { phraseRefus } from '@/lib/financements/depart-refus'
 import { headers } from 'next/headers'
 import { messageDoublon } from '@/lib/doublons'
@@ -133,6 +135,24 @@ export async function updateParentRecord(
     }
   }
 
+  // Compte en ligne d'un tuteur dont l'email change : son adresse de connexion
+  // suit (espace famille, docs/ESPACE-FAMILLE.md). Le compte d'abord : si la
+  // nouvelle adresse est deja prise, la fiche n'est pas modifiee.
+  const changements = await emailsComptesAChanger(supabase, parentId, cleanPayload)
+  if ('error' in changements) return changements
+  const admin = createAdminClient()
+  for (const c of changements) {
+    const { error } = await admin.auth.admin.updateUserById(c.compte, { email: c.nouvelle, email_confirm: true })
+    if (error) {
+      for (const fait of changements.slice(0, changements.indexOf(c))) {
+        await admin.auth.admin.updateUserById(fait.compte, { email: fait.ancienne, email_confirm: true })
+      }
+      return { error: /already|registered|exists/i.test(error.message)
+        ? `L’adresse ${c.nouvelle} est déjà utilisée par un autre compte.`
+        : 'L’adresse du compte en ligne n’a pas pu être modifiée.' }
+    }
+  }
+
   const resMaj = await supabase
     .from('parents')
     .update(cleanPayload)
@@ -141,10 +161,51 @@ export async function updateParentRecord(
 
   // Meme raison qu'a la creation : renommer un tuteur peut le faire entrer en
   // conflit avec un autre foyer, et c'est le declencheur qui le dit le mieux.
-  if (resMaj.error) return { error: messageDoublon(resMaj.error) ?? messageLimiteInscrits(resMaj.error) ?? resMaj.error.message }
-  const echecMaj = erreurEcriture(resMaj, 'Ce foyer')
-  if (echecMaj) return { error: echecMaj }
+  const echecMaj = resMaj.error
+    ? messageDoublon(resMaj.error) ?? messageLimiteInscrits(resMaj.error) ?? resMaj.error.message
+    : erreurEcriture(resMaj, 'Ce foyer')
+  if (echecMaj) {
+    for (const c of changements) await admin.auth.admin.updateUserById(c.compte, { email: c.ancienne, email_confirm: true })
+    return { error: echecMaj }
+  }
+
+  // Profil (miroir de l'adresse du compte, client admin : le profil d'un parent
+  // n'est pas modifiable par la secretaire) et alerte a l'ancienne adresse.
+  const etablissementId = (await headers()).get('x-etablissement-id')
+  for (const c of changements) {
+    const { error } = await admin.from('profiles').update({ email: c.nouvelle }).eq('id', c.compte).select('id')
+    if (error) console.error('[updateParentRecord] email du profil non mis a jour :', error.message)
+    if (etablissementId) {
+      await alerterAncienneAdresse({ etablissementId, ancienneAdresse: c.ancienne, nouvelleAdresse: c.nouvelle, parUnAdministrateur: true })
+        .catch(() => { /* non bloquant */ })
+    }
+  }
   return {}
+}
+
+/** Comptes en ligne des tuteurs dont l'email change (nouvelle adresse non vide). */
+async function emailsComptesAChanger(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  parentId: string,
+  payload: UpdateParentPayload,
+): Promise<{ compte: string; ancienne: string; nouvelle: string }[] | { error: string }> {
+  if (payload.tutor1_email === undefined && payload.tutor2_email === undefined) return []
+  const { data: actuel } = await supabase
+    .from('parents')
+    .select('tutor1_user_id, tutor2_user_id')
+    .eq('id', parentId)
+    .maybeSingle()
+  if (!actuel) return { error: 'Foyer introuvable.' }
+  const changements: { compte: string; ancienne: string; nouvelle: string }[] = []
+  const admin = createAdminClient()
+  for (const [compte, saisie] of [[actuel.tutor1_user_id, payload.tutor1_email], [actuel.tutor2_user_id, payload.tutor2_email]] as const) {
+    const nouvelle = saisie?.trim().toLowerCase()
+    if (!compte || !nouvelle) continue
+    const { data } = await admin.auth.admin.getUserById(compte)
+    const ancienne = data?.user?.email ?? ''
+    if (ancienne.toLowerCase() !== nouvelle) changements.push({ compte, ancienne, nouvelle })
+  }
+  return changements
 }
 
 // ─── Mise à jour en lot des inscriptions « cours adultes » (une famille/ligne) ──
@@ -320,6 +381,9 @@ export async function deleteParent(id: string): Promise<{ error?: string }> {
     .eq('id', id)
     .maybeSingle()
   if (!cible) return { error: 'Foyer introuvable.' }
+  // Lus a part : `cible` part tel quel dans le journal d'activite.
+  const { data: comptesTuteurs } = await supabase
+    .from('parents').select('tutor1_user_id, tutor2_user_id').eq('id', id).maybeSingle()
 
   const deps = await getParentDeleteDeps(id)
   if (deps.erreur) return { error: deps.erreur }
@@ -344,6 +408,18 @@ export async function deleteParent(id: string): Promise<{ error?: string }> {
   if (error) return { error: 'Erreur lors de la suppression du foyer.' }
   if (!supprimes || supprimes.length === 0) {
     return { error: 'La suppression n\'a pas été autorisée.' }
+  }
+
+  // Comptes en ligne des tuteurs (espace famille) : supprimes avec le foyer, le
+  // profil part avec le compte (cle etrangere en cascade). Sans cela ils
+  // restaient orphelins. L'echec est RENDU : la fiche est deja supprimee.
+  const comptes = [comptesTuteurs?.tutor1_user_id, comptesTuteurs?.tutor2_user_id].filter((c): c is string => !!c)
+  for (const compte of comptes) {
+    const { error: errAuth } = await createAdminClient().auth.admin.deleteUser(compte)
+    if (errAuth) {
+      console.error('[deleteParent] compte en ligne non supprime :', errAuth.message)
+      return { error: `Le foyer est supprimé, mais un compte en ligne n'a pas pu l'être : ${errAuth.message}` }
+    }
   }
   return {}
 }

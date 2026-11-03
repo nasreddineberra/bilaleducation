@@ -14,11 +14,20 @@ export default async function UtilisateursPage() {
   const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
   if (!['admin', 'direction'].includes(effectiveRole(me) ?? '')) redirect('/dashboard/mon-compte')
 
-  const [{ data: profiles }, { data: currentProfile }, { data: totpRows }] = await Promise.all([
+  const [{ data: profiles }, { data: currentProfile }, { data: totpRows }, { data: etab }] = await Promise.all([
     supabase.from('profiles').select('*').order('last_name', { ascending: true }),
     supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single(),
     supabase.rpc('get_verified_totp_user_ids'),
+    supabase.from('etablissements').select('option_espace_famille').maybeSingle(),
   ])
+
+  // Onglet Parents : seulement si l'option espace famille de l'ecole est active
+  // (docs/ESPACE-FAMILLE.md, decision 15). Statut et derniere connexion par la
+  // base (`comptes_parents_ecole`, reservee a l'admin et a la direction).
+  const espaceFamille = etab?.option_espace_famille === true
+  const { data: comptesParents } = espaceFamille
+    ? await supabase.rpc('comptes_parents_ecole')
+    : { data: [] }
 
   const isCurrentUserAdmin = effectiveRole(currentProfile) === 'admin'
 
@@ -29,5 +38,12 @@ export default async function UtilisateursPage() {
 
   const twoFactorUserIds = ((totpRows ?? []) as { user_id: string }[]).map(r => r.user_id)
 
-  return <UtilisateursClient profiles={visibleProfiles as Profile[]} twoFactorUserIds={twoFactorUserIds} />
+  return (
+    <UtilisateursClient
+      profiles={visibleProfiles as Profile[]}
+      twoFactorUserIds={twoFactorUserIds}
+      espaceFamille={espaceFamille}
+      comptesParents={comptesParents ?? []}
+    />
+  )
 }

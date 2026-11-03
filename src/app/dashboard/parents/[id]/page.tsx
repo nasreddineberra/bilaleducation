@@ -62,7 +62,7 @@ export default async function EditParentPage({ params, searchParams }: Props) {
   const peutDeclarer = ['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(effectiveRole(profil) ?? '')
 
   const adultCurrent = await chargerScolariteAdulte(supabase, id, parent, peutDeclarer)
-  const { data: etab } = await supabase.from('etablissements').select('regle_ajustement').maybeSingle()
+  const { data: etab } = await supabase.from('etablissements').select('regle_ajustement, option_espace_famille').maybeSingle()
   const contexteDepart = adultCurrent[0]
     ? {
         regle:   LIBELLES_REGLE[((etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement)],
@@ -84,6 +84,9 @@ export default async function EditParentPage({ params, searchParams }: Props) {
       : null,
   ].filter(Boolean) as { tutor_number: number; last_name: string; first_name: string }[]
 
+  // Badge « Acces en ligne » : option espace famille de l'ecole seulement.
+  const espaceFamille = etab?.option_espace_famille === true
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -104,6 +107,7 @@ export default async function EditParentPage({ params, searchParams }: Props) {
         adultCurrent={adultCurrent}
         adultsNonAffectes={adultsNonAffectes}
         contexteDepart={contexteDepart}
+        espaceFamille={espaceFamille}
       />
 
     </div>

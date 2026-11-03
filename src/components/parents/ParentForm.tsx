@@ -9,6 +9,7 @@ import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SwitchOuiNon } fro
 import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
 import { SITUATIONS_FAMILIALES, libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent, TutorRelationship } from '@/types/database'
+import { Puce } from '@/components/dashboard/tdb'
 
 
 
@@ -82,10 +83,12 @@ interface ParentFormProps {
   /** Tuteur inscrit a une classe adulte → case « Inscrit aux cours adultes » grisee. */
   tutor1AdultEnrolled?: boolean
   tutor2AdultEnrolled?: boolean
+  /** Option espace famille : badge « Acces en ligne » par tuteur configure (decision 14). */
+  espaceFamille?: boolean
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function ParentForm({ parent, onClose, backHref = '/dashboard/parents', tutor1AdultEnrolled = false, tutor2AdultEnrolled = false }: ParentFormProps) {
+export default function ParentForm({ parent, onClose, backHref = '/dashboard/parents', tutor1AdultEnrolled = false, tutor2AdultEnrolled = false, espaceFamille = false }: ParentFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!parent
@@ -287,6 +290,12 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
                 : <span className="text-warm-700 italic">Situation non renseignée</span>}
               {(parent.tutor1_adult_courses || parent.tutor2_adult_courses) && (
                 <span className="font-medium text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">Cours adultes</span>
+              )}
+              {espaceFamille && parent.tutor1_acces_configure_le && (
+                <Puce ton="ok">Accès en ligne · {parent.tutor1_last_name} {parent.tutor1_first_name}</Puce>
+              )}
+              {espaceFamille && parent.tutor2_acces_configure_le && (
+                <Puce ton="ok">Accès en ligne · {parent.tutor2_last_name} {parent.tutor2_first_name}</Puce>
               )}
             </div>
           </div>
