@@ -10365,3 +10365,16 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Demonstration : comptes `parent1` / `parent2` ajoutes a la liste, relies apres chaque peuplement.
 - Constat : Utilisateurs reserve a admin / direction, donc seule la direction invite en pratique. Aide reportee au
   lot 7 (pas de condition d'option dans l'aide).
+
+## 03/11 · Espace famille : invitations ouvertes a la secretaire et au resp. pedagogique, aide conditionnee
+
+- Decision utilisateur : la secretaire et le responsable pedagogique invitent et renvoient (onglet « Parents »
+  d'Utilisateurs, seul, option active) ; « Desactiver » / « Reactiver » restent a la direction (la garde des profils
+  en base n'est pas assouplie), grises avec la raison. Migration `espace-famille-comptes-parents-roles.sql` (jouee,
+  rapiecage ancre), controle 41 adapte (rouge avant, vert apres). La fenetre en lot lit l'etat des comptes par
+  `comptes_parents_ecole` (la secretaire ne lit pas les profils parents).
+- Aide : une procedure ou un element peut dependre d'une OPTION de l'ecole (`option: 'espace_famille'`) ; filtre
+  dans `procedurePour`, `procedureDeLaPage` (premiere procedure LISIBLE de l'ecran), `proceduresDuRole`,
+  `presentationParModule`, guide PDF. Procedure « Comptes parents (espace famille) » (direction, secretaire,
+  resp. pedagogique), tache d'orientation dans « Utilisateurs », regles dans « Parents ». Test : un ecran ne se
+  partage qu'avec une procedure complementaire d'option.

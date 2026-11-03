@@ -41,11 +41,36 @@ test('procedure de la page selon le role', () => {
 test('mise en route en tete, presentation complete', () => {
   assert.equal(proceduresDuRole('direction')[0].slug, 'mise-en-route')
   assert.equal(proceduresDuRole('enseignant').some(p => p.slug === 'mise-en-route'), false)
+  // Sans option, la presentation ne cite pas les procedures d'une option payante.
   const n = presentationParModule().reduce((t, m) => t + m.fonctionnalites.length, 0)
-  assert.equal(n, PROCEDURES.length - 1)
+  assert.equal(n, PROCEDURES.filter(p => !p.option).length - 1)
+  const nAvec = presentationParModule({ espaceFamille: true }).reduce((t, m) => t + m.fonctionnalites.length, 0)
+  assert.equal(nAvec, PROCEDURES.length - 1)
   // La fiche d'un message est couverte par « Messages envoyes », pas l'ecriture.
   assert.equal(procedureDeLaPage('/dashboard/communications/new', 'direction')?.slug, 'message-parents')
   assert.equal(procedureDeLaPage('/dashboard/communications/abc', 'direction')?.slug, 'messages-envoyes')
+})
+
+test('option espace famille : rien sans l’option, tout avec', () => {
+  const avec = { espaceFamille: true }
+  // Secretaire : l'onglet Parents seul, donc la procedure dediee.
+  assert.equal(procedureDeLaPage('/dashboard/utilisateurs', 'secretaire'), null)
+  assert.equal(procedureDeLaPage('/dashboard/utilisateurs', 'secretaire', avec)?.slug, 'comptes-parents')
+  // Direction : « Utilisateurs » d'abord ; sa tache « Comptes parents » suit l'option.
+  const sans = procedureDeLaPage('/dashboard/utilisateurs', 'direction')!
+  const option = procedureDeLaPage('/dashboard/utilisateurs', 'direction', avec)!
+  assert.equal(sans.slug, 'utilisateurs')
+  assert.ok(!sans.taches.some(t => t.option))
+  assert.ok(option.taches.some(t => t.option === 'espace_famille'))
+  assert.equal(proceduresDuRole('direction').some(p => p.slug === 'comptes-parents'), false)
+  assert.equal(proceduresDuRole('direction', avec).some(p => p.slug === 'comptes-parents'), true)
+  assert.equal(procedureParSlug('comptes-parents', 'responsable_pedagogique'), null)
+  // Regles de la fiche parents : la regle d'option n'apparait qu'avec elle.
+  const regles = (o?: { espaceFamille: boolean }) => procedureParSlug('parents', 'secretaire', o)?.regles?.length ?? 0
+  assert.ok(regles(avec) > regles())
+  // « Desactiver » reste a la direction.
+  const tachesSec = procedureParSlug('comptes-parents', 'secretaire', avec)!.taches.map(t => t.titre)
+  assert.ok(!tachesSec.some(t => t.startsWith('Désactiver')))
 })
 
 test('recherche sans accents, tous les mots', () => {
@@ -82,11 +107,14 @@ test('chaque procedure est bien formee', () => {
   }
 })
 
-test('chaque ecran couvert existe et n est couvert qu une fois', () => {
+// Un ecran se partage avec une procedure COMPLEMENTAIRE, dependant d'une option
+// (onglet propre a l'option, lu par des roles qui n'ont que lui) : la premiere
+// lisible l'emporte (`procedureDeLaPage`).
+test('chaque ecran couvert existe et n est couvert qu une fois (hors complement d une option)', () => {
   const vus = new Set<string>()
   for (const p of PROCEDURES) {
     for (const e of p.ecrans) {
-      assert.ok(!vus.has(e), `ecran couvert deux fois : ${e}`)
+      assert.ok(!vus.has(e) || !!p.option, `ecran couvert deux fois : ${e}`)
       vus.add(e)
       const dossier = path.join('src', 'app', ...e.replace(/\/\*$/, '').split('/').filter(Boolean))
       const page = e.endsWith('/*')

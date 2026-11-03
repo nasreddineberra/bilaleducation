@@ -10,9 +10,19 @@ export default async function UtilisateursPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Garde : espace utilisateurs réservé admin/direction
+  // Garde : admin / direction ; la secretaire et le responsable pedagogique n'y
+  // ont que l'onglet Parents, et seulement si l'ecole a l'option espace famille.
   const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
-  if (!['admin', 'direction'].includes(effectiveRole(me) ?? '')) redirect('/dashboard/mon-compte')
+  const roleMe = effectiveRole(me) ?? ''
+  const direction = ['admin', 'direction'].includes(roleMe)
+  const parentsSeuls = ['secretaire', 'responsable_pedagogique'].includes(roleMe)
+  if (!direction && !parentsSeuls) redirect('/dashboard/mon-compte')
+  if (parentsSeuls) {
+    const { data: e } = await supabase.from('etablissements').select('option_espace_famille').maybeSingle()
+    if (!e?.option_espace_famille) redirect('/dashboard')
+    const { data: comptes } = await supabase.rpc('comptes_parents_ecole')
+    return <UtilisateursClient profiles={[]} espaceFamille equipe={false} peutDesactiver={false} comptesParents={comptes ?? []} />
+  }
 
   const [{ data: profiles }, { data: currentProfile }, { data: totpRows }, { data: etab }] = await Promise.all([
     supabase.from('profiles').select('*').order('last_name', { ascending: true }),

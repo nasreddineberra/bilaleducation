@@ -3,7 +3,7 @@
  * le filtrage par role et la recherche. Module pur (teste par `node --test`) :
  * aucun import par alias en valeur.
  */
-import type { Procedure, RoleAide } from './types.ts'
+import type { OptionAide, OptionsEcole, Procedure, RoleAide } from './types.ts'
 import { reglements } from './procedures/reglements.ts'
 import { situationFinanciere, statistiquesReglements, bilansAnnuels } from './procedures/financements.ts'
 import { cotisations } from './procedures/cotisations.ts'
@@ -13,7 +13,7 @@ import { etablissement } from './procedures/etablissement.ts'
 import { apprenants, parents, affectations } from './procedures/vie-scolaire.ts'
 import { feuilleAppel, cahierTexte, emploiDuTemps, tempsPresence } from './procedures/pedagogie.ts'
 import {
-  anneesScolaires, utilisateurs, enseignants, classes, referentielCours, typesPresence, ressources, journalActivite,
+  anneesScolaires, utilisateurs, comptesParents, enseignants, classes, referentielCours, typesPresence, ressources, journalActivite,
 } from './procedures/parametres.ts'
 import { gabaritsEvaluations, saisieNotes, bulletins } from './procedures/evaluations.ts'
 import {
@@ -62,6 +62,7 @@ export const PROCEDURES: Procedure[] = [
   messagesEnvoyes,
   anneesScolaires,
   utilisateurs,
+  comptesParents,
   enseignants,
   classes,
   referentielCours,
@@ -82,10 +83,20 @@ export function concerne(roles: RoleAide[] | undefined, role: string | null | un
   return !!r && (!roles || roles.includes(r))
 }
 
-/** La procedure telle que ce role doit la lire : ce qu'il ne peut jamais faire est retire. */
-export function procedurePour(p: Procedure, role: string | null | undefined): Procedure | null {
-  if (!concerne(p.roles, role)) return null
-  const garder = <T extends { roles?: RoleAide[] }>(l?: T[]) => l?.filter(x => concerne(x.roles, role))
+/** Ecole sans aucune option : valeur par defaut des lectures de l'aide. */
+export const SANS_OPTION: OptionsEcole = { espaceFamille: false }
+
+/** L'element (dependant ou non d'une option) existe-t-il dans cette ecole ? */
+export function disponible(option: OptionAide | undefined, options: OptionsEcole): boolean {
+  return !option || (option === 'espace_famille' && options.espaceFamille)
+}
+
+/** La procedure telle que ce role doit la lire : ce qu'il ne peut jamais faire est retire,
+ *  comme ce qui depend d'une option que l'ecole n'a pas. */
+export function procedurePour(p: Procedure, role: string | null | undefined, options: OptionsEcole = SANS_OPTION): Procedure | null {
+  if (!concerne(p.roles, role) || !disponible(p.option, options)) return null
+  const garder = <T extends { roles?: RoleAide[]; option?: OptionAide }>(l?: T[]) =>
+    l?.filter(x => concerne(x.roles, role) && disponible(x.option, options))
   return {
     ...p,
     taches: garder(p.taches) ?? [],
@@ -100,26 +111,31 @@ export function couvre(ecran: string, chemin: string): boolean {
   return ecran.endsWith('/*') ? chemin.startsWith(ecran.slice(0, -1)) : chemin === ecran
 }
 
-/** Procedure de la page en cours pour ce role, ou `null`. */
-export function procedureDeLaPage(chemin: string, role: string | null | undefined): Procedure | null {
-  const p = PROCEDURES.find(x => x.ecrans.some(e => couvre(e, chemin)))
-  return p ? procedurePour(p, role) : null
+/** Procedure de la page en cours pour ce role, ou `null`. Plusieurs procedures peuvent
+ *  couvrir un ecran (roles ou options differents) : la PREMIERE lisible l'emporte. */
+export function procedureDeLaPage(chemin: string, role: string | null | undefined, options: OptionsEcole = SANS_OPTION): Procedure | null {
+  for (const x of PROCEDURES) {
+    if (!x.ecrans.some(e => couvre(e, chemin))) continue
+    const lisible = procedurePour(x, role, options)
+    if (lisible) return lisible
+  }
+  return null
 }
 
-export function procedureParSlug(slug: string, role: string | null | undefined): Procedure | null {
+export function procedureParSlug(slug: string, role: string | null | undefined, options: OptionsEcole = SANS_OPTION): Procedure | null {
   const p = PROCEDURES.find(x => x.slug === slug)
-  return p ? procedurePour(p, role) : null
+  return p ? procedurePour(p, role, options) : null
 }
 
 /** Procedures lisibles par ce role, dans l'ordre des modules puis des titres. */
-export function proceduresDuRole(role: string | null | undefined): Procedure[] {
+export function proceduresDuRole(role: string | null | undefined, options: OptionsEcole = SANS_OPTION): Procedure[] {
   const rang = (m: string) => {
     const i = (ORDRE_MODULES as readonly string[]).indexOf(m)
     return i < 0 ? ORDRE_MODULES.length : i
   }
   const premiere = (p: Procedure) => (p.slug === SLUG_MISE_EN_ROUTE ? 0 : 1)
   return PROCEDURES
-    .map(p => procedurePour(p, role))
+    .map(p => procedurePour(p, role, options))
     .filter((p): p is Procedure => !!p)
     .sort((a, b) => premiere(a) - premiere(b) || rang(a.module) - rang(b.module) || a.titre.localeCompare(b.titre, 'fr'))
 }
@@ -132,12 +148,12 @@ export const ROLES_PRESENTATION: RoleAide[] = ['direction', 'responsable_pedagog
  * par module, avec les roles qui y accedent. Tiree des procedures (une
  * fonctionnalite = un ecran decrit), donc sans liste a tenir a part.
  */
-export function presentationParModule(): { module: string; fonctionnalites: { titre: string; resume: string; roles: RoleAide[] }[] }[] {
+export function presentationParModule(options: OptionsEcole = SANS_OPTION): { module: string; fonctionnalites: { titre: string; resume: string; roles: RoleAide[] }[] }[] {
   return ORDRE_MODULES
     .map(module => ({
       module,
       fonctionnalites: PROCEDURES
-        .filter(p => p.module === module && p.slug !== SLUG_MISE_EN_ROUTE)
+        .filter(p => p.module === module && p.slug !== SLUG_MISE_EN_ROUTE && disponible(p.option, options))
         .sort((a, b) => a.titre.localeCompare(b.titre, 'fr'))
         .map(p => ({ titre: p.titre, resume: p.resume, roles: p.roles })),
     }))

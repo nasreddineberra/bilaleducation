@@ -232,6 +232,8 @@ interface DashboardNavProps {
   unreadNotifCount?: number
   /** Nom de l'école pendant une intervention de support, sinon `null`. */
   supportEcole?: string | null
+  /** Option espace famille de l'ecole : l'aide de ses ecrans s'affiche. */
+  espaceFamille?: boolean
 }
 
 /** Barre oblique de separation de la zone compte (un trait incline, pas un « / »). */
@@ -239,7 +241,7 @@ function Oblique() {
   return <span aria-hidden className="h-7 w-px rotate-[20deg] bg-[var(--brand-icon)] opacity-60 flex-shrink-0" />
 }
 
-export default function DashboardNav({ profile, unreadNotifCount = 0, supportEcole = null }: DashboardNavProps) {
+export default function DashboardNav({ profile, unreadNotifCount = 0, supportEcole = null, espaceFamille = false }: DashboardNavProps) {
   const pathname  = usePathname()
   const { collapsed, ouvertMobile, setOuvertMobile } = useSidebar()
   const { theme, toggle } = useTheme()
@@ -321,7 +323,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
           <BoutonPleinEcran />
         </div>
         {/* Aide de l'ecran : languette au bord droit de la page (portee dans <body>). */}
-        <LanguetteAide role={effectiveRole(profile)} />
+        <LanguetteAide role={effectiveRole(profile)} options={{ espaceFamille }} />
         <div className="ml-auto lg:ml-0 self-stretch flex items-center gap-2 md:gap-3 pl-10 md:pl-14 pr-4 md:pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
           {/* ── Bascule thème clair / sombre — sélecteur segmenté ──────────────
               MASQUÉE PENDANT UNE INTERVENTION DE SUPPORT. Le thème est une

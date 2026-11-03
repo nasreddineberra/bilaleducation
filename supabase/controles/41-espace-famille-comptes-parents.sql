@@ -3,8 +3,8 @@
 --
 -- E1 : foyer F1 (tuteur 1 relie a P1, invite, configure), direction et
 -- secretaire. E2 : foyer F2 (tuteur 1 relie a P2), direction.
--- Verifie : `comptes_parents_ecole` refusee a la secretaire et au parent,
--- ouverte a la direction ; chaque direction ne voit que SON ecole ; les dates
+-- Verifie : `comptes_parents_ecole` refusee au parent et a l'enseignant, ouverte
+-- a la direction et a la secretaire (03/11) ; chacun ne voit que SON ecole ; les dates
 -- d'invitation et de configuration remontent ; anon ne l'execute pas.
 -- Migration : supabase/migrations/espace-famille-comptes-parents.sql.
 -- LECTURE SEULE : exception volontaire finale, tout est annule.
@@ -66,7 +66,7 @@ BEGIN
     (f1, e1, 'UN', 'Ctl', 'père', 'f1@exemple.invalid', p1, now(), now()),
     (f2, e2, 'DEUX', 'Ctl', 'père', 'f2@exemple.invalid', p2, now(), NULL);
 
-  essais := essais || ARRAY[['secretaire', 'droits', pg_temp.ctl41(sec1, liste)]];
+  essais := essais || ARRAY[['secretaire : son ecole', 'ok:UN:1:true:true', pg_temp.ctl41(sec1, liste)]];
   essais := essais || ARRAY[['parent', 'droits', pg_temp.ctl41(p1, liste)]];
   essais := essais || ARRAY[['direction E1 : son ecole, dates', 'ok:UN:1:true:true', pg_temp.ctl41(dir1, liste)]];
   essais := essais || ARRAY[['direction E2 : son ecole', 'ok:DEUX:1:true:false', pg_temp.ctl41(dir2, liste)]];

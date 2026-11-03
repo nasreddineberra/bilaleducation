@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import { ChevronLeft, ChevronRight, CircleHelp, ExternalLink, X } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
 import { procedureDeLaPage } from '@/lib/aide'
+import type { OptionsEcole } from '@/lib/aide/types'
 import ContenuProcedure from './ContenuProcedure'
 
 /** Le panneau commence SOUS la barre du haut (61 px) : il ne recouvre jamais la zone profil. */
@@ -31,9 +32,9 @@ const HAUT_LANGUETTE = 'top-5'
  * le panneau porte `role="dialog"` (pont du theme sombre) et devient `inert`
  * une fois range. Echap range aussi.
  */
-export default function LanguetteAide({ role }: { role: string | null | undefined }) {
+export default function LanguetteAide({ role, options }: { role: string | null | undefined; options: OptionsEcole }) {
   const pathname = usePathname()
-  const procedure = procedureDeLaPage(pathname, role)
+  const procedure = procedureDeLaPage(pathname, role, options)
   const [monte, setMonte] = useState(false)
   const [ouvert, setOuvert] = useState(false)
   const [signal, setSignal] = useState(false)

@@ -15,14 +15,16 @@ export default async function AidePage() {
 
   const [{ data: me }, { data: etablissement }] = await Promise.all([
     supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single(),
-    supabase.from('etablissements').select('nom').eq('id', etablissementId).maybeSingle(),
+    supabase.from('etablissements').select('nom, option_espace_famille').eq('id', etablissementId).maybeSingle(),
   ])
   const role = effectiveRole(me)
   if (!role || role === 'parent') redirect('/dashboard')
+  // Options de l'ecole : l'aide d'un ecran qu'elle n'a pas ne s'affiche pas.
+  const options = { espaceFamille: etablissement?.option_espace_famille === true }
 
   return (
     <div className="h-full animate-fade-in">
-      <AideClient procedures={proceduresDuRole(role)} etablissement={etablissement?.nom ?? ''} />
+      <AideClient procedures={proceduresDuRole(role, options)} etablissement={etablissement?.nom ?? ''} options={options} />
     </div>
   )
 }

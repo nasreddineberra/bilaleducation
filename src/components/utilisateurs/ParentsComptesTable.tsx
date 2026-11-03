@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
+import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { useToast } from '@/lib/toast-context'
 import { toggleActive } from '@/app/dashboard/utilisateurs/actions'
@@ -32,7 +34,10 @@ export function statutCompte(c: CompteParent, maintenant = Date.now()): { ton: T
   return { ton: 'orange', libelle: 'Invitation expirée' }
 }
 
-export default function ParentsComptesTable({ comptes }: { comptes: CompteParent[] }) {
+// Meme regle que `toggleActive` et la garde des profils en base (decision du 03/11).
+const RAISON_DIRECTION = 'Couper ou rouvrir l’accès d’une famille est réservé à la direction.'
+
+export default function ParentsComptesTable({ comptes, peutDesactiver = true }: { comptes: CompteParent[]; peutDesactiver?: boolean }) {
   const router = useRouter()
   const toast = useToast()
   const [enCours, setEnCours] = useState<string | null>(null)
@@ -104,7 +109,13 @@ export default function ParentsComptesTable({ comptes }: { comptes: CompteParent
                           Renvoyer l’invitation
                         </FloatButton>
                       )}
-                      {c.is_active ? (
+                      {!peutDesactiver ? (
+                        <Tooltip content={RAISON_DIRECTION}>
+                          <FloatButton type="button" variant={c.is_active ? 'danger' : 'edit'} size="mini" disabled>
+                            {c.is_active ? 'Désactiver' : 'Réactiver'}
+                          </FloatButton>
+                        </Tooltip>
+                      ) : c.is_active ? (
                         <FloatButton type="button" variant="danger" size="mini" disabled={occupe}
                           onClick={() => setADesactiver(c)}>
                           Désactiver
@@ -123,6 +134,7 @@ export default function ParentsComptesTable({ comptes }: { comptes: CompteParent
           </tbody>
         </table>
       </div>
+      <RaisonBloquee raison={peutDesactiver ? null : RAISON_DIRECTION} />
 
       {aDesactiver && (
         <ConfirmModal

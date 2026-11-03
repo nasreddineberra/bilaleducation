@@ -185,6 +185,7 @@ export default async function DashboardLayout({
           logoSansPlaque={Boolean(etablissement?.est_demo)}
           anneeCourante={currentYear?.label ?? null}
           finAbonnement={etablissement?.subscription_expires_at ?? null}
+          espaceFamille={etablissement?.option_espace_famille === true}
           auteur={profile ? {
             nom:   [profile.civilite, profile.last_name, profile.first_name].filter(Boolean).join(' ').trim(),
             email: profile.email ?? user.email ?? '',
@@ -194,7 +195,7 @@ export default async function DashboardLayout({
 
         {/* Zone droite : navbar + contenu */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} supportEcole={supportEcole} />
+          <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} supportEcole={supportEcole} espaceFamille={etablissement?.option_espace_famille === true} />
           {/* Sous l'en-tete et HORS de la zone de defilement : l'avis doit rester
               visible pendant qu'on fait defiler un long formulaire, et il ne
               doit pas s'inserer dans le contenu qu'on est en train de remplir. */}

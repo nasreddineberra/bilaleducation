@@ -91,6 +91,8 @@ interface NavItem {
   href?:     string
   icon:      LucideIcon
   roles:     UserRole[]
+  /** Roles qui ne voient l'entree QUE si l'ecole a l'option espace famille. */
+  rolesEspaceFamille?: UserRole[]
   mobile?:   boolean
   children?: SubNavItem[]
 }
@@ -465,6 +467,8 @@ const navItems: NavItem[] = [
     href:  '/dashboard/utilisateurs',
     icon:  UserCog,
     roles: ['admin', 'direction'],
+    // Onglet « Parents » seul (invitations a l'espace famille), option active.
+    rolesEspaceFamille: ['secretaire', 'responsable_pedagogique'],
   },
   {
     name:  'Cotisations',
@@ -543,6 +547,8 @@ interface DashboardSidebarProps {
   anneeCourante?:     string | null
   /** Echeance de l'abonnement (`etablissements.subscription_expires_at`). */
   finAbonnement?:     string | null
+  /** Option espace famille de l'ecole (entrees reservees, `rolesEspaceFamille`). */
+  espaceFamille?:     boolean
   /** Auteur affiché dans « informations jointes » de la demande de support.
    *  Pour l'AFFICHAGE seulement : la server action relit l'identité en session. */
   auteur?:            { nom: string; email: string; role: string } | null
@@ -588,7 +594,7 @@ function lireFinAbonnement(valeur: string | null | undefined): { date: string; b
   return { date, bientot: restants !== null && restants <= ALERTE_ABONNEMENT_JOURS }
 }
 
-export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, logoSansPlaque = false, anneeCourante, finAbonnement }: DashboardSidebarProps) {
+export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, logoSansPlaque = false, anneeCourante, finAbonnement, espaceFamille = false }: DashboardSidebarProps) {
   const pathname   = usePathname()
 
   const { collapsed, setCollapsed, ouvertMobile, setOuvertMobile } = useSidebar()
@@ -730,8 +736,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   // Le drapeau est une SECONDE condition, de meme nature que le role. Une
   // section dont il ne reste aucune entree disparait d elle-meme : le rendu
   // fait deja `sectionItems.length === 0 -> return null`.
-  const estVisible = (it: { roles: UserRole[]; mobile?: boolean }) =>
-    !!role && it.roles.includes(role) && (!petitEcran || !!it.mobile)
+  const estVisible = (it: { roles: UserRole[]; rolesEspaceFamille?: UserRole[]; mobile?: boolean }) =>
+    !!role
+    && (it.roles.includes(role) || (espaceFamille && !!it.rolesEspaceFamille?.includes(role)))
+    && (!petitEcran || !!it.mobile)
 
   const filteredItems = navItems.filter(estVisible)
 

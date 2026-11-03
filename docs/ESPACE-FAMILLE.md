@@ -45,7 +45,7 @@ l'option se vend école par école depuis la console.
 | 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | fait (migration jouée, contrôle 38 vert) |
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | fait (migration jouée après déploiement, contrôle 39 vert) |
 | 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
-| 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | fait (5a et 5b) ; procédures d'aide reportées au lot 7 |
+| 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | fait (5a, 5b, rôles et aide) |
 | 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | à faire |
 | 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
 
@@ -298,7 +298,8 @@ Le push n'existe que pour les parents (bouton « Activer les notifications » de
 ### Décisions (03/11)
 
 12. Invitation valable **7 jours**, usage unique ; une nouvelle invitation annule la précédente.
-13. Inviter un tuteur : direction, secrétaire, resp. pédagogique ; « Inviter les familles » (lot) : direction.
+13. Inviter, renvoyer, « Inviter les familles » : direction, secrétaire, resp. pédagogique (onglet « Parents »
+    d'Utilisateurs seul pour ces deux rôles, option active) ; « Désactiver » / « Réactiver » : direction (révisé le 03/11).
 14. Pas de case « Accès en ligne » : un **badge** « Accès en ligne » quand le tuteur a CONFIGURÉ son compte
     (mot de passe choisi). Couper l'accès d'un tuteur = « Désactiver » dans Utilisateurs > Parents.
 15. Fiche parents : le badge seul. Liste des parents : colonne « Accès en ligne ». Statut et TOUS les boutons :
@@ -394,3 +395,12 @@ d'une autre école ou non parent = refusé.
   responsable pédagogique (décision 13) : à trancher si un bouton doit leur être ouvert ailleurs.
 - **Reporté au lot 7** : procédures d'aide (« Inviter les familles », « Renvoyer une invitation », « Désactiver
   l'accès d'un parent ») ; l'aide n'a pas de condition d'option, elle les montrerait à toutes les écoles.
+
+### Après le 5b (03/11) : rôles et aide
+
+- Utilisateurs ouvert à la secrétaire et au responsable pédagogique, onglet « Parents » SEUL, option active
+  (entrée de menu `rolesEspaceFamille`) ; « Désactiver » / « Réactiver » grisés pour eux avec la raison.
+  `comptes_parents_ecole()` leur est ouverte (`espace-famille-comptes-parents-roles.sql`, contrôle 41).
+- Aide : condition `option: 'espace_famille'` sur une procédure ou un élément (`lib/aide/types.ts`), lue par la
+  languette, le menu Aide, la page d'une procédure et le guide PDF. Procédure « Comptes parents (espace famille) »,
+  tâche d'orientation dans « Utilisateurs », deux règles dans « Parents ». Plus de report au lot 7.

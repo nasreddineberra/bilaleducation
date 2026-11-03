@@ -78,6 +78,13 @@ export const utilisateurs: Procedure = {
 
   taches: [
     {
+      titre: 'Comptes parents (espace famille)',
+      option: 'espace_famille',
+      etapes: [
+        'Onglet « Parents » : les accès des familles, leurs invitations et leur statut. Voir la procédure « Comptes parents (espace famille) ».',
+      ],
+    },
+    {
       titre: 'Créer un compte',
       etapes: [
         'Cliquez sur « Ajouter ».',
@@ -106,7 +113,69 @@ export const utilisateurs: Procedure = {
     },
   ],
 
-  voirAussi: ['enseignants', 'mise-en-route'],
+  voirAussi: ['enseignants', 'mise-en-route', 'comptes-parents'],
+}
+
+// Espace famille (option payante) : meme ecran, onglet « Parents ». La direction
+// lit d'abord « Utilisateurs » (premiere procedure de l'ecran) ; la secretaire et
+// le responsable pedagogique, qui n'ont que cet onglet, lisent celle-ci.
+export const comptesParents: Procedure = {
+  slug: 'comptes-parents',
+  titre: 'Comptes parents (espace famille)',
+  module: 'Paramètres',
+  ecrans: ['/dashboard/utilisateurs'],
+  roles: ['direction', 'secretaire', 'responsable_pedagogique'],
+  option: 'espace_famille',
+  acces: 'Paramètres · Utilisateurs · onglet « Parents »',
+  resume:
+    'Les accès des familles à l’espace famille : inviter les tuteurs, suivre qui a configuré son accès, renvoyer une invitation, couper un accès.',
+
+  taches: [
+    {
+      titre: 'Inviter les familles',
+      etapes: [
+        'Onglet « Parents », cliquez sur « Inviter les familles ».',
+        'Choisissez les tuteurs à inviter avec leur interrupteur, ou cliquez sur « Tout sélectionner ».',
+        'Cliquez sur « Envoyer les invitations ». Chaque tuteur reçoit un email de l’établissement avec le bouton « Activer mon accès ».',
+      ],
+      aSavoir: [
+        'Un tuteur qui a déjà configuré son accès est coché et verrouillé. Un tuteur sans email, ou dont l’accès est désactivé, est verrouillé.',
+        'Le lien d’invitation est valable 7 jours et ne sert qu’une fois. Le tuteur choisit lui-même son mot de passe.',
+        'À la fin de l’envoi, les invitations qui n’ont pas pu partir sont listées avec la raison.',
+      ],
+    },
+    {
+      titre: 'Renvoyer une invitation',
+      etapes: [
+        'Dans la liste, repérez le tuteur (statut « Invité le ... » ou « Invitation expirée »).',
+        'Cliquez sur « Renvoyer l’invitation ». L’ancien lien ne fonctionne plus.',
+      ],
+    },
+    {
+      titre: 'Désactiver ou réactiver l’accès d’un parent',
+      roles: ['direction'],
+      etapes: [
+        'Dans la liste, cliquez sur « Désactiver », puis confirmez. L’espace famille lui est fermé immédiatement.',
+        'Pour le rouvrir, cliquez sur « Réactiver ».',
+      ],
+    },
+  ],
+
+  regles: [
+    { texte: 'Statuts : « Invité le ... » (invitation en cours), « Invitation expirée », « Accès en ligne » (mot de passe choisi), « Désactivé ».' },
+    { texte: 'Les familles sont prévenues par email et par une notification dans leur espace ; rien ne part automatiquement pour un bulletin : un message se rédige dans Communications.' },
+  ],
+
+  grise: [
+    {
+      roles: ['secretaire', 'responsable_pedagogique'],
+      element: '« Désactiver » / « Réactiver »',
+      raison: 'Couper ou rouvrir l’accès d’une famille est réservé à la direction.',
+      solution: 'Demandez-le à la direction.',
+    },
+  ],
+
+  voirAussi: ['parents', 'utilisateurs'],
 }
 
 export const enseignants: Procedure = {

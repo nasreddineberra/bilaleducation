@@ -193,6 +193,14 @@ export const parents: Procedure = {
 
   regles: [
     { texte: 'L’email du tuteur 1 est obligatoire : c’est par lui que partent devoirs, absences, relances et annonces.' },
+    {
+      option: 'espace_famille',
+      texte: 'Le badge « Accès en ligne » (fiche) et la colonne « Accès en ligne » (liste) montrent les tuteurs qui ont configuré leur accès à l’espace famille. Les invitations se gèrent dans Paramètres · Utilisateurs, onglet « Parents ».',
+    },
+    {
+      option: 'espace_famille',
+      texte: 'Modifier l’email d’un tuteur qui a un accès en ligne modifie aussi son adresse de connexion ; son ancienne adresse en est prévenue.',
+    },
   ],
 
   voirAussi: ['apprenants', 'affectations', 'reglements'],

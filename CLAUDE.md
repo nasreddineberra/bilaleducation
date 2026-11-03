@@ -83,7 +83,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/parents/foyer.ts`. Seances du cahier de texte jamais lues par une famille. Familles prevenues par email
   et notification dans l'espace, jamais d'automatisme pour les bulletins ; push en sommeil (`lib/push-actif.ts`).
 - **Ecran Utilisateurs** = comptes SANS fiche metier (direction, comptable, secretaire, resp. pedago).
-  Onglet Parents (option espace famille) : comptes parents, invitations (`famille-actions.ts`).
+  Onglet Parents (option espace famille) : comptes parents, invitations (`famille-actions.ts`) ; secretaire et
+  resp. pedago n'ont QUE cet onglet (desactiver / reactiver : direction).
   Enseignant -> fiche enseignant (compte + profil + `teachers` atomique) ; parent -> fiche parents.
 - **Enseignant** : ses classes (`teaches_class`, fenetre `effective_from/until`), ses eleves
   (`teaches_student`), sa propre ligne `teachers`. Lit l'EDT de toute l'ecole (document collectif)
@@ -152,7 +153,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/aide/types.ts`, registre `lib/aide/index.ts`). INTERCALAIRE (`LanguetteAide`) : languette « ? » au bord droit,
   sous la barre du haut, qui fait coulisser un panneau SUPERPOSE sous cette barre (zone profil jamais recouverte,
   aucun ecran ne perd de largeur) ; 3 pulsations a la 1re ouverture de l'ecran dans la session ; « Ouvrir dans un
-  onglet » ; menu « Aide » (bas de la barre laterale, tout le personnel, pas le parent) avec recherche et « Guide PDF ». Contenu filtre par role (`admin` =
+  onglet » ; menu « Aide » (bas de la barre laterale, tout le personnel, pas le parent) avec recherche et « Guide PDF ». Contenu filtre par role ET par option de l'ecole
+  (`option: 'espace_famille'` : jamais montre a une ecole sans l'option) (`admin` =
   `direction`, jamais nomme). Noms de boutons entre « ... ». **Un ecran modifie = sa procedure relue dans le meme
   commit.** Test `lib/aide/index.test.ts` (ecrans existants, roles, ni tiret long ni « (s) »). Guide PDF : presentation
   des fonctionnalites par role (`presentationParModule`, tiree des procedures) puis « Mise en route » (direction).

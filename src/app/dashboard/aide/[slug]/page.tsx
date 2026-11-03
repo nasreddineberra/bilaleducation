@@ -20,7 +20,8 @@ export default async function ProcedurePage({ params }: Props) {
   if (!user) redirect('/login')
   const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
 
-  const procedure = procedureParSlug(slug, effectiveRole(me))
+  const { data: etab } = await supabase.from('etablissements').select('option_espace_famille').maybeSingle()
+  const procedure = procedureParSlug(slug, effectiveRole(me), { espaceFamille: etab?.option_espace_famille === true })
   if (!procedure) notFound()
 
   return (

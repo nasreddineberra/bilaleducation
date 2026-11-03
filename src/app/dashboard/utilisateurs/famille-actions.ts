@@ -119,7 +119,7 @@ export async function inviterTuteur(
   return { email: t.email }
 }
 
-// ─── Inviter les familles (envoi en lot, decision 13 : direction) ────────────
+// ─── Inviter les familles (envoi en lot : direction, secretaire, resp. pedagogique, 03/11) ──
 
 export interface TuteurInvitation {
   nom: string
@@ -141,7 +141,7 @@ export interface FoyerInvitation {
 
 /** Foyers de l'ecole et etat de chaque tuteur, pour la fenetre « Inviter les familles ». */
 export async function chargerFoyersInvitation(): Promise<{ error?: string; foyers?: FoyerInvitation[] }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
 
   const session = await createClient()
@@ -152,11 +152,9 @@ export async function chargerFoyersInvitation(): Promise<{ error?: string; foyer
     .order('tutor1_first_name')
   if (error) return { error: 'Les foyers n’ont pas pu être chargés.' }
 
-  const comptes = (parents ?? []).flatMap(p => [p.tutor1_user_id, p.tutor2_user_id]).filter((id): id is string => !!id)
-  const { data: profils } = comptes.length
-    ? await session.from('profiles').select('id, is_active').in('id', comptes)
-    : { data: [] }
-  const actif = new Map((profils ?? []).map(p => [p.id, p.is_active]))
+  // Etat des comptes par la base (la secretaire ne lit pas les profils parents).
+  const { data: comptes } = await session.rpc('comptes_parents_ecole')
+  const actif = new Map((comptes ?? []).map(c => [c.profile_id, c.is_active]))
 
   const tuteur = (nom: string, email: string | null, compte: string | null, inviteLe: string | null, configureLe: string | null): TuteurInvitation => ({
     nom,
@@ -186,7 +184,7 @@ export async function chargerFoyersInvitation(): Promise<{ error?: string; foyer
 export async function inviterTuteurs(
   liste: { parentId: string; tutorNumber: NumeroTuteur }[],
 ): Promise<{ error?: string; resultats?: { parentId: string; tutorNumber: NumeroTuteur; error?: string }[] }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   if (liste.length > 20) return { error: 'Paquet trop grand.' }
 

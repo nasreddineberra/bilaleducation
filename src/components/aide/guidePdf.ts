@@ -4,7 +4,7 @@ import { textePdf } from '@/lib/pdf/nombres'
 import { finDuTableau } from '@/lib/pdf/tableau'
 import { libelleRole } from '@/lib/auth/role-labels'
 import { presentationParModule, ROLES_PRESENTATION } from '@/lib/aide'
-import type { Procedure } from '@/lib/aide/types'
+import type { OptionsEcole, Procedure } from '@/lib/aide/types'
 
 // Guide d'utilisation en PDF (02/11) : page de garde et sommaire, PRESENTATION
 // de l'application (chaque fonctionnalite et les roles qui y accedent, pour tout
@@ -15,7 +15,7 @@ import type { Procedure } from '@/lib/aide/types'
 const ENCRE: [number, number, number] = [31, 46, 53]
 const DOUX:  [number, number, number] = [110, 110, 110]
 
-export async function genererGuidePdf(procedures: Procedure[], etablissement: string): Promise<JsPDFType> {
+export async function genererGuidePdf(procedures: Procedure[], etablissement: string, options: OptionsEcole): Promise<JsPDFType> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable')
   const doc: JsPDFType = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
@@ -55,7 +55,7 @@ export async function genererGuidePdf(procedures: Procedure[], etablissement: st
   ecrire('Chaque fonctionnalité, rangée comme dans le menu, avec ce à quoi elle sert et les rôles qui y ont accès (•). '
     + 'L’administrateur a partout les droits de la direction. Les familles n’ont pas encore de compte.', { apres: 3 })
   const colonnesRoles = Object.fromEntries(ROLES_PRESENTATION.map((_, i) => [i + 2, { halign: 'center' as const, cellWidth: 16 }]))
-  for (const m of presentationParModule()) {
+  for (const m of presentationParModule(options)) {
     titreSection(m.module)
     autoTable(doc, {
       startY: y,

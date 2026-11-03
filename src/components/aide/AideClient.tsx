@@ -7,10 +7,10 @@ import { useToast } from '@/lib/toast-context'
 import { messageErreur } from '@/lib/erreur'
 import { afficherPdf, fermerOngletPdf, ouvrirOngletPdf } from '@/lib/pdf/ouvrir'
 import { ORDRE_MODULES, rechercher } from '@/lib/aide'
-import type { Procedure } from '@/lib/aide/types'
+import type { Procedure, OptionsEcole } from '@/lib/aide/types'
 
 /** Menu Aide : les procedures du role, par module du menu, avec recherche et guide PDF. */
-export default function AideClient({ procedures, etablissement }: { procedures: Procedure[]; etablissement: string }) {
+export default function AideClient({ procedures, etablissement, options }: { procedures: Procedure[]; etablissement: string; options: OptionsEcole }) {
   const { error: toastError } = useToast()
   const [requete, setRequete] = useState('')
   const [pdfEnCours, setPdfEnCours] = useState(false)
@@ -25,7 +25,7 @@ export default function AideClient({ procedures, etablissement }: { procedures: 
     setPdfEnCours(true)
     try {
       const { genererGuidePdf } = await import('./guidePdf')
-      afficherPdf(await genererGuidePdf(procedures, etablissement), 'Guide_utilisation.pdf', onglet)
+      afficherPdf(await genererGuidePdf(procedures, etablissement, options), 'Guide_utilisation.pdf', onglet)
     } catch (e) {
       fermerOngletPdf(onglet)
       toastError(messageErreur(e) ?? 'Le guide n’a pas pu être généré.')

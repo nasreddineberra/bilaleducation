@@ -16,6 +16,10 @@ interface UtilisateursClientProps {
   /** Option espace famille active : onglet Parents (comptes, invitations). */
   espaceFamille?: boolean
   comptesParents?: CompteParent[]
+  /** Onglet Equipe (admin / direction). Faux : onglet Parents seul. */
+  equipe?: boolean
+  /** « Desactiver » / « Reactiver » un compte parent : direction seulement. */
+  peutDesactiver?: boolean
 }
 
 const STAFF_ROLES: UserRole[] = ['super_admin', 'admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
@@ -47,9 +51,10 @@ const TOUS_LES_ONGLETS: { key: Tab; label: string }[] = [
   { key: 'parents', label: 'Parents' },
 ]
 
-export default function UtilisateursClient({ profiles, twoFactorUserIds = [], espaceFamille = false, comptesParents = [] }: UtilisateursClientProps) {
-  // Sans l'option, l'onglet Parents n'existe pas (decision 15).
-  const TABS = espaceFamille ? TOUS_LES_ONGLETS : TOUS_LES_ONGLETS.filter(t => t.key === 'staff')
+export default function UtilisateursClient({ profiles, twoFactorUserIds = [], espaceFamille = false, comptesParents = [], equipe = true, peutDesactiver = true }: UtilisateursClientProps) {
+  // Sans l'option, l'onglet Parents n'existe pas (decision 15) ; sans l'equipe
+  // (secretaire, resp. pedagogique), il est seul.
+  const TABS = TOUS_LES_ONGLETS.filter(t => (t.key === 'staff' ? equipe : espaceFamille))
   const [inviter, setInviter] = useState(false)
   // Onglet, recherche et filtre MEMORISES : on ouvre une fiche, on revient, et
   // la liste est retrouvee telle qu'on l'avait laissee. Cet ecran filtre cote
@@ -60,7 +65,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [], es
     tab: 'staff', search: '', filter: '',
   })
   // Le hook garantit une chaine, pas une valeur valide : on valide ici.
-  const tab: Tab = espaceFamille && etat.tab === 'parents' ? 'parents' : 'staff'
+  const tab: Tab = !equipe || (espaceFamille && etat.tab === 'parents') ? 'parents' : 'staff'
   const search = etat.search
   const activeFilter: '' | 'active' = etat.filter === 'active' ? 'active' : ''
   const setSearch = (v: string) => setEtat({ search: v })
@@ -186,7 +191,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [], es
       <div role="tabpanel" id="panel-utilisateurs" aria-labelledby={`tab-${tab}`}>
         {tab === 'staff'
           ? <UtilisateursTable profiles={filtered} twoFactorUserIds={twoFactorUserIds} />
-          : <ParentsComptesTable comptes={comptesFiltres} />}
+          : <ParentsComptesTable comptes={comptesFiltres} peutDesactiver={peutDesactiver} />}
       </div>
 
       {inviter && <InviterFamillesModal onClose={() => setInviter(false)} />}

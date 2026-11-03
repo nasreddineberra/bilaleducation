@@ -19,8 +19,19 @@ import type { UserRole } from '@/types/database'
 
 export type RoleAide = Exclude<UserRole, 'admin' | 'super_admin' | 'parent'>
 
+/**
+ * Option payante d'une ecole dont depend un element de l'aide (03/11) : une
+ * procedure, une tache, une regle... marquee ainsi ne s'affiche (languette, menu
+ * Aide, guide PDF) que dans une ecole qui a souscrit l'option. Une ecole sans
+ * l'option ne voit jamais l'aide d'un ecran qu'elle n'a pas.
+ */
+export type OptionAide = 'espace_famille'
+
+/** Options souscrites par l'ecole du lecteur. */
+export interface OptionsEcole { espaceFamille: boolean }
+
 /** Restriction facultative d'un element : absente = tous les roles de la procedure. */
-interface Pour { roles?: RoleAide[] }
+interface Pour { roles?: RoleAide[]; option?: OptionAide }
 
 export interface Tache extends Pour {
   titre: string
@@ -38,6 +49,8 @@ export interface Procedure {
   /** Adresses couvertes : exactes, ou prefixe termine par `/*` (fiches). */
   ecrans: string[]
   roles: RoleAide[]
+  /** Option de l'ecole dont depend toute la procedure (absente = toutes les ecoles). */
+  option?: OptionAide
   /** A quoi sert l'ecran, en deux phrases au plus. */
   resume: string
   /** Ou le trouver dans le menu (« Gestion · Financements · Règlements »). */
