@@ -34,11 +34,13 @@ export interface NotificationResult {
 
 interface ParentInfo {
   id: string
-  user_id: string | null
+  tutor1_user_id: string | null
+  tutor2_user_id: string | null
   tutor1_first_name: string | null
   tutor1_last_name: string | null
   tutor1_email: string | null
   tutor2_email: string | null
+  etablissements: { option_espace_famille: boolean } | null
 }
 
 /**
@@ -96,14 +98,27 @@ export async function createNotification(params: CreateNotificationParams): Prom
     emailError = result.error
   }
 
-  // 4. Envoyer le push
-  if (parent.user_id) {
-    const push = await sendPushToUser(parent.user_id, {
-      title: params.title,
-      body: params.body,
-      url: '/dashboard/notifications',
-    })
-    pushStatus = push.sent > 0 ? 'sent' : push.failed > 0 ? 'failed' : 'no_sub'
+  // 4. Envoyer le push : aux comptes des tuteurs vises par l'email (un seul pour
+  // un cours adulte), et seulement si l'option espace famille de l'ecole est active.
+  const comptes = parent.etablissements?.option_espace_famille
+    ? [
+        { compte: parent.tutor1_user_id, email: parent.tutor1_email },
+        { compte: parent.tutor2_user_id, email: parent.tutor2_email },
+      ].flatMap(t => (t.compte && (!params.emailsOverride || (t.email && params.emailsOverride.includes(t.email))) ? [t.compte] : []))
+    : []
+  if (comptes.length > 0) {
+    let sent = 0
+    let failed = 0
+    for (const compte of comptes) {
+      const push = await sendPushToUser(compte, {
+        title: params.title,
+        body: params.body,
+        url: '/dashboard/notifications',
+      })
+      sent += push.sent
+      failed += push.failed
+    }
+    pushStatus = sent > 0 ? 'sent' : failed > 0 ? 'failed' : 'no_sub'
   }
 
   // 5. Update statuts
@@ -127,10 +142,10 @@ export async function getParentWithEmails(parentId: string): Promise<ParentInfo 
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('parents')
-    .select('id, user_id, tutor1_first_name, tutor1_last_name, tutor1_email, tutor2_email')
+    .select('id, tutor1_user_id, tutor2_user_id, tutor1_first_name, tutor1_last_name, tutor1_email, tutor2_email, etablissements(option_espace_famille)')
     .eq('id', parentId)
     .single()
-  return data as ParentInfo | null
+  return data
 }
 
 /**

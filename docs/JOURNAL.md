@@ -10281,3 +10281,20 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   chantier livre y ajoute la sienne). Historique de la sortie des `any` retire de la section 8 (il est plus haut dans
   ce journal). Dates et mentions d'historique retirees des regles (sections 1, 3, 4, 5). Aucune regle supprimee.
   486 -> 425 lignes, 41 -> 35 Ko.
+
+## 03/11 · Espace famille, lot 1 : fondations
+
+- Decision : l'acces parent devient une OPTION PAYANTE par ecole (tarif propre, forfait + prix par inscrit, fige au
+  releve mensuel), developpee a l'abri (demonstration seule) ; plan, decisions et lots : `docs/ESPACE-FAMILLE.md`.
+- Constat : le lien compte -> foyer etait casse. Les comptes s'ecrivaient en `tutor1/2_user_id`, mais les 7 regles
+  parent et 6 lectures du code cherchaient `parents.user_id`, jamais remplie : aucun parent n'aurait rien vu, et le
+  tuteur 2 n'etait prevu nulle part. `journal_parent_select` ouvrait en outre les SEANCES (internes) aux familles.
+- Migration `espace-famille-fondations.sql` (jouee) : `etablissements.option_espace_famille`, tarif de l'option et
+  releve (`fn_releve_facturation` reecrite, ancre md5), un compte = tuteur d'un seul foyer a une seule place (index
+  uniques + declencheur), `foyer_du_compte` / `tuteur_du_compte` / `classes_du_compte` (annee en cours : enfants
+  actifs + cours adultes de CE tuteur) / `devoir_de_mon_enfant` / `devoir_de_mon_cours` (fonctions et non
+  sous-requetes : la RLS de `students` ne laisse rien lire au parent). Regles parent reecrites, seances retirees.
+- Controle 37 (33 essais) : rouge avant (22 KO), vert apres ; controles 16, 25, 26, 35 verts avec la migration.
+- Code : `lib/parents/foyer.ts` remplace les 6 lectures ; le cahier de texte parent prend ses classes de la base
+  (cours adultes compris) ; le push part vers les comptes des tuteurs vises, option active seulement.
+- Reste du lot : `espace-famille-retrait-user-id.sql` (restrictive) apres deploiement, puis `npm run types-db`.

@@ -19,6 +19,7 @@ import { supprimerDevoir } from '@/app/dashboard/cahier-texte/actions'
 import { nomCompletEnseignant } from '@/lib/teachers/nom'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import { cleAdulte, lireCleAdulte } from '@/lib/parents/participant'
+import { foyerDuCompte, tuteurDuCompte } from '@/lib/parents/foyer'
 import type { DevoirCahier } from '@/lib/cahier-texte/donnees'
 import { libelleMatiere, type CreneauMatiere } from '@/lib/cahier-texte/matiere'
 
@@ -120,37 +121,25 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
 
         let mine: string[] = []
         if (isParent) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: me } = await supabase
-              .from('parents')
-              .select('id, tutor1_user_id, tutor2_user_id')
-              .or(`tutor1_user_id.eq.${user.id},tutor2_user_id.eq.${user.id}`)
-            const myAll: string[] = []
-            for (const p of me ?? []) {
-              if (p.tutor1_user_id === user.id) myAll.push(`${p.id}-1`)
-              if (p.tutor2_user_id === user.id) myAll.push(`${p.id}-2`)
-            }
-            mine = myAll.filter(k => parts.some(pt => pt.key === k))
-          }
+          // Sa propre place (foyer + numero de tuteur), jugee par la base.
+          const [foyer, tuteur] = await Promise.all([foyerDuCompte(supabase), tuteurDuCompte(supabase)])
+          if (foyer && tuteur) mine = [cleAdulte(foyer, tuteur)].filter(k => parts.some(pt => pt.key === k))
         }
         if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(mine) }
 
       } else {
         // Classe d'enfants : participants = élèves inscrits, statuts homework_status.
         if (isParent) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (!user) return
-          const { data: pl } = await supabase.from('parents').select('id').eq('user_id', user.id).maybeSingle()
-          if (!pl) return
-          const { data: kids } = await supabase.from('students').select('id, first_name, last_name').eq('parent_id', pl.id).eq('is_active', true)
+          const foyer = await foyerDuCompte(supabase)
+          if (!foyer) return
+          const { data: kids } = await supabase.from('students').select('id, first_name, last_name').eq('parent_id', foyer).eq('is_active', true)
           const parts: Participant[] = (kids ?? []).map(s => ({ key: s.id, name: `${s.last_name} ${s.first_name}` }))
           const ids = parts.map(p => p.key)
           const { data: st } = ids.length
             ? await supabase.from('homework_status').select('*').eq('homework_id', homework.id).in('student_id', ids)
             : { data: [] }
           const sts: Status[] = (st ?? []).map(s => ({ key: s.student_id, id: s.id, is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at }))
-          if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(ids); setMonFoyer(pl.id) }
+          if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(ids); setMonFoyer(foyer) }
         } else if (canViewTracking) {
           const { data: enr } = await supabase
             .from('enrollments')

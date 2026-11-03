@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import { foyerDuCompte } from '@/lib/parents/foyer'
 
 type Client = SupabaseClient<Database>
 
@@ -27,25 +28,21 @@ export async function chargerNotifications(supabase: Client, userId: string) {
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
-  // Notifications parent (le user est lie a un foyer)
-  const { data: parentLink } = await supabase
-    .from('parents')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle()
+  // Notifications parent (le compte est tuteur d'un foyer, espace famille ouvert)
+  const parentId = await foyerDuCompte(supabase)
 
-  const [{ data: parentNotifs }, { data: autoNotifs }] = parentLink
+  const [{ data: parentNotifs }, { data: autoNotifs }] = parentId
     ? await Promise.all([
         supabase
           .from('announcement_recipients')
           .select(`id, is_read, read_at, created_at, announcements:announcement_id(${ANNONCE})` as const)
-          .eq('parent_id', parentLink.id)
+          .eq('parent_id', parentId)
           .order('created_at', { ascending: false }),
         // Notifications automatiques (absences, retards, paiements, devoirs, seances)
         supabase
           .from('notifications')
           .select('id, type, title, body, is_read, read_at, created_at')
-          .eq('parent_id', parentLink.id)
+          .eq('parent_id', parentId)
           .order('created_at', { ascending: false }),
       ])
     : [{ data: [] }, { data: [] }]
@@ -57,7 +54,7 @@ export async function chargerNotifications(supabase: Client, userId: string) {
   ]
   const temps = (d: string | null) => (d ? new Date(d).getTime() : 0)
   return {
-    parentId: parentLink?.id,
+    parentId: parentId ?? undefined,
     notifications: notifications.sort((a, b) => temps(b.created_at) - temps(a.created_at)),
   }
 }

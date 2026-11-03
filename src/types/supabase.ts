@@ -1,5 +1,5 @@
 // FICHIER GENERE par `npm run types-db` (scripts/generer-types-db.mjs) : ne pas editer.
-// Structure du schema public du projet Supabase, le 2026-11-02.
+// Structure du schema public du projet Supabase, le 2026-11-03.
 
 import type { ColonnesJson } from './json'
 
@@ -1723,6 +1723,8 @@ export type Database = {
           adresse: string | null
           email: string | null
           etablissement_id: string
+          famille_forfait: number | null
+          famille_prix_inscrit: number | null
           forfait: number | null
           identifiant: string | null
           prix_inscrit: number | null
@@ -1734,6 +1736,8 @@ export type Database = {
           adresse?: string | null
           email?: string | null
           etablissement_id: string
+          famille_forfait?: number | null
+          famille_prix_inscrit?: number | null
           forfait?: number | null
           identifiant?: string | null
           prix_inscrit?: number | null
@@ -1745,6 +1749,8 @@ export type Database = {
           adresse?: string | null
           email?: string | null
           etablissement_id?: string
+          famille_forfait?: number | null
+          famille_prix_inscrit?: number | null
           forfait?: number | null
           identifiant?: string | null
           prix_inscrit?: number | null
@@ -1853,6 +1859,7 @@ export type Database = {
           logo_url: string | null
           max_students: number | null
           nom: string
+          option_espace_famille: boolean
           regle_ajustement: "sans_ajustement" | "due" | "prorata" | "cas_par_cas"
           regle_ajustement_le: string | null
           regle_ajustement_par: string | null
@@ -1874,6 +1881,7 @@ export type Database = {
           logo_url?: string | null
           max_students?: number | null
           nom: string
+          option_espace_famille?: boolean
           regle_ajustement?: "sans_ajustement" | "due" | "prorata" | "cas_par_cas"
           regle_ajustement_le?: string | null
           regle_ajustement_par?: string | null
@@ -1895,6 +1903,7 @@ export type Database = {
           logo_url?: string | null
           max_students?: number | null
           nom?: string
+          option_espace_famille?: boolean
           regle_ajustement?: "sans_ajustement" | "due" | "prorata" | "cas_par_cas"
           regle_ajustement_le?: string | null
           regle_ajustement_par?: string | null
@@ -3514,9 +3523,12 @@ export type Database = {
           adultes_inscrits: number
           eleves_actifs: number
           etablissement_id: string
+          famille_forfait: number | null
+          famille_prix_inscrit: number | null
           forfait: number | null
           limite: number | null
           mois: string
+          option_espace_famille: boolean
           prix_inscrit: number | null
           releve_le: string
         }
@@ -3524,9 +3536,12 @@ export type Database = {
           adultes_inscrits: number
           eleves_actifs: number
           etablissement_id: string
+          famille_forfait?: number | null
+          famille_prix_inscrit?: number | null
           forfait?: number | null
           limite?: number | null
           mois: string
+          option_espace_famille?: boolean
           prix_inscrit?: number | null
           releve_le?: string
         }
@@ -3534,9 +3549,12 @@ export type Database = {
           adultes_inscrits?: number
           eleves_actifs?: number
           etablissement_id?: string
+          famille_forfait?: number | null
+          famille_prix_inscrit?: number | null
           forfait?: number | null
           limite?: number | null
           mois?: string
+          option_espace_famille?: boolean
           prix_inscrit?: number | null
           releve_le?: string
         }
@@ -4709,6 +4727,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      classes_du_compte: { Args: never; Returns: string[] }
       cleanup_profile_only: {
         Args: { p_profile_id: string | null }
         Returns: undefined
@@ -4826,6 +4845,11 @@ export type Database = {
         Returns: number
       }
       demo_couper_sessions: { Args: { p_user: string | null }; Returns: number }
+      devoir_de_mon_cours: { Args: { p_homework_id: string | null }; Returns: boolean }
+      devoir_de_mon_enfant: {
+        Args: { p_homework_id: string | null; p_student_id: string | null }
+        Returns: boolean
+      }
       effacer_etablissement: {
         Args: {
           p_auteur: string | null
@@ -4965,6 +4989,7 @@ export type Database = {
         Args: { p_class_id: string | null; p_date: string | null }
         Returns: string
       }
+      foyer_du_compte: { Args: never; Returns: string }
       get_etablissements_sante: {
         Args: never
         Returns: {
@@ -5021,6 +5046,7 @@ export type Database = {
       teaches_class: { Args: { p_class_id: string | null }; Returns: boolean }
       teaches_parent: { Args: { p_parent_id: string | null }; Returns: boolean }
       teaches_student: { Args: { p_student_id: string | null }; Returns: boolean }
+      tuteur_du_compte: { Args: never; Returns: number }
       valider_seance: {
         Args: { p_date: string | null; p_slot_id: string | null }
         Returns: Json

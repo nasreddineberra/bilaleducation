@@ -77,7 +77,10 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 
 - **`admin` = droits `direction` partout.** Exception : « ecrire a la direction » (CCI, destinataires)
   n'inclut pas l'admin.
-- **Comptes parents suspendus en V1** (`CREATE_PARENT_ACCOUNTS = false`) ; le parcours parent est code.
+- **Espace famille (acces parent) = OPTION PAYANTE par ecole, en developpement** (`docs/ESPACE-FAMILLE.md`) :
+  ouverte sur la demonstration seule. Seul juge en base : `foyer_du_compte()` (tuteur 1 ou 2 via
+  `tutor1/2_user_id`, option active, ecole valide) ; toute regle parent passe par elle. Cote app :
+  `lib/parents/foyer.ts`. Seances du cahier de texte jamais lues par une famille.
 - **Ecran Utilisateurs** = comptes SANS fiche metier (direction, comptable, secretaire, resp. pedago).
   Enseignant -> fiche enseignant (compte + profil + `teachers` atomique) ; parent -> fiche parents.
 - **Enseignant** : ses classes (`teaches_class`, fenetre `effective_from/until`), ses eleves
@@ -223,7 +226,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/parents/situation-familiale.ts`, `lib/temps-presence/*`, `lib/evaluations/ordre.ts`,
   `lib/closure/ordre.ts`, `lib/mobile.ts`, `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`,
   `lib/tenant/*`, `lib/pdf/ouvrir.ts`, `components/cahier-texte/commun.ts`, `lib/parents/participant.ts`
-  (cle adulte `parentId-tutorNumber`), `tonCategorie()` (support),
+  (cle adulte `parentId-tutorNumber`), `lib/parents/foyer.ts` (foyer, numero de tuteur et classes du compte parent), `tonCategorie()` (support),
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
   `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (temps reel : `titulaireActuel` = principal

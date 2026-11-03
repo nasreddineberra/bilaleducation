@@ -5,6 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { horodatageParis } from '@/lib/dates'
+import { classesDuCompte } from '@/lib/parents/foyer'
 
 export type DonneesCahierTexte = Awaited<ReturnType<typeof chargerCahierTexte>>
 export type ClasseCahier = DonneesCahierTexte['classes'][number]
@@ -93,23 +94,10 @@ export async function chargerCahierTexte(
     if (classIds.length) classes = await lireClasses(classIds)
 
   } else if (role === 'parent') {
-    const { data: parentLink } = await supabase
-      .from('parents')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (parentLink) {
-      const { data: studentEnrollments } = await supabase
-        .from('students')
-        .select('enrollments!inner(class_id)')
-        .eq('parent_id', parentLink.id)
-        .eq('is_active', true)
-        .eq('enrollments.status', 'active')
-
-      classIds = [...new Set((studentEnrollments ?? []).flatMap(s => s.enrollments.map(e => e.class_id)))]
-      if (classIds.length > 0) classes = await lireClasses(classIds)
-    }
+    // Classes de l'annee en cours de ses enfants ET ses cours adultes, jugees par
+    // la base (vide hors espace famille).
+    classIds = await classesDuCompte(supabase)
+    if (classIds.length > 0) classes = await lireClasses(classIds)
   }
 
   // Séances et devoirs des classes lisibles

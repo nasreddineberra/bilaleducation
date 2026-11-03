@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import { foyerDuCompte } from '@/lib/parents/foyer'
 
 /**
  * EN-TETE COMMUN DES TABLEAUX DE BORD : periode courante, notifications non lues
@@ -36,18 +37,15 @@ export async function chargerEnTete(
     .eq('is_read', false)
     .neq('announcements.channel', 'email')
 
-  const { data: parentLink } = await supabase
-    .from('parents')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle()
+  // Foyer du compte : NULL pour le personnel et hors espace famille.
+  const parentId = await foyerDuCompte(supabase)
 
   let parentUnreadCount = 0
-  if (parentLink) {
+  if (parentId) {
     const { count } = await supabase
       .from('announcement_recipients')
       .select('id', { count: 'exact', head: true })
-      .eq('parent_id', parentLink.id)
+      .eq('parent_id', parentId)
       .eq('is_read', false)
     parentUnreadCount = count ?? 0
   }
@@ -67,11 +65,11 @@ export async function chargerEnTete(
   // Cote PARENT, les notifications vivent dans `announcement_recipients` (cle
   // parent_id) et non dans la table staff : le compteur les additionnait alors
   // que la liste ne les voyait jamais — bandeau « 3 non lues », aucune ligne.
-  const { data: recentParent } = parentLink
+  const { data: recentParent } = parentId
     ? await supabase
         .from('announcement_recipients')
         .select(RECENTE)
-        .eq('parent_id', parentLink.id)
+        .eq('parent_id', parentId)
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(3)
@@ -87,7 +85,7 @@ export async function chargerEnTete(
   return {
     periodes,
     currentPeriod,
-    parentId: parentLink?.id ?? null,
+    parentId,
     unreadNotifs: (staffUnread ?? 0) + parentUnreadCount,
     recentNotifs,
   }

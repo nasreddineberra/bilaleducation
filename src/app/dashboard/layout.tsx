@@ -12,6 +12,7 @@ import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { consoleUrl } from '@/lib/tenant/console-url'
 import { expirerSiDepassee } from '@/lib/support/intervention'
 import SingleTabGuard from '@/components/layout/SingleTabGuard'
+import { foyerDuCompte } from '@/lib/parents/foyer'
 
 
 /**
@@ -23,16 +24,14 @@ import SingleTabGuard from '@/components/layout/SingleTabGuard'
  */
 async function compterNotifsParent(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
 ): Promise<number> {
-  const { data: parentLink } = await supabase
-    .from('parents').select('id').eq('user_id', userId).maybeSingle()
-  if (!parentLink) return 0
+  const foyer = await foyerDuCompte(supabase)
+  if (!foyer) return 0
 
   const { count } = await supabase
     .from('announcement_recipients')
     .select('id', { count: 'exact', head: true })
-    .eq('parent_id', parentLink.id)
+    .eq('parent_id', foyer)
     .eq('is_read', false)
   return count ?? 0
 }
@@ -163,7 +162,7 @@ export default async function DashboardLayout({
     // suspension des comptes parents en V1 — ainsi rien ne sera à défaire le
     // jour de leur réactivation, un compte parent portant `role = 'parent'`
     // (posé par le RPC `create_parent_login_profile`).
-    displayRole === 'parent' ? compterNotifsParent(supabase, user.id) : Promise.resolve(0),
+    displayRole === 'parent' ? compterNotifsParent(supabase) : Promise.resolve(0),
   ])
 
   const supportEcole = isSupportSession(profileEffectif) ? (etablissement?.nom ?? 'cet établissement') : null
