@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lot 1 terminé (03/11)**. Prochain : lot 2.
+État : **lots 1 et 2 terminés (03/11)**. Prochain : lot 3.
 
 ---
 
@@ -32,13 +32,14 @@ l'option se vend école par école depuis la console.
 8. Tarif de l'option : modèle (c), forfait + prix par inscrit.
 9. Option activée en cours de mois : le mois est dû (proposé, à confirmer au lot 7 ; le relevé du mois en cours
    est alors mis à jour, comme pour un changement de tarif).
+10. Le commentaire d'une absence est visible de la famille ; bulletins : année en cours seulement (03/11).
 
 ## Lots
 
 | Lot | Contenu | État |
 |---|---|---|
 | 1 | Fondations en base : lien compte ↔ tuteur, option et tarif, fonctions, règles existantes réécrites, retrait de `parents.user_id` | fait (migrations A et B jouées, contrôle 37 vert) |
-| 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | à faire |
+| 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | fait (migration jouée, contrôle 38 vert) |
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | à faire |
 | 4 | Bulletins : lecture du fichier, notification « Bulletin disponible » | à faire |
 | 5 | Comptes et invitations : email d'invitation, case « Accès en ligne » par tuteur, Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | à faire |
@@ -120,3 +121,73 @@ Joué AVANT la migration (doit être rouge), puis après (vert).
 3. Code ; `npm run lint`, `type-check`, `test`, `build` ; commit + push sur accord.
 4. Après déploiement : migration B, `npm run types-db`, `type-check`.
 5. `CLAUDE.md` (ligne « Comptes parents suspendus en V1 »), entrée au journal.
+
+---
+
+## Lot 2 · détail (fait le 03/11)
+
+Une seule migration ADDITIVE (`espace-famille-lecture.sql`) : uniquement des droits de lecture NOUVEAUX
+pour le parent, rien de retiré au personnel. Aucun code applicatif (les écrans sont au lot 6).
+
+### Deux voies de lecture
+
+La RLS ouvre une ligne ENTIÈRE. Une table qui porte une donnée interne ne s'ouvre donc pas au parent :
+il la lit par une fonction qui ne rend que les colonnes affichables.
+
+**Voie 1 · règles d'accès (tables sans donnée interne)**
+
+| Table | Le parent lit |
+|---|---|
+| `students` | ses enfants (actifs et partis : le nom d'un enfant parti sert à ses bulletins) |
+| `classes` | `classes_du_compte()` + classes de ses bulletins lisibles |
+| `schedule_slots`, `schedule_exceptions` | créneaux et exceptions de `classes_du_compte()` |
+| `rooms`, `unites_enseignement` | référentiels de son école (noms de salle et de matière de l'EDT) |
+| `school_years`, `periods` | années et périodes de son école |
+| `absences` | absences et retards de ses enfants ACTIFS, année en cours |
+| `adult_absences` | les siennes (son numéro de tuteur) |
+| `parent_class_enrollments` | ses propres inscriptions adultes |
+| `bulletin_archives`, `adult_bulletin_archives` | voir « Décision 5 » |
+| `storage.objects` (bucket `bulletins`) | le fichier d'un bulletin qu'il peut lire, et lui seul |
+| `announcements`, `announcement_recipients`, `announcement_attachments` (+ bucket `communication-attachments`) | les messages adressés à son foyer et leurs pièces jointes |
+
+**Voie 2 · fonctions (colonnes choisies)**
+
+| Fonction | Rend | Ne rend jamais |
+|---|---|---|
+| `famille_foyer()` | tuteurs : nom, prénom, lien, email, téléphone, adresse | `parents.notes` (note interne) |
+| `famille_enseignants()` | titulaires de ses classes : civilité, NOM, prénom, dates d'effet | téléphone, email, notes de la fiche |
+| `famille_seances_modifiees(debut, fin)` | séance annulée ou remplacée, nom du remplaçant | l'absence de l'enseignant, son motif |
+| `famille_finances()` | année en cours : cotisations, participants, départs et règle, dossier, échéances (dû, payé, date, moyen, reçu), réductions | `notes` et auteur des écritures, échanges internes |
+
+`famille_finances()` rend les DONNÉES du calcul ; le calcul reste `lib/financements/compute.ts` (source unique,
+même résultat que l'écran Règlements).
+
+### Décision 5 · `foyer_actif()`
+
+Vrai si un enfant du foyer est actif et affecté cette année, ou si CE tuteur suit un cours adulte actif.
+
+- Foyer actif : tout ce qui précède.
+- Foyer non actif (dernier enfant parti) : seulement `famille_foyer()`, les noms de ses enfants et leurs
+  bulletins archivés de l'année en cours, jusqu'à `school_years.end_date` incluse.
+- Un enfant parti alors qu'un frère ou une sœur reste : ses absences ne se lisent plus, ses bulletins de
+  l'année en cours restent lisibles jusqu'à la fin de l'année.
+- Bulletins : année en cours seulement (les années passées sont archivées puis purgées).
+
+### Contrôle 38 · `38-espace-famille-lecture.sql`
+
+Deux foyers, deux écoles, un enfant parti, un tuteur adulte. Pour chaque table et chaque fonction : son foyer
+oui, l'autre foyer non, l'autre école non, option coupée non, foyer non actif = bulletins seuls (jusqu'à la fin
+d'année), aucune colonne interne rendue (notes, motif, téléphone d'enseignant), fichier de bulletin d'un autre
+foyer refusé. Rouge avant, vert après ; contrôles 16, 25, 26, 35 et 37 rejoués.
+
+### Ajouts faits pendant le lot 2
+
+- `rooms_select` et `materials_select` ne portaient que l'école, sans le rôle : tout compte de l'école, parent
+  compris, les lisait. Réservées au personnel ; le parent lit les salles par `rooms_parent_select` (foyer actif).
+  Les documents requis (`doc_type_configs_select`) restent lisibles du parent : décision du contrôle 12.
+- Règles de stockage parent : dossier racine = l'école et rôle `parent` en plus de la fonction (contrôle 14).
+- Dans les règles, les appels sans argument sont écrits `(SELECT foyer_du_compte())` : évalués une fois par
+  requête, y compris pour le personnel (les règles permissives s'additionnent).
+- `famille_finances()` rend les données BRUTES (inscriptions actives et retirées, cours adultes, mouvements de
+  départ, dossiers) : au lot 6, le calcul par foyer est extrait de `family-financials.ts` pour servir les deux.
+- Tous les contrôles rejoués avec la migration : seuls 12 et 14 ont bougé, corrigés avant de jouer.

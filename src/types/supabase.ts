@@ -4724,7 +4724,25 @@ export type Database = {
           user_id: string
         }[]
       }
+      annonce_du_foyer: {
+        Args: { p_announcement_id: string | null }
+        Returns: boolean
+      }
+      bulletin_adulte_lisible: {
+        Args: {
+          p_parent_id: string | null
+          p_period_id: string | null
+          p_tutor_number: number | null
+        }
+        Returns: boolean
+      }
+      bulletin_enfant_lisible: {
+        Args: { p_period_id: string | null; p_student_id: string | null }
+        Returns: boolean
+      }
+      classe_annee_en_cours: { Args: { p_class_id: string | null }; Returns: boolean }
       classes_du_compte: { Args: never; Returns: string[] }
+      classes_famille: { Args: never; Returns: string[] }
       cleanup_profile_only: {
         Args: { p_profile_id: string | null }
         Returns: undefined
@@ -4856,6 +4874,10 @@ export type Database = {
         }
         Returns: Json
       }
+      enfant_actif_du_foyer: {
+        Args: { p_student_id: string | null }
+        Returns: boolean
+      }
       enregistrer_absence_enseignant: {
         Args: {
           p_debut: string | null
@@ -4880,6 +4902,50 @@ export type Database = {
         Returns: boolean
       }
       exporter_etablissement: { Args: { p_id: string | null }; Returns: Json }
+      famille_enseignants: {
+        Args: never
+        Returns: {
+          civilite: string
+          class_id: string
+          effective_from: string
+          effective_until: string
+          first_name: string
+          is_main_teacher: boolean
+          last_name: string
+          subject: string
+          teacher_id: string
+        }[]
+      }
+      famille_finances: { Args: never; Returns: Json }
+      famille_foyer: {
+        Args: never
+        Returns: {
+          address: string
+          city: string
+          email: string
+          first_name: string
+          last_name: string
+          phone: string
+          postal_code: string
+          relationship: string
+          tutor_number: number
+        }[]
+      }
+      famille_seances_modifiees: {
+        Args: { p_debut: string | null; p_fin: string | null }
+        Returns: {
+          decision: string
+          remplacant_civilite: string
+          remplacant_nom: string
+          remplacant_prenom: string
+          remplacant_profile_id: string
+          remplacant_teacher_id: string
+          schedule_slot_id: string
+          seance_date: string
+        }[]
+      }
+      fichier_annonce_lisible: { Args: { p_name: string | null }; Returns: boolean }
+      fichier_bulletin_lisible: { Args: { p_name: string | null }; Returns: boolean }
       fin_ajouter_reduction: {
         Args: { p_fee_id: string | null; p_reduction: Json | null; p_subtotal: number | null }
         Returns: Json
@@ -4986,6 +5052,7 @@ export type Database = {
         Args: { p_class_id: string | null; p_date: string | null }
         Returns: string
       }
+      foyer_actif: { Args: never; Returns: boolean }
       foyer_du_compte: { Args: never; Returns: string }
       get_etablissements_sante: {
         Args: never

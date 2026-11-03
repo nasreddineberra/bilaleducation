@@ -10298,3 +10298,18 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Code : `lib/parents/foyer.ts` remplace les 6 lectures ; le cahier de texte parent prend ses classes de la base
   (cours adultes compris) ; le push part vers les comptes des tuteurs vises, option active seulement.
 - Apres deploiement : `espace-famille-retrait-user-id.sql` jouee (`parents.user_id` supprimee), types regeneres, controle 37 vert.
+
+## 03/11 · Espace famille, lot 2 : lecture « mon foyer »
+
+- Migration `espace-famille-lecture.sql` (jouee). Deux voies : regles d'acces pour les tables sans donnee interne
+  (enfants, classes, creneaux, exceptions, salles, matieres, annees, periodes, absences avec leur commentaire,
+  absences et inscriptions adultes, bulletins archives et leur fichier, messages du foyer et pieces jointes) ;
+  fonctions `famille_*` a colonnes choisies pour les autres (fiche sans `notes`, enseignants sans telephone ni
+  email, seances annulees / remplacees sans absence ni motif, donnees brutes du calcul financier sans notes ni
+  auteur). Decision 5 par `foyer_actif()` : foyer sans classe = noms des enfants et bulletins de l'annee jusqu'a
+  `end_date`. Bulletins : annee en cours seulement.
+- Releve en passant : `rooms_select` et `materials_select` sans role (tout compte de l'ecole, parent compris) ;
+  reservees au personnel. Les documents requis restent lisibles du parent (decision du controle 12).
+- Controle 38 (57 essais) : rouge avant (47 KO), vert apres. Tous les controles rejoues avec la migration : 12 et
+  14 ont bouge (decision documents requis ; dossier racine et role sur les regles de stockage), corriges avant de
+  jouer. Types regeneres.
