@@ -1,10 +1,8 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { phraseRefus } from '@/lib/financements/depart-refus'
 import { headers } from 'next/headers'
-import crypto from 'crypto'
 import { messageDoublon } from '@/lib/doublons'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
@@ -18,7 +16,8 @@ import type { TablesInsert } from '@/types/supabase'
 // ─── Payloads : les colonnes de `parents`, moins celles que pose le serveur ───
 
 type ColonnesParent = Omit<TablesInsert<'parents'>,
-  'id' | 'etablissement_id' | 'user_id' | 'tutor1_user_id' | 'tutor2_user_id' | 'created_at' | 'updated_at'>
+  'id' | 'etablissement_id' | 'tutor1_user_id' | 'tutor2_user_id' | 'created_at' | 'updated_at'
+  | 'tutor1_invite_le' | 'tutor2_invite_le' | 'tutor1_acces_configure_le' | 'tutor2_acces_configure_le'>
 
 export type CreateParentPayload = ColonnesParent
 // is_active est géré séparément — ne pas autoriser via ce endpoint
@@ -27,6 +26,7 @@ export type UpdateParentPayload = Partial<ColonnesParent>
 // Champs interdits à l'injection
 const FORBIDDEN_FIELDS = [
   'id', 'etablissement_id', 'tutor1_user_id', 'tutor2_user_id',
+  'tutor1_invite_le', 'tutor2_invite_le', 'tutor1_acces_configure_le', 'tutor2_acces_configure_le',
   'created_at', 'updated_at', 'is_active', 'role',
 ]
 
@@ -50,26 +50,14 @@ function sanitizeParentPayload(payload: Record<string, unknown>): UpdateParentPa
   return clean as UpdateParentPayload
 }
 
-function generateTempPassword(): string {
-  return crypto.randomBytes(9).toString('base64url').slice(0, 12)
-}
+// ─── Créer une fiche parents ──────────────────────────────────────────────────
+// Aucun compte de connexion ici : l'acces en ligne d'un tuteur passe par
+// l'invitation a l'espace famille (Utilisateurs > Parents, `famille-actions.ts`),
+// ou le parent choisit lui-meme son mot de passe.
 
-export interface TutorAccountResult {
-  tutorLabel: string
-  email: string
-  tempPassword: string
-}
-
-// V1 : création automatique des comptes de connexion parents SUSPENDUE.
-// Mettre à true pour réactiver (un compte parent est alors créé par tuteur ayant un email).
-const CREATE_PARENT_ACCOUNTS = false
-
-// ─── Créer une fiche parents avec comptes utilisateurs automatiques ──────────
-
-export async function createParentWithAccounts(payload: CreateParentPayload): Promise<{
+export async function createParentRecord(payload: CreateParentPayload): Promise<{
   error?: string
   parentId?: string
-  accounts?: TutorAccountResult[]
 }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
@@ -82,53 +70,10 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
 
-  const supabase = createAdminClient()
-  const accounts: TutorAccountResult[] = []
   const cleanPayload = sanitizeParentPayload(payload) as CreateParentPayload
   const parentData: TablesInsert<'parents'> = { ...cleanPayload, etablissement_id: etablissementId }
 
-  // Créer compte tuteur 1 si email présent
-  if (CREATE_PARENT_ACCOUNTS && payload.tutor1_email) {
-    const result = await createTutorAccount(supabase, etablissementId, {
-      email: payload.tutor1_email,
-      first_name: payload.tutor1_first_name ?? '',
-      last_name: payload.tutor1_last_name ?? '',
-      phone: payload.tutor1_phone,
-    })
-    if (result.error) return { error: `Tuteur 1 : ${result.error}` }
-    parentData.tutor1_user_id = result.userId
-    accounts.push({
-      tutorLabel: `Tuteur 1 : ${payload.tutor1_first_name} ${payload.tutor1_last_name}`,
-      email: payload.tutor1_email,
-      tempPassword: result.tempPassword!,
-    })
-  }
-
-  // Créer compte tuteur 2 si email présent
-  if (CREATE_PARENT_ACCOUNTS && payload.tutor2_email) {
-    const result = await createTutorAccount(supabase, etablissementId, {
-      email: payload.tutor2_email,
-      first_name: payload.tutor2_first_name ?? '',
-      last_name: payload.tutor2_last_name ?? '',
-      phone: payload.tutor2_phone,
-    })
-    if (result.error) {
-      // Nettoyage du compte tuteur 1 si le tuteur 2 échoue
-      if (parentData.tutor1_user_id) {
-        await cleanupTutorAccount(supabase, parentData.tutor1_user_id)
-      }
-      return { error: `Tuteur 2 : ${result.error}` }
-    }
-    parentData.tutor2_user_id = result.userId
-    accounts.push({
-      tutorLabel: `Tuteur 2 : ${payload.tutor2_first_name} ${payload.tutor2_last_name}`,
-      email: payload.tutor2_email,
-      tempPassword: result.tempPassword!,
-    })
-  }
-
-  // Créer la fiche parents avec le client SESSION : le trigger d'audit capte alors
-  // l'acteur (auth.uid()). Le client admin reste réservé aux comptes auth des tuteurs.
+  // Client SESSION : le trigger d'audit capte l'acteur (auth.uid()).
   const session = await createClient()
   const { data: parent, error: parentError } = await session
     .from('parents')
@@ -137,23 +82,14 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
     .single()
 
   if (parentError) {
-    // Nettoyage des comptes créés avec Promise.allSettled
-    const createdUserIds = [parentData.tutor1_user_id, parentData.tutor2_user_id]
-      .filter((id): id is string => !!id)
-
-    const cleanupPromises = createdUserIds.map(userId =>
-      cleanupTutorAccount(supabase, userId)
-    )
-    await Promise.all(cleanupPromises)
-
     // Le declencheur d'unicite des tuteurs porte SON propre message, en
     // francais et nommant le foyer en conflit. Le remplacer par un texte
-    // generique — ce que faisait cette ligne — priverait l'utilisateur de la
-    // seule information qui lui permet d'agir.
+    // generique priverait l'utilisateur de la seule information qui lui
+    // permet d'agir.
     return { error: messageDoublon(parentError) ?? messageLimiteInscrits(parentError) ?? 'Erreur lors de la création de la fiche parents.' }
   }
 
-  return { parentId: parent.id, accounts }
+  return { parentId: parent.id }
 }
 
 // ─── Mettre à jour une fiche parents ─────────────────────────────────────────
@@ -209,71 +145,6 @@ export async function updateParentRecord(
   const echecMaj = erreurEcriture(resMaj, 'Ce foyer')
   if (echecMaj) return { error: echecMaj }
   return {}
-}
-
-// ─── Helper interne : créer un compte pour un tuteur ─────────────────────────
-// Utilise le RPC create_profile_only pour que le profil soit créé atomiquement
-
-async function createTutorAccount(
-  supabase: ReturnType<typeof createAdminClient>,
-  etablissementId: string,
-  data: { email: string; first_name: string; last_name: string; phone?: string | null }
-): Promise<{ error?: string; userId?: string; tempPassword?: string }> {
-  const tempPassword = generateTempPassword()
-
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: data.email,
-    password: tempPassword,
-    email_confirm: true,
-  })
-
-  if (authError) {
-    if (authError.message.includes('already registered')) {
-      return { error: `L'email ${data.email} est déjà utilisé par un autre compte.` }
-    }
-    return { error: authError.message }
-  }
-
-  // 2. Insérer le profil dans une transaction atomique via RPC
-  const { error: rpcError } = await supabase.rpc('create_profile_only', {
-    p_profile_id:       authData.user.id,
-    p_email:            data.email,
-    p_role:             'parent',
-    p_first_name:       data.first_name,
-    p_last_name:        data.last_name,
-    p_civilite:         null,
-    p_phone:            data.phone || null,
-    p_is_active:        true,
-    p_etablissement_id: etablissementId,
-  })
-
-  if (rpcError) {
-    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
-      console.error('[createTutorAccount] Échec du rollback auth:', e)
-    )
-    return { error: `Erreur lors de la création du profil parent : ${rpcError.message}` }
-  }
-
-  return { userId: authData.user.id, tempPassword }
-}
-
-// ─── Helper : nettoyer un compte tuteur + profil ─────────────────────────────
-
-async function cleanupTutorAccount(
-  supabase: ReturnType<typeof createAdminClient>,
-  userId: string
-): Promise<void> {
-  const results = await Promise.allSettled([
-    supabase.rpc('cleanup_profile_only', { p_profile_id: userId }),
-    supabase.auth.admin.deleteUser(userId),
-  ])
-  for (const [i, result] of results.entries()) {
-    if (result.status === 'rejected') {
-      console.error(`[cleanupTutorAccount] Échec du nettoyage ${i}:`, result.reason)
-    } else if (result.value && 'error' in result.value && result.value.error) {
-      console.error(`[cleanupTutorAccount] Erreur RPC/auth ${i}:`, result.value.error)
-    }
-  }
 }
 
 // ─── Mise à jour en lot des inscriptions « cours adultes » (une famille/ligne) ──

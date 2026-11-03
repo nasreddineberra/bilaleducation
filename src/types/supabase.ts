@@ -2713,6 +2713,70 @@ export type Database = {
           },
         ]
       }
+      invitations_famille: {
+        Row: {
+          annule_le: string | null
+          cree_le: string
+          cree_par: string | null
+          empreinte: string
+          etablissement_id: string
+          expire_le: string
+          id: string
+          parent_id: string
+          profile_id: string
+          tutor_number: 1 | 2
+          utilise_le: string | null
+        }
+        Insert: {
+          annule_le?: string | null
+          cree_le?: string
+          cree_par?: string | null
+          empreinte: string
+          etablissement_id: string
+          expire_le: string
+          id?: string
+          parent_id: string
+          profile_id: string
+          tutor_number: 1 | 2
+          utilise_le?: string | null
+        }
+        Update: {
+          annule_le?: string | null
+          cree_le?: string
+          cree_par?: string | null
+          empreinte?: string
+          etablissement_id?: string
+          expire_le?: string
+          id?: string
+          parent_id?: string
+          profile_id?: string
+          tutor_number?: 1 | 2
+          utilise_le?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_famille_etablissement_id_fkey"
+            columns: ["etablissement_id"]
+            isOneToOne: false
+            referencedRelation: "etablissements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_famille_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "parents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_famille_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           category: "informatique" | "audiovisuel" | "mobilier" | "sport" | "fournitures" | "autre"
@@ -3160,22 +3224,26 @@ export type Database = {
           id: string
           notes: string | null
           situation_familiale: "mariés" | "pacsés" | "union_libre" | "séparés" | "divorcés" | "veuf_veuve" | "monoparental" | null
+          tutor1_acces_configure_le: string | null
           tutor1_address: string | null
           tutor1_adult_courses: boolean
           tutor1_city: string | null
           tutor1_email: string
           tutor1_first_name: string
+          tutor1_invite_le: string | null
           tutor1_last_name: string
           tutor1_phone: string | null
           tutor1_postal_code: string | null
           tutor1_profession: string | null
           tutor1_relationship: "père" | "mère" | "tuteur" | "autre"
           tutor1_user_id: string | null
+          tutor2_acces_configure_le: string | null
           tutor2_address: string | null
           tutor2_adult_courses: boolean
           tutor2_city: string | null
           tutor2_email: string | null
           tutor2_first_name: string | null
+          tutor2_invite_le: string | null
           tutor2_last_name: string | null
           tutor2_phone: string | null
           tutor2_postal_code: string | null
@@ -3191,22 +3259,26 @@ export type Database = {
           id?: string
           notes?: string | null
           situation_familiale?: "mariés" | "pacsés" | "union_libre" | "séparés" | "divorcés" | "veuf_veuve" | "monoparental" | null
+          tutor1_acces_configure_le?: string | null
           tutor1_address?: string | null
           tutor1_adult_courses?: boolean
           tutor1_city?: string | null
           tutor1_email: string
           tutor1_first_name: string
+          tutor1_invite_le?: string | null
           tutor1_last_name: string
           tutor1_phone?: string | null
           tutor1_postal_code?: string | null
           tutor1_profession?: string | null
           tutor1_relationship?: "père" | "mère" | "tuteur" | "autre"
           tutor1_user_id?: string | null
+          tutor2_acces_configure_le?: string | null
           tutor2_address?: string | null
           tutor2_adult_courses?: boolean
           tutor2_city?: string | null
           tutor2_email?: string | null
           tutor2_first_name?: string | null
+          tutor2_invite_le?: string | null
           tutor2_last_name?: string | null
           tutor2_phone?: string | null
           tutor2_postal_code?: string | null
@@ -3222,22 +3294,26 @@ export type Database = {
           id?: string
           notes?: string | null
           situation_familiale?: "mariés" | "pacsés" | "union_libre" | "séparés" | "divorcés" | "veuf_veuve" | "monoparental" | null
+          tutor1_acces_configure_le?: string | null
           tutor1_address?: string | null
           tutor1_adult_courses?: boolean
           tutor1_city?: string | null
           tutor1_email?: string
           tutor1_first_name?: string
+          tutor1_invite_le?: string | null
           tutor1_last_name?: string
           tutor1_phone?: string | null
           tutor1_postal_code?: string | null
           tutor1_profession?: string | null
           tutor1_relationship?: "père" | "mère" | "tuteur" | "autre"
           tutor1_user_id?: string | null
+          tutor2_acces_configure_le?: string | null
           tutor2_address?: string | null
           tutor2_adult_courses?: boolean
           tutor2_city?: string | null
           tutor2_email?: string | null
           tutor2_first_name?: string | null
+          tutor2_invite_le?: string | null
           tutor2_last_name?: string | null
           tutor2_phone?: string | null
           tutor2_postal_code?: string | null
@@ -5078,11 +5154,21 @@ export type Database = {
         Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
+      marquer_acces_configure: { Args: never; Returns: undefined }
       marquer_familles_prevenues: {
         Args: { p_absence_id: string | null; p_seances: Json | null }
         Returns: number
       }
       norm_name: { Args: { txt: string | null }; Returns: string }
+      preparer_invitation_tuteur: {
+        Args: {
+          p_empreinte: string | null
+          p_parent_id: string | null
+          p_profile_id: string | null
+          p_tutor_number: number | null
+        }
+        Returns: Json
+      }
       purge_school_year: { Args: { p_year_id: string | null }; Returns: Json }
       reinitialiser_ecole_demo: { Args: { p_id: string | null }; Returns: Json }
       releve_historisation: { Args: { p_year_id: string | null }; Returns: Json }

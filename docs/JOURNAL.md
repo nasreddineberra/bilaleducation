@@ -10334,3 +10334,19 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Le push ne servait qu'aux parents. Interrupteur unique `PUSH_ACTIF = false` (`lib/push-actif.ts`, module a part
   de `lib/push.ts` qui charge `web-push`) : plus d'envoi depuis `createNotification`, bouton d'abonnement masque,
   `/api/notifications/subscribe` refuse. Code conserve, aucune migration.
+
+## 03/11 · Espace famille, lot 5a : invitations
+
+- Decisions utilisateur (12 a 16) : invitation 7 jours ; inviter = direction, secretaire, resp. pedagogique, envoi en
+  lot = direction ; pas de case « Acces en ligne » mais un badge quand le compte est CONFIGURE ; statut et boutons
+  dans Utilisateurs > Parents ; plus de mot de passe temporaire.
+- Pourquoi pas le lien Supabase du personnel : gabarit unique a la marque de l'editeur, valable 1 heure, envoi par
+  le SMTP du projet (plafonne). Ici : jeton propre (empreinte seule en base, 7 jours, usage unique), email par le
+  SMTP de l'ecole, page « Activer mon acces » en POST ; le lien de reinitialisation Supabase est genere et verifie
+  cote serveur au clic (son heure ne court qu'a partir de la), puis l'ecran de mot de passe existant.
+- Migration `espace-famille-invitations.sql` (jouee) : dates d'invitation et de configuration sur `parents`,
+  `foyer_du_compte()` exige un profil actif, table serveur `invitations_famille`, garde « compte parent de la meme
+  ecole », RPC `preparer_invitation_tuteur` et `marquer_acces_configure`. Controle 40 (20 essais) rouge avant, vert
+  apres ; tous les controles rejoues : le 26 liste maintenant la nouvelle table serveur.
+- Middleware : compte `parent` d'une ecole sans l'option = connexion, message dedie (role EXPLICITE : verifie qu'aucun
+  compte n'a de jeton sans role). Ancien code V1 retire (comptes a la creation de fiche, mots de passe temporaires).

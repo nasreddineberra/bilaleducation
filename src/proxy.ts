@@ -260,13 +260,17 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/version' ||
     pathname.includes('.')
 
+  // Option espace famille de l'ecole (lue avec le tenant) : un compte parent
+  // n'entre pas dans le tableau de bord d'une ecole qui ne l'a pas.
+  let optionFamille = false
+
   if (!skipTenantCheck) {
     try {
       // Appel direct à l'API REST Supabase avec la clé service_role
       // (fonctionne à l'Edge Runtime, bypasse RLS)
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/etablissements` +
-        `?slug=eq.${encodeURIComponent(slug)}&select=id,is_active,subscription_expires_at&limit=1`,
+        `?slug=eq.${encodeURIComponent(slug)}&select=id,is_active,subscription_expires_at,option_espace_famille&limit=1`,
         {
           headers: {
             'apikey':        process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -293,6 +297,7 @@ export async function proxy(request: NextRequest) {
         // Injecter l'identifiant tenant dans les headers de la requête
         requestHeaders.set('x-etablissement-id',   tenant.id)
         requestHeaders.set('x-etablissement-slug', slug)
+        optionFamille = tenant.option_espace_famille === true
 
         // Vérifier l'abonnement uniquement pour le dashboard
         if (pathname.startsWith('/dashboard')) {
@@ -502,6 +507,13 @@ export async function proxy(request: NextRequest) {
       path: '/',
       maxAge: SESSION_COOKIE_MAX_AGE,
     }))
+  }
+
+  // ── Espace famille : option de l'ecole (docs/ESPACE-FAMILLE.md) ───────────
+  // La base refuse deja tout (foyer_du_compte) ; ceci evite au parent un tableau
+  // de bord vide. Message sur l'ecran de connexion.
+  if (user && pathname.startsWith('/dashboard') && user.app_metadata?.role === 'parent' && !optionFamille) {
+    return NextResponse.redirect(new URL('/login?reason=famille', request.url))
   }
 
   // ── 2FA TOTP pour les rôles non-parent ────────────────────────────────────

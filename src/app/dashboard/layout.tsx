@@ -158,10 +158,8 @@ export default async function DashboardLayout({
     //
     // RÉSERVÉ AU RÔLE `parent`. La question était posée à TOUT LE MONDE : chaque
     // directeur, secrétaire ou enseignant payait un aller-retour complet pour
-    // s'entendre répondre « non ». Le garde-fou porte sur le RÔLE et non sur la
-    // suspension des comptes parents en V1 — ainsi rien ne sera à défaire le
-    // jour de leur réactivation, un compte parent portant `role = 'parent'`
-    // (posé par le RPC `create_parent_login_profile`).
+    // s'entendre répondre « non ». Le garde-fou porte sur le RÔLE : un compte
+    // parent porte `role = 'parent'` (posé par `preparer_invitation_tuteur`).
     displayRole === 'parent' ? compterNotifsParent(supabase) : Promise.resolve(0),
   ])
 

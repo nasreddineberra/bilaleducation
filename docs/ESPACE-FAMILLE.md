@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 à 4 terminés (03/11)**. Prochain : lot 5.
+État : **lots 1 à 4 terminés, lot 5a fait (03/11)**. Prochain : lot 5b.
 
 ---
 
@@ -45,7 +45,7 @@ l'option se vend école par école depuis la console.
 | 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | fait (migration jouée, contrôle 38 vert) |
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | fait (migration jouée après déploiement, contrôle 39 vert) |
 | 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
-| 5 | Comptes et invitations : email d'invitation, case « Accès en ligne » par tuteur, Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | à faire |
+| 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | 5a fait (base, invitation, activation, middleware) ; 5b à faire |
 | 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | à faire |
 | 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
 
@@ -290,3 +290,84 @@ Le push n'existe que pour les parents (bouton « Activer les notifications » de
 - `NotificationsClient` : bouton d'abonnement masqué.
 - `/api/notifications/subscribe` : refuse l'abonnement (aucun abonnement ne peut s'enregistrer par l'adresse).
 - Aucune migration ; la table `push_subscriptions` reste (vide).
+
+---
+
+## Lot 5 · détail (révisé le 03/11 ; 5a fait)
+
+### Décisions (03/11)
+
+12. Invitation valable **7 jours**, usage unique ; une nouvelle invitation annule la précédente.
+13. Inviter un tuteur : direction, secrétaire, resp. pédagogique ; « Inviter les familles » (lot) : direction.
+14. Pas de case « Accès en ligne » : un **badge** « Accès en ligne » quand le tuteur a CONFIGURÉ son compte
+    (mot de passe choisi). Couper l'accès d'un tuteur = « Désactiver » dans Utilisateurs > Parents.
+15. Fiche parents : le badge seul. Liste des parents : colonne « Accès en ligne ». Statut et TOUS les boutons :
+    Utilisateurs > Parents.
+16. Le mot de passe temporaire (ancien code V1) disparaît : le parent choisit le sien par l'email d'invitation.
+
+### Parcours d'invitation
+
+1. Utilisateurs > Parents, « Inviter les familles » : fenêtre sur le modèle de « Cours adultes en lot »
+   (`ParentsAdultSyncModal`) : une ligne par foyer, colonnes Tuteur 1 / Tuteur 2, un interrupteur par tuteur.
+   - compte configuré : interrupteur COCHÉ et VERROUILLÉ (« Accès en ligne configuré ») ;
+   - sans email : verrouillé décoché (« Aucun email ») ;
+   - déjà invité, pas encore configuré : sélectionnable, « Invité le ... » affiché ;
+   - « Tout sélectionner » / « Tout désélectionner » (sauf verrouillés), recherche, compteur ;
+   - « Envoyer les invitations (n) » : envoi par paquets avec progression, compte rendu à la fin.
+2. Pour chaque tuteur choisi, le serveur vérifie l'option et l'email, crée le compte s'il n'existe pas (rôle
+   `parent`, sans mot de passe utilisable), le relie au tuteur, crée le jeton (7 jours, empreinte seule stockée).
+3. Email par le SMTP de l'école, à sa marque : bouton « Activer mon accès », mention RGPD.
+4. Page « Activer mon accès » (bouton POST, contre les antivirus qui ouvrent les liens) : jeton vérifié, session
+   ouverte côté serveur, jeton consommé, puis « Choisissez votre mot de passe » (page existante). Le mot de passe
+   enregistré, le tuteur est « configuré » (date posée par le serveur).
+
+### Base (migration additive)
+
+- `parents.tutor1_invite_le`, `tutor2_invite_le`, `tutor1_acces_configure_le`, `tutor2_acces_configure_le`.
+- `foyer_du_compte()` exige en plus un profil ACTIF (« Désactiver » coupe l'accès immédiatement).
+- Table `invitations_famille` (serveur uniquement : RLS sans règle, droits retirés).
+- Garde : `tutor1/2_user_id` ne désigne qu'un compte `parent` de la MÊME école.
+
+### Écrans
+
+- **Utilisateurs > Parents** (onglet existant, masqué si l'option est coupée) : comptes parents avec foyer,
+  tuteur, statut (Invité le ... / Accès en ligne, dernière connexion / Désactivé), actions « Renvoyer
+  l'invitation » (non configuré), « Désactiver » / « Réactiver » ; bouton « Inviter les familles ».
+- **Fiche parents** : badge « Accès en ligne » par tuteur configuré (rien d'autre).
+- **Liste des parents** : colonne « Accès en ligne » (badge par tuteur configuré).
+- Badge et colonne masqués si l'option est coupée.
+
+### Vie du compte, sécurité, démonstration, aide
+
+- Email du tuteur modifié = email du compte ; foyer supprimé = comptes supprimés (chemin existant, vérifié).
+- Middleware : compte parent d'une école sans l'option = déconnecté, « L'espace famille n'est pas disponible. »
+- `CREATE_PARENT_ACCOUNTS` et le mot de passe temporaire retirés.
+- Démonstration : `parent1@` (foyer à deux enfants) et `parent2@demonstration.invalid` (cours adulte),
+  configurés, recréés par « Réinitialiser ».
+- Aide : « Inviter les familles », « Renvoyer une invitation », « Désactiver l'accès d'un parent ».
+
+### Contrôle 40
+
+Invitations illisibles (personnel, parent, anonyme) ; profil désactivé = plus de foyer ; tuteur relié à un compte
+d'une autre école ou non parent = refusé.
+
+### Livraison en deux temps
+
+- 5a : base, invitation (envoi unitaire côté serveur, page d'activation), middleware, retrait de l'ancien code.
+- 5b : Utilisateurs > Parents (statut, actions, fenêtre en lot), badge, colonne, démonstration, aide.
+
+### Fait au 5a (03/11)
+
+- Migration `espace-famille-invitations.sql` (jouée), contrôle 40 (20 essais, vert) ; contrôle 26 : la table
+  `invitations_famille` rejoint la liste des tables serveur.
+- `inviterTuteur` (`app/dashboard/utilisateurs/famille-actions.ts`) : compte créé au premier envoi, invitation
+  préparée par la base, email à la marque de l'école (`lib/espace-famille/email-invitation.ts`). Sans écran : il
+  est appelé par les écrans du 5b.
+- Page `/auth/activer-acces` (bouton POST) : jeton vérifié côté serveur, session ouverte par un lien de
+  réinitialisation généré et vérifié sans email, puis « Choisissez votre mot de passe » ; la date « accès
+  configuré » est posée à l'enregistrement du mot de passe (`marquer_acces_configure`).
+- Middleware : un compte `parent` (rôle explicite) d'une école sans l'option est renvoyé à la connexion,
+  « L'espace famille n'est pas disponible. »
+- Retirés : `CREATE_PARENT_ACCOUNTS`, la création de comptes à la création d'une fiche parents, l'affichage des
+  mots de passe temporaires, `createParentAccount` (jamais appelé).
+- Reporté au 5b : email du tuteur modifié = email du compte.

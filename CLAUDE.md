@@ -192,7 +192,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   permissives s'ADDITIONNENT. Recursion entre policies -> fonction SECURITY DEFINER.
 - **Tables sensibles « serveur uniquement »** (RLS sans policy + REVOKE) : `etablissement_smtp`,
   `etablissement_notes`, `etablissement_facturation`, `releves_facturation`, `support_interventions`,
-  `migrations_appliquees`. Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp`.
+  `migrations_appliquees`, `invitations_famille`. Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp`.
 - **Journal d'activite** : trigger `fn_audit_log()` (lit `auth.uid()`) + `logAudit` (colonne
   `description`). Tables ecrites avec le **client SESSION** ; client admin reserve aux comptes `auth`.
   Nom et email reecrits depuis `profiles` (`fn_audit_logs_auteur`). **Les comptes `admin` et

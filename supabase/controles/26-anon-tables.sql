@@ -53,7 +53,7 @@ BEGIN
   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT has_table_privilege('authenticated', c.oid, 'SELECT')
     AND c.relname NOT IN ('actions_editeur', 'etablissement_departs', 'etablissement_facturation', 'etablissement_notes',
-                          'etablissement_smtp', 'migrations_appliquees', 'releves_facturation', 'support_interventions');
+                          'etablissement_smtp', 'invitations_famille', 'migrations_appliquees', 'releves_facturation', 'support_interventions');
   ok := liste IS NULL;
   rapport := rapport || E'\n[' || CASE WHEN ok THEN 'OK' ELSE 'KO' END || '] authenticated intact       ' || coalesce('fermees : ' || liste, 'oui');
   IF NOT ok THEN nb_ko := nb_ko + 1; END IF;

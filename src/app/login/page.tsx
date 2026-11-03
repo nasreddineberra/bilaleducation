@@ -119,6 +119,8 @@ export default function LoginPage() {
     else if (reason === 'session') setNotice('Votre session a expiré. Veuillez vous reconnecter.')
     // Compte rattache a un AUTRE etablissement que celui de cette adresse.
     else if (reason === 'etablissement') setNotice("Votre compte n'appartient pas à cet établissement. Vérifiez l'adresse du site.")
+    // Compte parent d'une ecole dont l'option espace famille est coupee (middleware).
+    else if (reason === 'famille') setNotice("L'espace famille n'est pas disponible.")
   }, [])
 
   // Charger le nom et logo de l'établissement

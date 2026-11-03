@@ -9,6 +9,7 @@ import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import { createClient } from '@/lib/supabase/client'
 import { isPasswordValid } from '@/lib/validation/password'
 import { messageErreurMotDePasse } from '@/lib/auth/password-error'
+import { marquerAccesConfigure } from './actions'
 
 interface Props {
   motif?: string | null
@@ -112,6 +113,8 @@ export default function ResetPasswordClient({ motif }: Props) {
     if (error) {
       setError(messageErreurMotDePasse(error.message))
     } else {
+      // Parent : badge « Accès en ligne » (sans effet pour le personnel).
+      await marquerAccesConfigure().catch(() => { /* non bloquant */ })
       setSuccess(true)
     }
   }

@@ -68,3 +68,12 @@ fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa r
 - Tableau de bord de chaque role (en-tete, notifications) ; appel enfants et adultes (saisie, justification) ;
   cotisations (historique) ; notes et bulletins (archivage, appreciation, PDF) ; ressources, types de presence,
   etablissement, enrolement 2FA ; affectation adultes (changement de classe avec modifications en cours).
+
+## Espace famille (option payante, demonstration seule pendant le developpement)
+
+- Lot 5a (03/11) : invitation d'un tuteur dans une ecole DONT LA MESSAGERIE EST CONFIGUREE (la demonstration n'en a
+  pas) : email a la marque de l'ecole, « Activer mon acces », choix du mot de passe, connexion ; lien reutilise =
+  « Ce lien n'est plus valable » ; nouvelle invitation = l'ancien lien refuse ; compte parent d'une ecole sans
+  l'option = ecran de connexion « L'espace famille n'est pas disponible. »
+- Creation d'une fiche parents : plus aucun mot de passe affiche, retour a la liste.
+

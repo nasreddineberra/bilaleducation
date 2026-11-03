@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { clsx } from 'clsx'
 import { useRouter } from 'next/navigation'
-import { createParentWithAccounts, updateParentRecord, type TutorAccountResult, type CreateParentPayload, type UpdateParentPayload } from '@/app/dashboard/parents/actions'
+import { createParentRecord, updateParentRecord, type CreateParentPayload, type UpdateParentPayload } from '@/app/dashboard/parents/actions'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
@@ -138,7 +138,6 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
   const [sameAddressT1,      setSameAddressT1]      = useState(adresseIdentique)
   const [touched,            setTouched]            = useState<Set<string>>(new Set())
   const [isSubmitting,       setIsSubmitting]       = useState(false)
-  const [createdAccounts,    setCreatedAccounts]    = useState<TutorAccountResult[] | null>(null)
 
   const set   = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -244,23 +243,19 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
           toast.success('Fiche parents modifiée avec succès.')
         }
       } else {
-        // Création avec comptes utilisateurs automatiques
-        const result = await createParentWithAccounts(payload as CreateParentPayload)
+        // Création de la fiche (l'accès en ligne passe par l'invitation,
+        // Utilisateurs > Parents).
+        const result = await createParentRecord(payload as CreateParentPayload)
         if (result.error) {
           toast.error(result.error)
           setIsSubmitting(false)
           return
         }
-        // Si des comptes ont été créés, afficher les mots de passe
-        if (result.accounts && result.accounts.length > 0) {
-          setCreatedAccounts(result.accounts)
+        router.refresh()
+        if (onClose) {
+          onClose()
         } else {
-          router.refresh()
-          if (onClose) {
-            onClose()
-          } else {
-            router.push(backHref)
-          }
+          router.push(backHref)
         }
       }
     } catch {
@@ -268,46 +263,6 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  // ─── Affichage mots de passe temporaires après création ──────────────────
-
-  if (createdAccounts) {
-    return (
-      <div className="max-w-lg mx-auto mt-8">
-        <div className="card p-6 space-y-4">
-          <h2 className="text-lg font-bold text-secondary-800">Fiche parents et comptes utilisateurs créés</h2>
-          <p className="text-sm text-warm-700">
-            {createdAccounts.length === 1 ? 'Un compte utilisateur a été créé' : `${createdAccounts.length} comptes utilisateurs ont été créés`} automatiquement.
-          </p>
-          {createdAccounts.map((acc, i) => (
-            <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
-              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">{acc.tutorLabel}</p>
-              <p className="text-sm text-secondary-700">{acc.email}</p>
-              <p className="text-xs text-warm-700 mt-1">Mot de passe temporaire :</p>
-              <p className="text-lg font-mono font-bold text-secondary-800 select-all">{acc.tempPassword}</p>
-            </div>
-          ))}
-          <p className="text-xs text-amber-600">
-            Notez ces mots de passe maintenant. Ils ne seront plus affichés. L'administrateur pourra envoyer un email de réinitialisation depuis la page Utilisateurs.
-          </p>
-          <FloatButton
-            variant="submit"
-            className="w-full justify-center"
-            onClick={() => {
-              router.refresh()
-              if (onClose) {
-                onClose()
-              } else {
-                router.push(backHref)
-              }
-            }}
-          >
-            Retour à la liste
-          </FloatButton>
-        </div>
-      </div>
-    )
   }
 
   return (

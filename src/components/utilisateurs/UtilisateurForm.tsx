@@ -41,8 +41,8 @@ const ROLES_WITH_NOTES: UserRole[] = ['direction', 'comptable', 'secretaire', 'r
 //    auth + le profil + la ligne `teachers`. Le creer ici produirait un enseignant
 //    FANTOME (profil sans `teachers`) : absent de la liste Enseignants, non affectable
 //    a une classe (class_teachers -> teachers.id), invisible pour la validation EDT.
-//  - `parent` : comptes parents SUSPENDUS en V1 (cf. CREATE_PARENT_ACCOUNTS = false),
-//    et la fiche parents est le point d'entree.
+//  - `parent` : cree par l'invitation a l'espace famille (Utilisateurs > Parents,
+//    `famille-actions.ts`), relie a son tuteur ; jamais ici.
 //  - `admin` / `super_admin` : jamais creables ici.
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'direction',                label: 'Direction'          },
