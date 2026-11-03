@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 à 5 terminés, lot 6a fait (03/11)**. Prochain : lot 6b.
+État : **lots 1 à 6 terminés (03/11)**. Prochain : lot 7 (console, lancement).
 
 ---
 
@@ -46,7 +46,7 @@ l'option se vend école par école depuis la console.
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | fait (migration jouée après déploiement, contrôle 39 vert) |
 | 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
 | 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | fait (5a, 5b, rôles et aide) |
-| 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | 6a fait ; 6b à faire |
+| 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | fait (6a et 6b) |
 | 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
 
 ---
@@ -468,3 +468,55 @@ Test sur le site déployé avec `parent1@` et `parent2@demonstration.invalid`.
   d'enfant mémorisé (`SelecteurEnfant`).
 - Notifications : le parent marque lu par la fonction (l'écriture directe était refusée).
 - Le libellé du menu reste « Tableau de bord » (entrée commune à tous les rôles).
+
+### 6b · détail (fait le 03/11)
+
+**Emploi du temps** (`famille/emploi-du-temps`)
+- Semaine de l'enfant (« Semaine précédente » / « Semaine suivante », « Aujourd'hui ») ; une carte par jour
+  ouvré de l'école ; sur téléphone, les jours l'un sous l'autre.
+- Par séance : heures, intitulé (matière ou activité, `lib/edt/intitule.ts`), salle, enseignant qui l'assure.
+  « Annulée » et « Remplacée par NOM Prénom » viennent des décisions d'absence (`famille_seances_modifiees`) et
+  des exceptions, fondues comme à l'école (`fusionnerDecisions`, `enseignantDeSeance`) ; vacances et jours fériés
+  (`jourFerme`) remplacent les séances du jour.
+- Calcul PUR dans `lib/espace-famille/semaine.ts`, testé (récurrence et dates d'effet, séance ponctuelle,
+  annulation, remplacement, salle changée, jour fermé).
+
+**Bulletins** (`famille/bulletins`)
+- Par enfant, les périodes ARCHIVÉES de l'année (moyenne, absences) ; « Ouvrir le bulletin » : onglet ouvert au
+  clic, adresse signée 60 s (`ouvrirDansOnglet`). Enfant parti : jusqu'à la fin de l'année (décision 5).
+
+**Règlements** (`famille/reglements`)
+- Année en cours : dû, payé, reste, statut ; détail des cotisations (une ligne par enfant ou cours adulte, frais
+  d'inscription, réduction fratrie, départ et règle) ; échéances (date, montant, payé, moyen, reçu) ; réductions.
+- Même calcul que l'école : la partie « sous-total d'un foyer » de `family-financials.ts` est extraite en fonction
+  pure (`lib/financements/foyer.ts`) et sert les deux ; les départs passent par la même logique que
+  `chargerDeparts` (extraite elle aussi). Test : l'école et le foyer donnent le même dû.
+- Pas d'attestation de paiement en V1 (l'école la produit depuis Règlements).
+
+**Cours adulte FUSIONNÉ avec les enfants** (décision du 03/11, pas de menu « Mes cours ») : le tuteur inscrit
+est un PARTICIPANT de plus. Sélecteur « Tous · prénoms des enfants · Moi » ; son cours apparaît dans l'emploi du
+temps, les devoirs (fenêtre en mode adulte, « Effectué » à son nom), les absences, les bulletins ; carte
+« Mon cours » dans Mes enfants. Chaque tuteur ne voit que SON cours (base, lots 1 et 2).
+
+**Règlements** : chaque paiement est montré (date, montant, moyen, reçu) (décision du 03/11).
+
+**Menu** : Emploi du temps, Bulletins, Règlements ; un champ `section` sur l'entrée de
+menu, car « Emploi du temps » existe déjà côté personnel. Tuile « Reste à payer » ajoutée au tableau de bord.
+
+**Base** : aucune migration prévue (lectures du lot 2).
+
+### Fait au 6b (03/11)
+
+- Participants (`lib/espace-famille/donnees.ts`) : enfants actifs et cours adulte du tuteur (« Moi », un par
+  cours), FUSIONNÉS sur tous les écrans ; sélecteur « Tous · prénoms · Moi » (`SelecteurEnfant`, `choixParticipants`).
+  Mes enfants (carte « Mon cours »), Devoirs (fenêtre en mode adulte), Absences et tableau de bord repris.
+- Emploi du temps : `lib/espace-famille/semaine.ts` (pur, 6 tests) sur les briques de l'EDT de l'école
+  (`fusionnerDecisions`, `enseignantDeSeance`, `salleDeSeance`, `intituleCreneau`, `jourFerme`) ; semaine par
+  `?semaine=`, une carte par jour ouvré.
+- Bulletins : archives de l'année (enfants, enfants partis, cours adulte), « Ouvrir le bulletin » (adresse signée).
+- Règlements : `lib/espace-famille/finances.ts` (pur, 4 tests). Extraits pour servir l'école ET la famille :
+  `sousTotalFoyer` (`lib/financements/foyer.ts`, utilisé par `family-financials.ts`), `departSelonMouvements`,
+  `cleDepartEleve` / `cleDepartAdulte` (`compute.ts`, utilisés par `chargerDeparts`). Paiements un à un,
+  échéances, réductions, détail des cotisations et des départs. Tuile « Reste à payer » au tableau de bord.
+- Menu : champ `section` d'une entrée (deux « Emploi du temps », personnel et parent).
+- Aucune migration.

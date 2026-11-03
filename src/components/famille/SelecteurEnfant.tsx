@@ -3,24 +3,23 @@
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 
 /**
- * Choix de l'enfant en tete d'un ecran de l'espace famille (affiche a partir de
- * deux enfants). « Tous » d'abord ; la valeur est memorisee par l'ecran.
+ * Choix du participant en tete d'un ecran de l'espace famille : « Tous », un
+ * prenom par enfant, « Moi » pour le tuteur inscrit a un cours adulte (cours
+ * FUSIONNE avec les enfants, decision du 03/11). Affiche a partir de deux choix ;
+ * la valeur est memorisee par l'ecran.
  */
-export default function SelecteurEnfant({ enfants, valeur, onChange }: {
-  enfants: { id: string; first_name: string }[]
+export default function SelecteurEnfant({ choix, valeur, onChange }: {
+  choix: { valeur: string; libelle: string }[]
   valeur: string
-  onChange: (id: string) => void
+  onChange: (valeur: string) => void
 }) {
-  if (enfants.length < 2) return null
+  if (choix.length < 2) return null
   return (
     <FiltreSwitch
       ariaLabel="Choisir un enfant"
       actif={valeur}
       onChange={onChange}
-      options={[
-        { valeur: '', libelle: 'Tous' },
-        ...enfants.map(e => ({ valeur: e.id, libelle: e.first_name })),
-      ]}
+      options={[{ valeur: '', libelle: 'Tous' }, ...choix]}
     />
   )
 }

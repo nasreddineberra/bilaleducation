@@ -10389,3 +10389,14 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Tableau de bord parent refait sur les composants des autres tableaux de bord (l'ancien lisait les NOTES, hors
   decision 2, et des tables fermees au parent). Ecrans `famille/enfants`, `famille/devoirs` (lecture du cahier de
   texte en role parent, fenetre du devoir du lot 3), `famille/absences`.
+
+## 03/11 · Espace famille, lot 6b : emploi du temps, bulletins, reglements, cours adulte fusionne
+
+- Decision utilisateur : le cours adulte du tuteur est FUSIONNE avec les enfants (participant « Moi »), pas de menu
+  « Mes cours » ; les reglements montrent chaque paiement.
+- Emploi du temps : calcul pur `lib/espace-famille/semaine.ts` (6 tests) sur les briques de l'EDT de l'ecole.
+  Bulletins : archives de l'annee, adresse signee. Reglements : `lib/espace-famille/finances.ts` (4 tests).
+- Extractions pour une source unique du calcul : `sousTotalFoyer` (`lib/financements/foyer.ts`, repris par
+  `family-financials.ts`), `departSelonMouvements` et les cles de depart (`compute.ts`, repris par `chargerDeparts`).
+  Calcul de l'ecole inchange (memes operations, meme ordre) : a verifier a l'ecran (A-TESTER).
+- Menu : champ `section` d'une entree. Aucune migration.

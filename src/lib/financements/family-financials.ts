@@ -12,7 +12,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
-import { computeFamilyFinancials, lignesCotisation, type CotisationLike } from './compute'
+import { computeFamilyFinancials, type CotisationLike } from './compute'
+import { sousTotalFoyer } from './foyer'
 import { chargerDeparts } from './departs'
 import type { FeeStatus } from '@/types/database'
 
@@ -197,29 +198,22 @@ export async function getFamilyFinancials(supabase: SupabaseClient<Database>, cu
       ...(p.students ?? []).map(s => ({ ...s, depart: null })),
       ...departs.eleves.filter(e => e.parent_id === p.id),
     ]
-    const lignes = lignesCotisation(students.map(s => ({
-      ct:     (s.enrollments ?? [])[0]?.classes?.cotisation_types,
-      ordre:  s.created_at,
-      depart: s.depart,
-    })), currentYear)
-
-    let subtotal = 0
+    // Sous-total du foyer : `lib/financements/foyer.ts` (meme calcul que
+    // l'espace famille).
+    const adultes = adultByParent[p.id] ?? []
+    const { lignesEleves: lignes, lignesAdultes, subtotal: sousTotal } = sousTotalFoyer(
+      students.map(s => ({ ct: (s.enrollments ?? [])[0]?.classes?.cotisation_types, ordre: s.created_at, depart: s.depart })),
+      adultes.map(ae => ({ ct: ae.classes?.cotisation_types, depart: ae.depart })),
+      currentYear,
+    )
+    let subtotal = sousTotal
     students.forEach((s, i) => {
       const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-      if (!ct) return
-      subtotal += lignes[i].total
-      addCotis(ct, lignes[i].total)
+      if (ct) addCotis(ct, lignes[i].total)
     })
-
-    const adultes = adultByParent[p.id] ?? []
-    const lignesAdultes = lignesCotisation(adultes.map(ae => ({
-      ct: ae.classes?.cotisation_types, depart: ae.depart,
-    })), currentYear, { fratrie: false })
     adultes.forEach((ae, i) => {
       const ct = ae.classes?.cotisation_types
-      if (!ct) return
-      subtotal += lignesAdultes[i].total
-      addCotis(ct, lignesAdultes[i].total)
+      if (ct) addCotis(ct, lignesAdultes[i].total)
     })
 
     // Sans inscription : plus de lignes d'ou recalculer, on reprend le sous-total

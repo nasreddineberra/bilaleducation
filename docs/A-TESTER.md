@@ -88,4 +88,10 @@ fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa r
   « Vu » pose a l'ouverture, « Effectue » avant / apres la date de rendu), Absences (commentaire visible),
   Notifications (marquer lu) ; une adresse du personnel tapee a la main (`/dashboard/students`) ramene a
   l'accueil ; sur telephone, menu complet et listes lisibles.
+- Lot 6b (03/11), en `parent1@` puis `parent2@demonstration.invalid` : Emploi du temps (semaine, precedente / suivante,
+  seance annulee ou remplacee apres une absence d'enseignant declaree, vacances), Bulletins (apres archivage d'une
+  periode par l'ecole : « Ouvrir le bulletin »), Reglements (memes du, paye, reste que l'ecran Reglements de l'ecole
+  pour ce foyer ; paiements un a un), `parent2` : son cours adulte fusionne (« Moi ») dans chaque ecran.
+- Ecole (non-regression du calcul extrait) : Reglements, Statistiques, tableau de bord financier : memes montants
+  qu'avant.
 

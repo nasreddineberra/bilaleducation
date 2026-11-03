@@ -24,12 +24,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { cleAdulte } from '@/lib/parents/participant'
-import { REGLE_PAR_DEFAUT, departsRetenus, type DepartLike, type DecisionAjustement, type ParticipantLike, type RegleAjustement } from './compute'
+import { departsRetenus, departSelonMouvements, cleDepartEleve, cleDepartAdulte, type ParticipantLike } from './compute'
 
-export interface DepartCharge extends DepartLike {
-  /** Id du mouvement « depart » : sert a la decision au cas par cas. */
-  mouvementId: string | null
-}
+// Depart d'un participant et sa lecture depuis les mouvements : purs, dans
+// `compute.ts` (testables, partages avec l'espace famille).
+export type { DepartCharge, MouvementDepart } from './compute'
 
 // Formes DEDUITES des requetes (`as const` : le type de chaque ligne se lit dans
 // la chaine de selection), jamais recopiees.
@@ -72,22 +71,7 @@ export async function chargerDeparts(
   const adultesRevenus = new Set((adultesActifs ?? [])
     .filter(a => a.classes?.cotisation_types?.is_adult).map(tuteur))
 
-  // Le DERNIER depart de chaque participant dans chaque classe (un enfant parti,
-  // revenu puis reparti : seul le dernier compte).
-  const mvtPar = new Map<string, NonNullable<typeof mvts>[number]>()
-  for (const m of mvts ?? []) {
-    const cle = m.student_id ? `e:${m.student_id}:${m.class_id}` : `a:${m.parent_id}-${m.tutor_number}:${m.class_id}`
-    if (!mvtPar.has(cle)) mvtPar.set(cle, m)
-  }
-  const depart = (cle: string, date: string | null): DepartCharge => {
-    const m = mvtPar.get(cle)
-    return {
-      date:        date ?? '',
-      regle:       (m?.regle ?? REGLE_PAR_DEFAUT) as RegleAjustement,
-      decision:    (m?.decision ?? null) as DecisionAjustement | null,
-      mouvementId: m?.id ?? null,
-    }
-  }
+  const depart = departSelonMouvements(mvts ?? [])
 
   const eleves = departsRetenus(enr ?? [], e => e.students.id, revenus).map(e => ({
     id:          e.students.id,
@@ -97,7 +81,7 @@ export async function chargerDeparts(
     created_at:  e.students.created_at,
     is_active:   e.students.is_active,
     enrollments: [{ id: e.id, status: e.status, class_id: e.class_id, classes: e.classes }],
-    depart:      depart(`e:${e.students.id}:${e.class_id}`, e.date_depart),
+    depart:      depart(cleDepartEleve(e.students.id, e.class_id), e.date_depart),
   }))
 
   const adultes = departsRetenus(
@@ -106,7 +90,7 @@ export async function chargerDeparts(
     parent_id:    a.parent_id,
     tutor_number: a.tutor_number,
     classes:      a.classes,
-    depart:       depart(`a:${a.parent_id}-${a.tutor_number}:${a.class_id}`, a.date_depart),
+    depart:       depart(cleDepartAdulte(a.parent_id, a.tutor_number, a.class_id), a.date_depart),
   }))
 
   return { eleves, adultes }

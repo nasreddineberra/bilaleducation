@@ -95,6 +95,9 @@ interface NavItem {
   roles:     UserRole[]
   /** Roles qui ne voient l'entree QUE si l'ecole a l'option espace famille. */
   rolesEspaceFamille?: UserRole[]
+  /** Section imposee (sinon `SECTION_OF[name]`) : deux entrees du meme nom pour
+   *  des roles differents (« Emploi du temps » du personnel et du parent). */
+  section?:  string
   mobile?:   boolean
   children?: SubNavItem[]
 }
@@ -222,6 +225,30 @@ const navItems: NavItem[] = [
     href:  '/dashboard/famille/absences',
     icon:  CalendarX,
     roles: ['parent'],
+    mobile: true,
+  },
+  {
+    name:  'Emploi du temps',
+    href:  '/dashboard/famille/emploi-du-temps',
+    icon:  CalendarClock,
+    roles: ['parent'],
+    section: 'Principal',
+    mobile: true,
+  },
+  {
+    name:  'Bulletins',
+    href:  '/dashboard/famille/bulletins',
+    icon:  FileText,
+    roles: ['parent'],
+    section: 'Principal',
+    mobile: true,
+  },
+  {
+    name:  'Règlements',
+    href:  '/dashboard/famille/reglements',
+    icon:  Wallet,
+    roles: ['parent'],
+    section: 'Principal',
     mobile: true,
   },
   {
@@ -530,6 +557,9 @@ const navItems: NavItem[] = [
 
 const SECTION_ORDER = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Clôture', 'Paramètres'] as const
 
+/** Section d'une entree : imposee par l'entree, sinon par son nom. */
+const sectionDe = (it: { name: string; section?: string }) => it.section ?? SECTION_OF[it.name]
+
 const SECTION_OF: Record<string, string> = {
   'Tableau de bord':    'Principal',
   'Notifications':      'Principal',
@@ -686,11 +716,11 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   const [openSubGroup, setOpenSubGroup] = useState<string | null>(activeSubGroup)
 
   // Section de la route courante (après login → 'Principal').
-  const activeTopName =
-    activeGroup ??
-    navItems.find(i => !!i.href && isRouteActive(i.href))?.name ??
+  const activeTopItem =
+    navItems.find(i => i.name === activeGroup) ??
+    navItems.find(i => !!i.href && isRouteActive(i.href)) ??
     null
-  const activeSection = (activeTopName && SECTION_OF[activeTopName]) || 'Principal'
+  const activeSection = (activeTopItem && sectionDe(activeTopItem)) || 'Principal'
 
   // Accordéon de sections : UNE SEULE ouverte à la fois. Par défaut = section de la
   // route ; se met à jour à la navigation ; le clic sur un en-tête bascule (les
@@ -775,7 +805,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   type Dest = { href: string; label: string; icon: LucideIcon }
   const destsOfSection = (sectionLabel: string): Dest[] =>
     filteredItems
-      .filter(it => SECTION_OF[it.name] === sectionLabel)
+      .filter(it => sectionDe(it) === sectionLabel)
       .flatMap<Dest>(it => {
         if (!it.children) return it.href ? [{ href: it.href, label: it.name, icon: it.icon }] : []
         return it.children
@@ -974,7 +1004,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
         {/* ── Mode DÉPLOYÉ : sections repliables ─────────────────────────────── */}
         {!collapsed && SECTION_ORDER.map(sectionLabel => {
-          const sectionItems = filteredItems.filter(i => SECTION_OF[i.name] === sectionLabel)
+          const sectionItems = filteredItems.filter(i => sectionDe(i) === sectionLabel)
           if (sectionItems.length === 0) return null
           // Sur petit ecran tout est DEPLIE : a 7 entrees sur 3 sections,
           // l accordeon n a plus de raison d etre — et c est lui qui faisait

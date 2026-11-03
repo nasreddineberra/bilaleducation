@@ -286,3 +286,48 @@ export function departsRetenus<T extends { date_depart: string | null }>(
   }
   return [...dernier.values()]
 }
+
+/** Depart charge pour le calcul : date, regle, decision, et le mouvement qui les porte. */
+export interface DepartCharge extends DepartLike {
+  /** Id du mouvement « depart » : sert a la decision au cas par cas. */
+  mouvementId: string | null
+}
+
+/** Mouvement « depart » tel que le lisent les ecrans financiers. */
+export interface MouvementDepart {
+  id: string
+  student_id: string | null
+  parent_id: string | null
+  tutor_number: number | null
+  class_id: string | null
+  regle: string | null
+  decision: string | null
+}
+
+/** Cle d'un depart : `e:eleve:classe` ou `a:foyer-tuteur:classe`. */
+export const cleDepartEleve = (studentId: string, classId: string) => `e:${studentId}:${classId}`
+export const cleDepartAdulte = (parentId: string, tutorNumber: number, classId: string) => `a:${parentId}-${tutorNumber}:${classId}`
+
+/**
+ * Depart d'un participant (sa date, la regle figee au depart, la decision « au
+ * cas par cas ») depuis les mouvements de l'annee, LES PLUS RECENTS D'ABORD : le
+ * DERNIER depart de chaque participant dans chaque classe compte seul (un enfant
+ * parti, revenu puis reparti). Sans mouvement : la regle par defaut. Pur : sert
+ * `chargerDeparts` (ecole) et l'espace famille.
+ */
+export function departSelonMouvements(mvts: MouvementDepart[]): (cle: string, date: string | null) => DepartCharge {
+  const mvtPar = new Map<string, MouvementDepart>()
+  for (const m of mvts) {
+    const cle = m.student_id ? cleDepartEleve(m.student_id, m.class_id ?? '') : cleDepartAdulte(m.parent_id ?? '', m.tutor_number ?? 0, m.class_id ?? '')
+    if (!mvtPar.has(cle)) mvtPar.set(cle, m)
+  }
+  return (cle, date) => {
+    const m = mvtPar.get(cle)
+    return {
+      date:        date ?? '',
+      regle:       (m?.regle ?? REGLE_PAR_DEFAUT) as RegleAjustement,
+      decision:    (m?.decision ?? null) as DecisionAjustement | null,
+      mouvementId: m?.id ?? null,
+    }
+  }
+}
