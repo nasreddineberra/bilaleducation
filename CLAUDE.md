@@ -414,17 +414,22 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 Tous les modules sont faits et audites (accessibilite, charte, theme sombre, mobile, RLS role + tenant,
 ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console. Historique : journal.
 
-1. **A tester a l'ecran** : `docs/A-TESTER.md` (une recette par chantier livre ; un point verifie s'en retire).
-2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
+1. **Campagne de tests a partir du 04/11** : `docs/PLAN-DE-TESTS.md` (modifications du 30/10 au 03/11, par
+   session de connexion, demonstration REINITIALISEE d'abord ; anomalies en bas du fichier). Recettes
+   unitaires : `docs/A-TESTER.md` (un point verifie s'en retire).
+2. **Espace famille** : lots 1 a 7 livres (`docs/ESPACE-FAMILLE.md`), demonstration seule ; apres la campagne,
+   lancement selon `MISE_EN_PRODUCTION.md` phase 9 (verrou `ESPACE_FAMILLE_DISPONIBLE`). Non testable dans la
+   demonstration : email d'invitation reel, ligne « dont espace famille » de la facturation.
+3. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
    conservees). Jour J : essai dans son etablissement -> lever la borne, remplir la facturation, retirer
    seulement les saisies d'essai qu'il designe (liste validee avant suppression) ; sinon creation depuis la
    console puis import `.xlsx` ; s'il ne signe pas -> depart (export, puis effacement).
-3. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
+4. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre.
-5. **Passes de fin de V1** : plan de test, tracabilite globale.
-6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
+5. **Signale, non traite** : `description` des lignes manuelles du journal reste libre.
+6. **Passes de fin de V1** : plan de test global (au-dela de la campagne du 04/11), tracabilite globale.
+7. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`).
 
 <!-- BEGIN:nextjs-agent-rules -->
