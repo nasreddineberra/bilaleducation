@@ -5,9 +5,10 @@ import { clsx } from 'clsx'
 import { CalendarDays, Eye, CheckCircle2, Circle } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { createClient } from '@/lib/supabase/client'
-import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { messageErreur } from '@/lib/erreur'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import DevoirForm from './DevoirForm'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
@@ -125,7 +126,8 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           const [foyer, tuteur] = await Promise.all([foyerDuCompte(supabase), tuteurDuCompte(supabase)])
           if (foyer && tuteur) mine = [cleAdulte(foyer, tuteur)].filter(k => parts.some(pt => pt.key === k))
         }
-        if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(mine) }
+        const vus = await marquerVus(supabase, mine, sts, null)
+        if (active) { setParticipants(parts); setStatuses(vus); setMyKeys(mine) }
 
       } else {
         // Classe d'enfants : participants = élèves inscrits, statuts homework_status.
@@ -133,13 +135,20 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           const foyer = await foyerDuCompte(supabase)
           if (!foyer) return
           const { data: kids } = await supabase.from('students').select('id, first_name, last_name').eq('parent_id', foyer).eq('is_active', true)
-          const parts: Participant[] = (kids ?? []).map(s => ({ key: s.id, name: `${s.last_name} ${s.first_name}` }))
+          // Seuls les enfants de LA classe du devoir (un frere ou une soeur d'une
+          // autre classe n'a rien a pointer) : la base en juge.
+          const concernes = await Promise.all((kids ?? []).map(async s => {
+            const { data } = await supabase.rpc('devoir_de_mon_enfant', { p_homework_id: homework.id, p_student_id: s.id })
+            return data ? [s] : []
+          }))
+          const parts: Participant[] = concernes.flat().map(s => ({ key: s.id, name: `${s.last_name} ${s.first_name}` }))
           const ids = parts.map(p => p.key)
           const { data: st } = ids.length
             ? await supabase.from('homework_status').select('*').eq('homework_id', homework.id).in('student_id', ids)
             : { data: [] }
           const sts: Status[] = (st ?? []).map(s => ({ key: s.student_id, id: s.id, is_seen: s.is_seen, seen_at: s.seen_at, is_done: s.is_done, done_at: s.done_at }))
-          if (active) { setParticipants(parts); setStatuses(sts); setMyKeys(ids); setMonFoyer(foyer) }
+          const vus = await marquerVus(supabase, ids, sts, foyer)
+          if (active) { setParticipants(parts); setStatuses(vus); setMyKeys(ids); setMonFoyer(foyer) }
         } else if (canViewTracking) {
           const { data: enr } = await supabase
             .from('enrollments')
@@ -159,38 +168,55 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homework.id])
 
-  const toggle = async (key: string, field: 'is_seen' | 'is_done') => {
-    const supabase = createClient()
+  // Ecriture d'un suivi (parent / participant adulte) : UPSERT sur la cle unique,
+  // deux tuteurs du meme enfant ne se genent pas. La base horodate (`seen_at`,
+  // `done_at`) et gele « Effectue » apres la date de rendu (`fn_statut_devoir`) :
+  // l'ecran reprend la ligne qu'elle rend.
+  async function ecrireStatut(
+    supabase: ReturnType<typeof createClient>,
+    key: string,
+    champs: { is_seen?: boolean; is_done?: boolean },
+    foyer: string | null,
+  ) {
+    const COLONNES = 'id, is_seen, seen_at, is_done, done_at' as const
+    if (isAdult) {
+      return supabase.from('adult_homework_status')
+        .upsert({ homework_id: homework.id, ...lireCleAdulte(key), ...champs }, { onConflict: 'homework_id,parent_id,tutor_number' })
+        .select(COLONNES).single()
+    }
+    if (!foyer) return { data: null, error: { message: 'Foyer introuvable.' } }
+    return supabase.from('homework_status')
+      .upsert({ homework_id: homework.id, student_id: key, parent_id: foyer, ...champs }, { onConflict: 'homework_id,student_id' })
+      .select(COLONNES).single()
+  }
+
+  // « Vu » se pose seul a l'ouverture du devoir, une fois par participant.
+  async function marquerVus(
+    supabase: ReturnType<typeof createClient>,
+    keys: string[],
+    sts: Status[],
+    foyer: string | null,
+  ): Promise<Status[]> {
+    if (!isParent) return sts
+    const result = [...sts]
+    for (const key of keys) {
+      if (result.find(s => s.key === key)?.is_seen) continue
+      const { data, error } = await ecrireStatut(supabase, key, { is_seen: true }, foyer)
+      if (error || !data) { console.error('[devoir vu]', error?.message); continue }
+      const i = result.findIndex(s => s.key === key)
+      if (i >= 0) result[i] = { ...result[i], ...data }
+      else result.push({ key, ...data })
+    }
+    return result
+  }
+
+  const basculerFait = async (key: string) => {
     const existing = statuses.find(s => s.key === key)
-    const newVal = existing ? !existing[field] : true
-    const stampField = field === 'is_seen' ? 'seen_at' : 'done_at'
-    const stamp = newVal ? new Date().toISOString() : null
-
-    if (existing) {
-      const table = isAdult ? 'adult_homework_status' : 'homework_status'
-      const echec = erreurEcriture(
-        await supabase.from(table).update({ [field]: newVal, [stampField]: stamp }).eq('id', existing.id).select('id'),
-        'Ce suivi',
-      )
-      if (echec) { toast.error(echec); return }
-      setStatuses(prev => prev.map(s => s.key === key ? { ...s, [field]: newVal, [stampField]: stamp } : s))
-      return
-    }
-
-    const marque = field === 'is_seen' ? { is_seen: newVal, seen_at: stamp } : { is_done: newVal, done_at: stamp }
-    if (!isAdult && !monFoyer) return
-    const { data } = isAdult
-      ? await supabase.from('adult_homework_status')
-          .insert({ homework_id: homework.id, ...lireCleAdulte(key), ...marque }).select('id').single()
-      : await supabase.from('homework_status')
-          .insert({ homework_id: homework.id, student_id: key, parent_id: monFoyer!, ...marque }).select('id').single()
-    if (data) {
-      setStatuses(prev => [...prev, {
-        key, id: data.id,
-        is_seen: field === 'is_seen' ? newVal : false, seen_at: field === 'is_seen' ? stamp : null,
-        is_done: field === 'is_done' ? newVal : false, done_at: field === 'is_done' ? stamp : null,
-      }])
-    }
+    const { data, error } = await ecrireStatut(createClient(), key, { is_done: !existing?.is_done }, monFoyer)
+    if (error || !data) { toast.error(messageErreur(error) ?? 'Ce suivi n’a pas pu être enregistré.'); return }
+    setStatuses(prev => prev.some(s => s.key === key)
+      ? prev.map(s => s.key === key ? { ...s, ...data } : s)
+      : [...prev, { key, ...data }])
   }
 
   const statusOf = (key: string) => statuses.find(s => s.key === key)
@@ -264,19 +290,28 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
               const st = statusOf(key)
               const p = participants.find(pt => pt.key === key)
               return (
-                <div key={key} className="flex items-center gap-4">
+                <div key={key} className="flex items-center gap-4 flex-wrap">
                   {p && <span className="text-sm text-warm-700 w-40 truncate">{p.name}</span>}
-                  <button onClick={() => toggle(key, 'is_seen')} aria-pressed={!!st?.is_seen}
-                    className={clsx(POINTAGE, st?.is_seen ? VU : 'text-warm-700 hover:text-secondary-700')}>
-                    {st?.is_seen ? <Eye size={16} /> : <Circle size={16} />} Vu
-                  </button>
-                  <button onClick={() => toggle(key, 'is_done')} aria-pressed={!!st?.is_done}
-                    className={clsx(POINTAGE, st?.is_done ? EFFECTUE : 'text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)]')}>
-                    {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} Effectué
-                  </button>
+                  {/* « Vu » : un etat, pose a l'ouverture, jamais un bouton. */}
+                  {st?.is_seen && (
+                    <span className={clsx('flex items-center gap-1.5 text-sm', VU)}><Eye size={16} /> Vu</span>
+                  )}
+                  {isPast ? (
+                    <Tooltip content={RAISON_GEL}>
+                      <span className={clsx(POINTAGE, st?.is_done ? EFFECTUE : 'text-warm-400')} aria-disabled="true">
+                        {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} {st?.is_done ? 'Effectué' : 'Pas fait'}
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <button onClick={() => basculerFait(key)} aria-pressed={!!st?.is_done}
+                      className={clsx(POINTAGE, st?.is_done ? EFFECTUE : 'text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)]')}>
+                      {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} Effectué
+                    </button>
+                  )}
                 </div>
               )
             })}
+            <RaisonBloquee raison={isPast ? RAISON_GEL : null} />
           </div>
         )}
 
@@ -366,6 +401,9 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
     </>
   )
 }
+
+// Meme regle que la base (`fn_statut_devoir`) : « Effectue » se fige apres la date de rendu.
+const RAISON_GEL = 'La date de rendu est passée : « Effectué » ne peut plus être modifié.'
 
 // Pointage du suivi : « Vu » en ardoise, « Effectué » au vert de marque (21/10).
 const POINTAGE = 'flex items-center gap-1.5 text-sm transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'

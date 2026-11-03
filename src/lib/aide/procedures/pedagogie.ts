@@ -110,7 +110,8 @@ export const cahierTexte: Procedure = {
         'Cliquez sur « Valider ». Les familles de la classe reçoivent le devoir par email (un message par foyer).',
       ],
       aSavoir: [
-        'Dans le détail d’un devoir, « Suivi » indique pour chaque famille si le devoir a été vu et effectué.',
+        'Dans le détail d’un devoir, « Suivi » indique pour chaque élève (ou participant adulte) si sa famille a vu le devoir et l’a marqué « Effectué », avec la date. Ce suivi se remplit depuis l’espace famille, quand il est ouvert.',
+        'Après la date de rendu, « Effectué » ne peut plus être modifié.',
       ],
     },
     {

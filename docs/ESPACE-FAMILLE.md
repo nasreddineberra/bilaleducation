@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 et 2 terminés (03/11)**. Prochain : lot 3.
+État : **lots 1 et 2 terminés, lot 3 codé (03/11)** : migration à jouer après déploiement.
 
 ---
 
@@ -40,7 +40,7 @@ l'option se vend école par école depuis la console.
 |---|---|---|
 | 1 | Fondations en base : lien compte ↔ tuteur, option et tarif, fonctions, règles existantes réécrites, retrait de `parents.user_id` | fait (migrations A et B jouées, contrôle 37 vert) |
 | 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | fait (migration jouée, contrôle 38 vert) |
-| 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | à faire |
+| 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | codé, contrôle 39 vert en essai ; migration après déploiement |
 | 4 | Bulletins : lecture du fichier, notification « Bulletin disponible » | à faire |
 | 5 | Comptes et invitations : email d'invitation, case « Accès en ligne » par tuteur, Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | à faire |
 | 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | à faire |
@@ -191,3 +191,45 @@ foyer refusé. Rouge avant, vert après ; contrôles 16, 25, 26, 35 et 37 rejou�
 - `famille_finances()` rend les données BRUTES (inscriptions actives et retirées, cours adultes, mouvements de
   départ, dossiers) : au lot 6, le calcul par foyer est extrait de `family-financials.ts` pour servir les deux.
 - Tous les contrôles rejoués avec la migration : seuls 12 et 14 ont bougé, corrigés avant de jouer.
+
+---
+
+## Lot 3 · détail
+
+Existant : la fenêtre du devoir (`DevoirDetailModal`) porte déjà « Vu » / « Effectué » par enfant (ou pour soi,
+cours adulte) et le tableau de suivi de l'enseignant. Il manque le gel, et l'écriture a des défauts.
+
+### Migration `espace-famille-devoir-fait.sql` (restrictive, aucun compte parent : sans effet aujourd'hui)
+
+1. Déclencheur `fn_statut_devoir` (BEFORE INSERT OR UPDATE) sur `homework_status` et `adult_homework_status` :
+   - **gel (décision 6)** : « Effectué » ne change plus après la date de rendu (jour de Paris > `due_date`) ;
+     « Vu » reste possible (ouvrir un devoir passé n'est pas tricher) ;
+   - **horodatage par la base** : `done_at` / `seen_at` = `now()` à la bascule vers vrai, NULL vers faux ;
+     la valeur envoyée par le navigateur est ignorée ;
+   - **identité figée** : devoir, enfant, foyer et numéro de tuteur ne changent pas à la modification.
+2. `adult_hwstatus_participant` (FOR ALL) remplacée par lecture + création + modification : un participant
+   ne supprime plus son statut (la suppression contournait le gel).
+
+### Code (`DevoirDetailModal`)
+
+- « Vu » se pose seul à l'ouverture du devoir par le parent (une écriture, une fois), affiché en état.
+- « Effectué » / « Pas fait » : bouton par enfant ; après la date de rendu, grisé avec la raison
+  (« La date de rendu est passée. », `Tooltip` + `RaisonBloquee` sur téléphone).
+- Écriture par `upsert` sur la clé unique (deux tuteurs du même enfant ne se gênent plus) et erreur affichée
+  (la création échouait sans un mot).
+- Suivi de l'enseignant : inchangé (colonnes Vu / Effectué avec date), vérifié.
+- Procédure d'aide du cahier de texte relue.
+
+### Contrôle 39
+
+Parent : coche avant la date (ok), décoche avant la date (ok), coche ou décoche après (refusé), « Vu » après
+(ok) ; `done_at` envoyé faux = remplacé par l'heure de la base ; changer d'enfant ou de devoir en
+modification (refusé) ; adulte : suppression refusée, gel identique. Rouge avant, vert après ; tous les
+contrôles rejoués.
+
+### Ajouts faits pendant le lot 3
+
+- La fenêtre du devoir proposait un bouton pour CHAQUE enfant du foyer, même hors de la classe du devoir (écriture
+  refusée par la base) : seuls les enfants pour qui `devoir_de_mon_enfant()` répond vrai sont listés.
+- Contrôle 37 : le devoir de l'ancienne classe est daté dans le futur, pour que son refus reste celui de la règle
+  d'accès et non celui du gel.

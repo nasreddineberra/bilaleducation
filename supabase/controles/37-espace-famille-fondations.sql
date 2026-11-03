@@ -141,7 +141,7 @@ BEGIN
     (h1, e1, c1, t1, 'Général', 'H1', 'exercice', '2027-01-15'),
     (h2, e1, c2, t1, 'Général', 'H2', 'exercice', '2027-01-15'),
     (ha, e1, ca, t1, 'Général', 'HA', 'exercice', '2027-01-15'),
-    (hold, e1, cold, t1, 'Général', 'HOLD', 'exercice', '2026-01-15'),
+    (hold, e1, cold, t1, 'Général', 'HOLD', 'exercice', '2099-01-15'),
     (h3, e2, c3, t2, 'Général', 'H3', 'exercice', '2027-01-15');
   INSERT INTO class_journal (etablissement_id, class_id, teacher_id, session_date, title)
   VALUES (e1, c1, t1, '2026-11-02', 'Seance interne');

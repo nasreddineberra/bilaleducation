@@ -10313,3 +10313,15 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Controle 38 (57 essais) : rouge avant (47 KO), vert apres. Tous les controles rejoues avec la migration : 12 et
   14 ont bouge (decision documents requis ; dossier racine et role sur les regles de stockage), corriges avant de
   jouer. Types regeneres.
+
+## 03/11 · Espace famille, lot 3 : devoir fait
+
+- Migration `espace-famille-devoir-fait.sql` (RESTRICTIVE, jouee apres deploiement du code) : declencheur
+  `fn_statut_devoir` sur `homework_status` et `adult_homework_status` (gel de « Effectue » apres la date de rendu,
+  « Vu » libre ; horodatage par la base, la valeur du navigateur est ignoree ; devoir, foyer, enfant et numero de
+  tuteur figes) ; le participant adulte ne supprime plus son statut (contournait le gel).
+- Fenetre du devoir : « Vu » pose a l'ouverture (etat, plus un bouton) ; « Effectue » par enfant, grise avec la
+  raison apres la date de rendu (`Tooltip` + `RaisonBloquee`) ; ecriture par upsert sur la cle unique (deux tuteurs
+  du meme enfant), erreur affichee (la creation echouait sans un mot) ; seuls les enfants de la classe du devoir.
+- Controle 39 (15 essais) : rouge avant (11 KO), vert avec la migration en transaction annulee ; tous les controles
+  rejoues, seul le 37 a bouge (refus par le gel avant la regle d'acces), corrige. Aide : « Donner un devoir » relue.
