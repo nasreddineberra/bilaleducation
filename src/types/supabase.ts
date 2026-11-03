@@ -3184,7 +3184,6 @@ export type Database = {
           tutor2_user_id: string | null
           type_garde: "alternée" | "exclusive_t1" | "exclusive_t2" | null
           updated_at: string
-          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -3216,7 +3215,6 @@ export type Database = {
           tutor2_user_id?: string | null
           type_garde?: "alternée" | "exclusive_t1" | "exclusive_t2" | null
           updated_at?: string
-          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -3248,7 +3246,6 @@ export type Database = {
           tutor2_user_id?: string | null
           type_garde?: "alternée" | "exclusive_t1" | "exclusive_t2" | null
           updated_at?: string
-          user_id?: string | null
         }
         Relationships: [
           {

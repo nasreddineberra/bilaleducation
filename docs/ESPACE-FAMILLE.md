@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lot 1 : migration A jouée, code prêt (03/11)** ; reste la migration B après déploiement.
+État : **lot 1 terminé (03/11)**. Prochain : lot 2.
 
 ---
 
@@ -37,7 +37,7 @@ l'option se vend école par école depuis la console.
 
 | Lot | Contenu | État |
 |---|---|---|
-| 1 | Fondations en base : lien compte ↔ tuteur, option et tarif, fonctions, règles existantes réécrites, retrait de `parents.user_id` | migration A jouée, contrôle 37 vert ; code à pousser, puis migration B |
+| 1 | Fondations en base : lien compte ↔ tuteur, option et tarif, fonctions, règles existantes réécrites, retrait de `parents.user_id` | fait (migrations A et B jouées, contrôle 37 vert) |
 | 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | à faire |
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | à faire |
 | 4 | Bulletins : lecture du fichier, notification « Bulletin disponible » | à faire |

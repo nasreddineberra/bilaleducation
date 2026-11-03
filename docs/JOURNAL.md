@@ -10297,4 +10297,4 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Controle 37 (33 essais) : rouge avant (22 KO), vert apres ; controles 16, 25, 26, 35 verts avec la migration.
 - Code : `lib/parents/foyer.ts` remplace les 6 lectures ; le cahier de texte parent prend ses classes de la base
   (cours adultes compris) ; le push part vers les comptes des tuteurs vises, option active seulement.
-- Reste du lot : `espace-famille-retrait-user-id.sql` (restrictive) apres deploiement, puis `npm run types-db`.
+- Apres deploiement : `espace-famille-retrait-user-id.sql` jouee (`parents.user_id` supprimee), types regeneres, controle 37 vert.
