@@ -4,7 +4,7 @@ import { useState, useTransition, Fragment } from 'react'
 import { FloatButton, FloatSelect } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import { releverMaintenant } from '../../facturation-actions'
-import { montantMensuel } from '@/lib/tenant/facturation'
+import { montantReleve } from '@/lib/tenant/facturation'
 import { formatDateFr } from '@/lib/dates'
 
 export interface Releve {
@@ -15,6 +15,10 @@ export interface Releve {
   releve_le:        string
   prix_inscrit:     number | null
   forfait:          number | null
+  /** Option espace famille active ce mois-la, et son tarif fige (decisions 19, 20). */
+  option_espace_famille: boolean
+  famille_forfait:       number | null
+  famille_prix_inscrit:  number | null
 }
 
 interface Annee { label: string; start_date: string | null; end_date: string | null }
@@ -57,14 +61,13 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees, en
   // affichage du plus recent au plus ancien.
   const chrono = [...releves].sort((a, b) => a.mois.localeCompare(b.mois))
   const lignes = chrono.map((r, i) => {
-    const base    = r.eleves_actifs + r.adultes_inscrits
-    const montant = montantMensuel(base, r.prix_inscrit, r.forfait)
+    const { base, total: montant, option } = montantReleve(r)
     const prec    = i > 0 ? chrono[i - 1] : null
     const basePrec    = prec ? prec.eleves_actifs + prec.adultes_inscrits : null
-    const montantPrec = prec ? montantMensuel(basePrec!, prec.prix_inscrit, prec.forfait) : null
+    const montantPrec = prec ? montantReleve(prec).total : null
     const annee = annees.find(a => a.start_date && a.end_date && a.start_date <= r.mois && r.mois <= a.end_date)?.label ?? 'Hors année scolaire'
     return {
-      r, base, montant, annee,
+      r, base, montant, option, annee,
       ecartBase:    basePrec === null ? null : base - basePrec,
       ecartMontant: montant === null || montantPrec === null ? null : montant - montantPrec,
     }
@@ -132,7 +135,7 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees, en
               const sansTarif = g.lignes.some(l => l.montant === null)
               return (
                 <Fragment key={g.annee}>
-                  {g.lignes.map(({ r, base, montant, ecartBase, ecartMontant }) => (
+                  {g.lignes.map(({ r, base, montant, option, ecartBase, ecartMontant }) => (
                     <tr key={r.mois}>
                       <td className="list-td list-name capitalize">{MOIS.format(new Date(r.mois))}</td>
                       <td className="list-td text-right tabular-nums">{r.eleves_actifs}</td>
@@ -140,7 +143,10 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees, en
                       <td className="list-td text-right tabular-nums font-semibold text-[var(--brand-surface)]">{base}</td>
                       <td className="list-td text-right tabular-nums"><Ecart v={ecartBase} /></td>
                       <td className="list-td text-right tabular-nums text-warm-700">{r.limite ?? 'Aucune'}</td>
-                      <td className="list-td text-right tabular-nums font-semibold">{montant === null ? <span className="text-warm-700 font-normal">Sans tarif</span> : EUR.format(montant)}</td>
+                      <td className="list-td text-right tabular-nums font-semibold">
+                        {montant === null ? <span className="text-warm-700 font-normal">Sans tarif</span> : EUR.format(montant)}
+                        {option !== null && <span className="block text-[11px] font-normal text-warm-700">dont espace famille {EUR.format(option)}</span>}
+                      </td>
                       <td className="list-td text-right tabular-nums"><Ecart v={ecartMontant} euros /></td>
                       <td className="list-td text-warm-700">{formatDateFr(r.releve_le)}</td>
                     </tr>
@@ -163,7 +169,7 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees, en
 
 /**
  * Vue « Tous » : une ligne par ecole pour le dernier mois releve, ecarts avec
- * le mois precedent, total. Meme calcul que le detail (`montantMensuel`, tarif
+ * le mois precedent, total. Meme calcul que le detail (`montantReleve`, tarif
  * fige dans chaque releve). La ligne ouvre le detail de l'ecole.
  */
 function VueEnsemble({ ensemble, ouvrir }: {
@@ -175,12 +181,11 @@ function VueEnsemble({ ensemble, ouvrir }: {
   }
 
   const lignes = ensemble.lignes.map(({ id, nom, r, prec }) => {
-    const base        = r.eleves_actifs + r.adultes_inscrits
-    const montant     = montantMensuel(base, r.prix_inscrit, r.forfait)
+    const { base, total: montant, option } = montantReleve(r)
     const basePrec    = prec ? prec.eleves_actifs + prec.adultes_inscrits : null
-    const montantPrec = prec ? montantMensuel(basePrec!, prec.prix_inscrit, prec.forfait) : null
+    const montantPrec = prec ? montantReleve(prec).total : null
     return {
-      id, nom, r, base, montant,
+      id, nom, r, base, montant, option,
       ecartBase:    basePrec === null ? null : base - basePrec,
       ecartMontant: montant === null || montantPrec === null ? null : montant - montantPrec,
     }
@@ -224,7 +229,10 @@ function VueEnsemble({ ensemble, ouvrir }: {
                 <td className="list-td text-right tabular-nums font-semibold text-[var(--brand-surface)]">{l.base}</td>
                 <td className="list-td text-right tabular-nums"><Ecart v={l.ecartBase} /></td>
                 <td className="list-td text-right tabular-nums text-warm-700">{l.r.limite ?? 'Aucune'}</td>
-                <td className="list-td text-right tabular-nums font-semibold">{l.montant === null ? <span className="text-warm-700 font-normal">Sans tarif</span> : EUR.format(l.montant)}</td>
+                <td className="list-td text-right tabular-nums font-semibold">
+                  {l.montant === null ? <span className="text-warm-700 font-normal">Sans tarif</span> : EUR.format(l.montant)}
+                  {l.option !== null && <span className="block text-[11px] font-normal text-warm-700">dont espace famille {EUR.format(l.option)}</span>}
+                </td>
                 <td className="list-td text-right tabular-nums"><Ecart v={l.ecartMontant} euros /></td>
               </tr>
             ))}

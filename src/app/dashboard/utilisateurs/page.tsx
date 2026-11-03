@@ -18,17 +18,17 @@ export default async function UtilisateursPage() {
   const parentsSeuls = ['secretaire', 'responsable_pedagogique'].includes(roleMe)
   if (!direction && !parentsSeuls) redirect('/dashboard/mon-compte')
   if (parentsSeuls) {
-    const { data: e } = await supabase.from('etablissements').select('option_espace_famille').maybeSingle()
+    const { data: e } = await supabase.from('etablissements').select('option_espace_famille, espace_famille_ouvert').maybeSingle()
     if (!e?.option_espace_famille) redirect('/dashboard')
     const { data: comptes } = await supabase.rpc('comptes_parents_ecole')
-    return <UtilisateursClient profiles={[]} espaceFamille equipe={false} peutDesactiver={false} comptesParents={comptes ?? []} />
+    return <UtilisateursClient profiles={[]} espaceFamille espaceOuvert={e.espace_famille_ouvert} equipe={false} peutDesactiver={false} comptesParents={comptes ?? []} />
   }
 
   const [{ data: profiles }, { data: currentProfile }, { data: totpRows }, { data: etab }] = await Promise.all([
     supabase.from('profiles').select('*').order('last_name', { ascending: true }),
     supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single(),
     supabase.rpc('get_verified_totp_user_ids'),
-    supabase.from('etablissements').select('option_espace_famille').maybeSingle(),
+    supabase.from('etablissements').select('option_espace_famille, espace_famille_ouvert').maybeSingle(),
   ])
 
   // Onglet Parents : seulement si l'option espace famille de l'ecole est active
@@ -53,6 +53,7 @@ export default async function UtilisateursPage() {
       profiles={visibleProfiles as Profile[]}
       twoFactorUserIds={twoFactorUserIds}
       espaceFamille={espaceFamille}
+      espaceOuvert={etab?.espace_famille_ouvert === true}
       comptesParents={comptesParents ?? []}
     />
   )

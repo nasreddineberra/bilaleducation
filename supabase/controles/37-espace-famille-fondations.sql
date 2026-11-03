@@ -150,7 +150,7 @@ BEGIN
 
   -- ── Option : ouverte sur E1 seulement ─────────────────────────────────────
   BEGIN
-    EXECUTE format('UPDATE etablissements SET option_espace_famille = true WHERE id = %L', e1);
+    EXECUTE format('UPDATE etablissements SET option_espace_famille = true, espace_famille_ouvert = true WHERE id = %L', e1);
     r := 'ok';
   EXCEPTION WHEN others THEN r := SQLERRM;
   END;
@@ -200,13 +200,13 @@ BEGIN
 
   -- ── Option coupee, ecole expiree ──────────────────────────────────────────
   BEGIN
-    EXECUTE format('UPDATE etablissements SET option_espace_famille = false WHERE id = %L', e1);
+    EXECUTE format('UPDATE etablissements SET espace_famille_ouvert = false, option_espace_famille = false WHERE id = %L', e1);
   EXCEPTION WHEN others THEN NULL;
   END;
   essais := essais || ARRAY[['option coupee : foyer P1A', 'ok', pg_temp.ctl37(p1a, foyer)]];
   essais := essais || ARRAY[['option coupee : devoirs P1B', 'ok', pg_temp.ctl37(p1b, devoirs)]];
   BEGIN
-    EXECUTE format('UPDATE etablissements SET option_espace_famille = true WHERE id = %L', e1);
+    EXECUTE format('UPDATE etablissements SET option_espace_famille = true, espace_famille_ouvert = true WHERE id = %L', e1);
   EXCEPTION WHEN others THEN NULL;
   END;
   UPDATE etablissements SET subscription_expires_at = now() - interval '3 days' WHERE id = e1;

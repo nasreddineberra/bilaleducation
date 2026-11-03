@@ -8,6 +8,9 @@ import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import UtilisateursTable from './UtilisateursTable'
 import ParentsComptesTable, { type CompteParent } from './ParentsComptesTable'
 import InviterFamillesModal from './InviterFamillesModal'
+import Tooltip from '@/components/ui/Tooltip'
+import RaisonBloquee from '@/components/ui/RaisonBloquee'
+import { RAISON_FERME } from './ParentsComptesTable'
 import type { Profile, UserRole } from '@/types/database'
 
 interface UtilisateursClientProps {
@@ -16,6 +19,8 @@ interface UtilisateursClientProps {
   /** Option espace famille active : onglet Parents (comptes, invitations). */
   espaceFamille?: boolean
   comptesParents?: CompteParent[]
+  /** Espace ouvert par l'ecole (Parametres · Etablissement) : envoi des invitations possible. */
+  espaceOuvert?: boolean
   /** Onglet Equipe (admin / direction). Faux : onglet Parents seul. */
   equipe?: boolean
   /** « Desactiver » / « Reactiver » un compte parent : direction seulement. */
@@ -51,7 +56,7 @@ const TOUS_LES_ONGLETS: { key: Tab; label: string }[] = [
   { key: 'parents', label: 'Parents' },
 ]
 
-export default function UtilisateursClient({ profiles, twoFactorUserIds = [], espaceFamille = false, comptesParents = [], equipe = true, peutDesactiver = true }: UtilisateursClientProps) {
+export default function UtilisateursClient({ profiles, twoFactorUserIds = [], espaceFamille = false, comptesParents = [], espaceOuvert = false, equipe = true, peutDesactiver = true }: UtilisateursClientProps) {
   // Sans l'option, l'onglet Parents n'existe pas (decision 15) ; sans l'equipe
   // (secretaire, resp. pedagogique), il est seul.
   const TABS = TOUS_LES_ONGLETS.filter(t => (t.key === 'staff' ? equipe : espaceFamille))
@@ -180,18 +185,26 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [], es
           <FloatButton href="/dashboard/utilisateurs/new" variant="submit" className="whitespace-nowrap">
             Ajouter
           </FloatButton>
-        ) : (
+        ) : espaceOuvert ? (
           <FloatButton type="button" variant="submit" className="whitespace-nowrap" onClick={() => setInviter(true)}>
-            Inviter les familles
+            Envoyer les invitations
           </FloatButton>
+        ) : (
+          <Tooltip content={RAISON_FERME}>
+            <FloatButton type="button" variant="submit" className="whitespace-nowrap" disabled>
+              Envoyer les invitations
+            </FloatButton>
+          </Tooltip>
         )}
       </div>
+
+      {tab === 'parents' && <RaisonBloquee raison={espaceOuvert ? null : RAISON_FERME} />}
 
       {/* Tableau */}
       <div role="tabpanel" id="panel-utilisateurs" aria-labelledby={`tab-${tab}`}>
         {tab === 'staff'
           ? <UtilisateursTable profiles={filtered} twoFactorUserIds={twoFactorUserIds} />
-          : <ParentsComptesTable comptes={comptesFiltres} peutDesactiver={peutDesactiver} />}
+          : <ParentsComptesTable comptes={comptesFiltres} peutDesactiver={peutDesactiver} espaceOuvert={espaceOuvert} />}
       </div>
 
       {inviter && <InviterFamillesModal onClose={() => setInviter(false)} />}

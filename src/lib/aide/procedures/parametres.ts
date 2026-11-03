@@ -81,7 +81,7 @@ export const utilisateurs: Procedure = {
       titre: 'Comptes parents (espace famille)',
       option: 'espace_famille',
       etapes: [
-        'Onglet « Parents » : les accès des familles, leurs invitations et leur statut. Voir la procédure « Comptes parents (espace famille) ».',
+        'Onglet « Parents » : les comptes des familles, leurs invitations et leur statut. Voir la procédure « Comptes parents (espace famille) ».',
       ],
     },
     {
@@ -128,15 +128,15 @@ export const comptesParents: Procedure = {
   option: 'espace_famille',
   acces: 'Paramètres · Utilisateurs · onglet « Parents »',
   resume:
-    'Les accès des familles à l’espace famille : inviter les tuteurs, suivre qui a configuré son accès, renvoyer une invitation, couper un accès.',
+    'Les comptes des familles dans l’espace famille : envoyer les invitations, suivre qui a configuré son accès, renvoyer une invitation, couper un accès.',
 
   taches: [
     {
-      titre: 'Inviter les familles',
+      titre: 'Envoyer les invitations',
       etapes: [
-        'Onglet « Parents », cliquez sur « Inviter les familles ».',
+        'Onglet « Parents », cliquez sur « Envoyer les invitations ».',
         'Choisissez les tuteurs à inviter avec leur interrupteur, ou cliquez sur « Tout sélectionner ».',
-        'Cliquez sur « Envoyer les invitations ». Chaque tuteur reçoit un email de l’établissement avec le bouton « Activer mon accès ».',
+        'Cliquez sur « Envoyer les invitations ». Chaque tuteur reçoit un email de l’établissement avec le bouton « Activer mon accès », pour créer son compte en choisissant son mot de passe.',
       ],
       aSavoir: [
         'Un tuteur qui a déjà configuré son accès est coché et verrouillé. Un tuteur sans email, ou dont l’accès est désactivé, est verrouillé.',
@@ -162,11 +162,17 @@ export const comptesParents: Procedure = {
   ],
 
   regles: [
+    { texte: 'Les familles n’entrent dans leur espace que si l’établissement l’a activé (Paramètres · Établissement) ; l’envoi des invitations y prépare seulement leurs comptes.' },
     { texte: 'Statuts : « Invité le ... » (invitation en cours), « Invitation expirée », « Accès en ligne » (mot de passe choisi), « Désactivé ».' },
     { texte: 'Les familles sont prévenues par email et par une notification dans leur espace ; rien ne part automatiquement pour un bulletin : un message se rédige dans Communications.' },
   ],
 
   grise: [
+    {
+      element: '« Envoyer les invitations » / « Renvoyer l’invitation »',
+      raison: 'L’espace famille n’est pas activé par l’établissement.',
+      solution: 'La direction l’active dans Paramètres · Établissement, encadré « Espace famille ».',
+    },
     {
       roles: ['secretaire', 'responsable_pedagogique'],
       element: '« Désactiver » / « Réactiver »',

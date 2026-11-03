@@ -89,6 +89,11 @@ export default function DashboardParent({ stats: d, ...headerProps }: Props) {
           )}
         </Encadre>
       </div>
+
+      {/* Information RGPD (lot 7), comme dans l'email d'invitation. */}
+      <p className="text-[11px] text-warm-700">
+        Vos données sont traitées par votre établissement pour le suivi de la scolarité. Pour toute question sur leur utilisation, adressez-vous à lui.
+      </p>
     </div>
   )
 }

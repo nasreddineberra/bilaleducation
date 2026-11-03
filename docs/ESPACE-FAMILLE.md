@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 à 6 terminés (03/11)**. Prochain : lot 7 (console, lancement).
+État : **lots 1 à 7 terminés (03/11)**. Reste : recette à l'écran, puis le jour J (`MISE_EN_PRODUCTION.md`, phase 9).
 
 ---
 
@@ -31,8 +31,8 @@ l'option se vend école par école depuis la console.
 6. « Fait » réversible jusqu'à la date de rendu incluse, figé ensuite (jugé par la base).
 7. Pas de justification d'absence en ligne.
 8. Tarif de l'option : modèle (c), forfait + prix par inscrit.
-9. Option activée en cours de mois : le mois est dû (proposé, à confirmer au lot 7 ; le relevé du mois en cours
-   est alors mis à jour, comme pour un changement de tarif).
+9. Option activée en cours de mois : le mois est dû ; désactivée en cours de mois : pas de remboursement. Le
+   relevé du mois en cours est mis à jour à l'activation, comme pour un changement de tarif (confirmé le 03/11).
 10. Le commentaire d'une absence est visible de la famille ; bulletins : année en cours seulement (03/11).
 11. Pas de notification du navigateur (push) pour les parents : email et notification dans l'espace famille
     seulement (03/11). Aucun SMS. Le code du push reste en place, en sommeil.
@@ -47,7 +47,7 @@ l'option se vend école par école depuis la console.
 | 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
 | 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | fait (5a, 5b, rôles et aide) |
 | 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | fait (6a et 6b) |
-| 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
+| 7 | Console (option, tarif, relevé, comptes), interrupteur de l'école, RGPD, jour J | fait |
 
 ---
 
@@ -520,3 +520,59 @@ menu, car « Emploi du temps » existe déjà côté personnel. Tuile « Reste �
   échéances, réductions, détail des cotisations et des départs. Tuile « Reste à payer » au tableau de bord.
 - Menu : champ `section` d'une entrée (deux « Emploi du temps », personnel et parent).
 - Aucune migration.
+
+---
+
+## Lot 7 · détail (fait le 03/11)
+
+### Décisions (03/11)
+
+17. DEUX interrupteurs. Console : « Activer / Désactiver l'espace famille » (l'option souscrite). Paramètres ·
+    Établissement (direction) : « Activer / Désactiver l'espace famille » (l'accès réel des familles), visible si
+    l'option est active. L'établissement peut couper temporairement, comptes actifs compris (rien n'est perdu,
+    réactiver rend l'accès sans nouvelle invitation). La console ne peut pas désactiver l'option tant que
+    l'établissement n'a pas désactivé le sien.
+18. « Inviter les familles » devient « Envoyer les invitations » (il envoie les emails, il n'ouvre rien). Grisé,
+    comme « Renvoyer l'invitation », tant que l'établissement n'a pas activé l'espace.
+19. La facturation suit l'option de la CONSOLE, même pendant une coupure de l'établissement.
+20. Supplément de l'option (hors forfait) : TOUJOURS sur la même base que le tarif de base, élèves actifs +
+    adultes inscrits à un cours (précisé le 03/11) ; aucun réglage.
+
+### Base (migration)
+
+- `etablissements.espace_famille_ouvert` (NOT NULL, faux par défaut ; vrai sur la démonstration) ; contrainte :
+  jamais ouvert sans l'option (donc l'option ne se désactive pas tant que l'école l'a ouvert).
+- `foyer_du_compte()`, `preparer_invitation_tuteur()`, page d'activation, middleware : exigent les DEUX.
+- `ouvrir_espace_famille(p_ouvert)` : admin / direction, option active exigée, tracée.
+
+### Écrans
+
+- Console, fiche école, encadré « Espace famille » : état, « Activer / Désactiver l'espace famille » (grisé avec
+  la raison si l'école l'a ouvert ; refusé hors démonstration tant que le verrou de développement est fermé),
+  tarif de l'option (forfait, prix), compteurs de comptes parents.
+- Paramètres · Établissement : encadré « Espace famille » (direction), interrupteur, confirmation à la coupure.
+- Utilisateurs > Parents : « Envoyer les invitations » / « Renvoyer l'invitation » grisés avec la raison si l'école
+  n'a pas ouvert l'espace.
+- Facturation : part « Espace famille » (forfait + base × prix) si l'option est active dans le relevé du mois.
+- RGPD : mention en pied du tableau de bord du parent.
+- Aide : « Établissement » et « Comptes parents » relues ; `MISE_EN_PRODUCTION.md` (jour J), `CLAUDE.md`.
+
+### Fait au lot 7 (03/11)
+
+- Migration `espace-famille-lancement.sql` (jouée) : `espace_famille_ouvert` (+ contrainte de cohérence),
+  `foyer_du_compte()` et `preparer_invitation_tuteur()` exigent les deux interrupteurs. Contrôle 43 (16 essais).
+- **Faille préexistante fermée** : la direction pouvait modifier, par une requête directe, l'abonnement, l'école
+  active, la limite d'inscrits, l'adresse, l'effacement et l'option de son école (droit d'écriture sur toutes les
+  colonnes, règle `etablissements_update`). `fn_guard_etablissement_editeur` les réserve au serveur (console en
+  service role) et à la maintenance en base. Démontré par le contrôle 43 : avant, `subscription_expires_at` et
+  `is_active` étaient modifiés.
+- Contrôles 37 à 42 : leurs écoles ouvrent aussi l'espace ; contrôle 24 : identité remise à zéro le temps d'une
+  écriture de mise en place.
+- Console : encadré « Espace famille » (état, tarif, comptes, bascule ; verrou ; refus tant que l'école est ouverte ;
+  mois en cours dû) ; `app/superadmin/famille-actions.ts`. Facturation : `montantReleve` (option sur la même base,
+  4 tests), « dont espace famille ».
+- Paramètres · Établissement : encadré « Espace famille » (direction). Utilisateurs > Parents : « Envoyer les
+  invitations » / « Renvoyer l'invitation » grisés tant que l'école n'a pas ouvert. Middleware et page
+  d'activation : les deux interrupteurs.
+- RGPD : mention en pied du tableau de bord du parent. Aide : « Établissement » (tâche d'option) et « Comptes
+  parents » relues. Jour J : `MISE_EN_PRODUCTION.md` phase 9.

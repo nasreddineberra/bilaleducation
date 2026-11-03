@@ -79,7 +79,7 @@ BEGIN
     (e1, 'ctl-lecture-1-' || sx, 'CONTROLE LECTURE 1', true),
     (e2, 'ctl-lecture-2-' || sx, 'CONTROLE LECTURE 2', true);
   BEGIN
-    EXECUTE format('UPDATE etablissements SET option_espace_famille = true WHERE id IN (%L, %L)', e1, e2);
+    EXECUTE format('UPDATE etablissements SET option_espace_famille = true, espace_famille_ouvert = true WHERE id IN (%L, %L)', e1, e2);
   EXCEPTION WHEN others THEN NULL;
   END;
   INSERT INTO school_years (id, etablissement_id, label, is_current, start_date, end_date) VALUES
@@ -274,7 +274,7 @@ BEGIN
 
   -- ── Option coupee, personnel, anon ────────────────────────────────────────
   BEGIN
-    EXECUTE format('UPDATE etablissements SET option_espace_famille = false WHERE id = %L', e1);
+    EXECUTE format('UPDATE etablissements SET espace_famille_ouvert = false, option_espace_famille = false WHERE id = %L', e1);
   EXCEPTION WHEN others THEN NULL;
   END;
   essais := essais || ARRAY[['option coupee : eleves P1A', 'ok', pg_temp.ctl38(p1a, eleves)]];

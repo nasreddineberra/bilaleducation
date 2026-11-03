@@ -77,9 +77,12 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 
 - **`admin` = droits `direction` partout.** Exception : « ecrire a la direction » (CCI, destinataires)
   n'inclut pas l'admin.
-- **Espace famille (acces parent) = OPTION PAYANTE par ecole, en developpement** (`docs/ESPACE-FAMILLE.md`) :
-  ouverte sur la demonstration seule. Seul juge en base : `foyer_du_compte()` (tuteur 1 ou 2 via
-  `tutor1/2_user_id`, option active, ecole valide) ; toute regle parent passe par elle. Cote app :
+- **Espace famille (acces parent) = OPTION PAYANTE par ecole** (`docs/ESPACE-FAMILLE.md`, lancement :
+  `MISE_EN_PRODUCTION.md` phase 9). DEUX interrupteurs : l'option (console, facturee) et l'ouverture par l'ecole
+  (`espace_famille_ouvert`, Parametres · Etablissement) ; jamais ouvert sans l'option, la console ne coupe pas tant
+  que l'ecole est ouverte. Verrou de developpement `ESPACE_FAMILLE_DISPONIBLE` (`lib/espace-famille/disponibilite.ts`,
+  demonstration seule tant qu'il est faux). Seul juge en base : `foyer_du_compte()` (tuteur 1 ou 2 via
+  `tutor1/2_user_id`, profil actif, les deux interrupteurs) ; toute regle parent passe par elle. Cote app :
   `lib/parents/foyer.ts`. Seances du cahier de texte jamais lues par une famille. Familles prevenues par email
   et notification dans l'espace, jamais d'automatisme pour les bulletins ; push en sommeil (`lib/push-actif.ts`).
 - **Ecran Utilisateurs** = comptes SANS fiche metier (direction, comptable, secretaire, resp. pedago).
@@ -171,6 +174,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Ecole de demonstration** (`est_demo`, slug `demonstration`) : donnees fictives, 7 comptes
   `@demonstration.invalid`, « Reinitialiser » (recree aussi les comptes disparus ; leur 2FA est alors
   a reenroler). « Intervenir » grise tant qu'elle n'est pas reinitialisee. JAMAIS de donnees reelles.
+- **Colonnes de l'editeur sur `etablissements`** (abonnement, ecole active, limite, adresse, effacement, option) :
+  jamais par une requete de l'application (`fn_guard_etablissement_editeur`, controle 43) ; la console ecrit en
+  service role.
 - **Abonnement** : echeance = jour inclus (coupure le lendemain 0 h Paris, `lib/tenant/abonnement.ts`).
   La base coupe aussi : `current_etablissement_id()` rend NULL pour une ecole inactive ou expiree, sauf
   pour l'editeur en intervention. Toute policy porte donc l'ecole via cette fonction, jamais via une

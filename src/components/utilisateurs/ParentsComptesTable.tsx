@@ -34,10 +34,13 @@ export function statutCompte(c: CompteParent, maintenant = Date.now()): { ton: T
   return { ton: 'orange', libelle: 'Invitation expirée' }
 }
 
+/** L'ecole n'a pas active l'espace (Parametres · Etablissement) : aucun envoi (decision 18). */
+export const RAISON_FERME = 'Activez d’abord l’espace famille dans Paramètres · Établissement.'
+
 // Meme regle que `toggleActive` et la garde des profils en base (decision du 03/11).
 const RAISON_DIRECTION = 'Couper ou rouvrir l’accès d’une famille est réservé à la direction.'
 
-export default function ParentsComptesTable({ comptes, peutDesactiver = true }: { comptes: CompteParent[]; peutDesactiver?: boolean }) {
+export default function ParentsComptesTable({ comptes, peutDesactiver = true, espaceOuvert = true }: { comptes: CompteParent[]; peutDesactiver?: boolean; espaceOuvert?: boolean }) {
   const router = useRouter()
   const toast = useToast()
   const [enCours, setEnCours] = useState<string | null>(null)
@@ -103,12 +106,18 @@ export default function ParentsComptesTable({ comptes, peutDesactiver = true }: 
                   </td>
                   <td className="list-td" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1.5">
-                      {c.is_active && !c.configure_le && (
+                      {c.is_active && !c.configure_le && (espaceOuvert ? (
                         <FloatButton type="button" variant="secondary" size="mini" disabled={occupe} loading={occupe}
                           onClick={() => renvoyer(c)}>
                           Renvoyer l’invitation
                         </FloatButton>
-                      )}
+                      ) : (
+                        <Tooltip content={RAISON_FERME}>
+                          <FloatButton type="button" variant="secondary" size="mini" disabled>
+                            Renvoyer l’invitation
+                          </FloatButton>
+                        </Tooltip>
+                      ))}
                       {!peutDesactiver ? (
                         <Tooltip content={RAISON_DIRECTION}>
                           <FloatButton type="button" variant={c.is_active ? 'danger' : 'edit'} size="mini" disabled>

@@ -13,7 +13,7 @@ import { pluriel } from '@/lib/texte/pluriel'
 import type { NumeroTuteur } from '@/lib/parents/participant'
 
 /**
- * « Inviter les familles » (decision 15) : meme fenetre que « Cours adultes en
+ * « Envoyer les invitations » (decisions 15 et 18) : meme fenetre que « Cours adultes en
  * lot » (`ParentsAdultSyncModal`). Une ligne par foyer, un interrupteur par
  * tuteur. Acces deja configure = coche et verrouille ; sans email ou desactive =
  * verrouille. Envoi par paquets, progression, compte rendu.
@@ -161,7 +161,7 @@ export default function InviterFamillesModal({ onClose }: { onClose: () => void 
         className="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 animate-fade-in max-h-[88vh] flex flex-col">
         {/* En-tete */}
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-warm-100">
-          <h3 id="invit-title" className="text-sm font-bold text-secondary-800">Inviter les familles</h3>
+          <h3 id="invit-title" className="text-sm font-bold text-secondary-800">Envoyer les invitations</h3>
           <button onClick={() => !envoi && onClose()} aria-label="Fermer"
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)]">
             <X size={16} />

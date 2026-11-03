@@ -94,4 +94,9 @@ fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa r
   pour ce foyer ; paiements un a un), `parent2` : son cours adulte fusionne (« Moi ») dans chaque ecran.
 - Ecole (non-regression du calcul extrait) : Reglements, Statistiques, tableau de bord financier : memes montants
   qu'avant.
+- Lot 7 (03/11) : console, fiche de la demonstration, encadre « Espace famille » (tarif enregistre, « Desactiver »
+  grise tant que l'ecole est ouverte) ; une ecole REELLE : « Activer » grise (verrou de developpement) ; Parametres ·
+  Etablissement (direction de la demonstration) : desactiver = `parent1@` renvoye a la connexion (« L'espace famille
+  n'est pas disponible. »), « Envoyer les invitations » grise ; reactiver = acces rendu sans invitation ; Facturation :
+  « dont espace famille » sur le releve d'une ecole a l'option (hors demonstration, jour J).
 

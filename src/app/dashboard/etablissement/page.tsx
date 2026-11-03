@@ -4,6 +4,7 @@ import { effectiveRole } from '@/lib/auth/effective-role'
 import EtablissementForm from '@/components/etablissement/EtablissementForm'
 import DocumentTypesConfig from '@/components/etablissement/DocumentTypesConfig'
 import MessagerieConfig from '@/components/etablissement/MessagerieConfig'
+import EspaceFamilleConfig from '@/components/etablissement/EspaceFamilleConfig'
 import { getSmtpSettings } from '@/app/dashboard/etablissement/smtp-actions'
 import type { Etablissement } from '@/types/database'
 
@@ -60,8 +61,9 @@ export default async function EtablissementPage() {
 
       <div className="w-px bg-warm-200 shrink-0" aria-hidden="true" />
 
-      {/* Colonne droite : documents requis */}
-      <div className="flex-1 min-w-0">
+      {/* Colonne droite : espace famille (option souscrite) et documents requis */}
+      <div className="flex-1 min-w-0 space-y-4">
+        {etab.option_espace_famille && <EspaceFamilleConfig ouvert={etab.espace_famille_ouvert} />}
         <DocumentTypesConfig
           etablissementId={etab.id}
           initialDocTypes={docTypes ?? []}

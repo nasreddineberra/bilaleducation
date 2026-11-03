@@ -270,7 +270,7 @@ export async function proxy(request: NextRequest) {
       // (fonctionne à l'Edge Runtime, bypasse RLS)
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/etablissements` +
-        `?slug=eq.${encodeURIComponent(slug)}&select=id,is_active,subscription_expires_at,option_espace_famille&limit=1`,
+        `?slug=eq.${encodeURIComponent(slug)}&select=id,is_active,subscription_expires_at,option_espace_famille,espace_famille_ouvert&limit=1`,
         {
           headers: {
             'apikey':        process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -297,7 +297,8 @@ export async function proxy(request: NextRequest) {
         // Injecter l'identifiant tenant dans les headers de la requête
         requestHeaders.set('x-etablissement-id',   tenant.id)
         requestHeaders.set('x-etablissement-slug', slug)
-        optionFamille = tenant.option_espace_famille === true
+        // Les DEUX interrupteurs : l'option (console) et l'ouverture par l'ecole.
+        optionFamille = tenant.option_espace_famille === true && tenant.espace_famille_ouvert === true
 
         // Vérifier l'abonnement uniquement pour le dashboard
         if (pathname.startsWith('/dashboard')) {

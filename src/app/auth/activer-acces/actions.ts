@@ -40,12 +40,12 @@ export async function activerAcces(formData: FormData) {
     .maybeSingle()
   if (!invitation) redirect('/auth/activer-acces?motif=invalide')
 
-  // Option toujours active, compte toujours actif : sinon rien a activer.
+  // Option active ET espace ouvert par l'ecole, compte actif : sinon rien a activer.
   const [{ data: etab }, { data: profil }] = await Promise.all([
-    admin.from('etablissements').select('option_espace_famille').eq('id', etablissementId).maybeSingle(),
+    admin.from('etablissements').select('option_espace_famille, espace_famille_ouvert').eq('id', etablissementId).maybeSingle(),
     admin.from('profiles').select('is_active, role').eq('id', invitation.profile_id).maybeSingle(),
   ])
-  if (!etab?.option_espace_famille || !profil?.is_active || profil.role !== 'parent') {
+  if (!etab?.option_espace_famille || !etab.espace_famille_ouvert || !profil?.is_active || profil.role !== 'parent') {
     redirect('/auth/activer-acces?motif=indisponible')
   }
 

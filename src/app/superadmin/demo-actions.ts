@@ -230,7 +230,7 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
   }
 
   const { data: ecole, error: eEtab } = await admin.from('etablissements')
-    .insert({ slug: SLUG_DEMO, nom: 'ÉCOLE DÉMONSTRATION', is_active: true, est_demo: true, week_start_day: 1, working_days: 7, option_espace_famille: true })
+    .insert({ slug: SLUG_DEMO, nom: 'ÉCOLE DÉMONSTRATION', is_active: true, est_demo: true, week_start_day: 1, working_days: 7, option_espace_famille: true, espace_famille_ouvert: true })
     .select('id').single()
   if (eEtab || !ecole) return { error: `Création de l'école impossible : ${eEtab?.message ?? 'réponse vide'}` }
 

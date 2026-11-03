@@ -15,6 +15,18 @@ export const etablissement: Procedure = {
 
   taches: [
     {
+      titre: 'Activer ou désactiver l’espace famille',
+      option: 'espace_famille',
+      etapes: [
+        'Dans l’encadré « Espace famille », cliquez sur « Activer l’espace famille ». Les familles qui ont un compte accèdent à leur espace, et les invitations peuvent partir (Paramètres · Utilisateurs, onglet « Parents »).',
+        'Pour couper l’accès, cliquez sur « Désactiver l’espace famille », puis confirmez.',
+      ],
+      aSavoir: [
+        'La désactivation est temporaire : les comptes des familles sont conservés. En réactivant l’espace, elles retrouvent leur accès sans nouvelle invitation.',
+        'L’encadré n’apparaît que si l’établissement a souscrit l’espace famille.',
+      ],
+    },
+    {
       titre: 'Renseigner l’identité de l’établissement',
       etapes: [
         'Dans « Identité », renseignez le « Nom de l’établissement », l’« Adresse », le « Téléphone » et l’« Email de contact ».',

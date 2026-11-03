@@ -619,6 +619,36 @@ cohérent. Trois blocs, dans cet ordre.
 
 ---
 
+## Phase 9 · Lancement de l'option Espace famille (accès parent)
+
+Plan, décisions et lots : `docs/ESPACE-FAMILLE.md`. Tout est en place ; l'option ne s'active aujourd'hui que sur la
+démonstration (verrou de développement).
+
+**Avant** : recette complète de `docs/A-TESTER.md` (section « Espace famille ») dans la démonstration, avec
+`parent1@` et `parent2@demonstration.invalid` ; contrôles 37 à 43 verts.
+
+**Jour J, une fois pour toutes**
+
+1. `src/lib/espace-famille/disponibilite.ts` : `ESPACE_FAMILLE_DISPONIBLE = true` ; commit + push, déploiement.
+
+**Pour chaque école qui souscrit**
+
+1. Console, fiche de l'école, encadré « Espace famille » : saisir le tarif (forfait mensuel, prix par inscrit ;
+   même base que le tarif de base), « Enregistrer le tarif », puis « Activer l'espace famille ». Le mois en cours
+   est dû (son relevé passe à l'option).
+2. L'école vérifie que sa messagerie est configurée (Paramètres · Établissement), puis active l'espace famille
+   (encadré « Espace famille » de la même page).
+3. Direction, secrétaire ou responsable pédagogique : Paramètres · Utilisateurs, onglet « Parents », « Envoyer les
+   invitations ».
+4. Vérifier : un tuteur reçoit l'email, active son accès, choisit son mot de passe, se connecte ; le badge « Accès
+   en ligne » apparaît sur sa fiche ; la Facturation montre « dont espace famille ».
+
+**Arrêt de l'option (sens inverse)**
+
+1. L'école désactive l'espace famille (Paramètres · Établissement) : les familles n'y ont plus accès, leurs comptes
+   restent.
+2. Console : « Désactiver l'espace famille » (grisé tant que l'école ne l'a pas fait). Le mois commencé reste dû.
+
 ## Coûts récurrents
 
 ### Pendant la phase de test — aujourd'hui

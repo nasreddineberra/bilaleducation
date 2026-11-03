@@ -10400,3 +10400,17 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   `family-financials.ts`), `departSelonMouvements` et les cles de depart (`compute.ts`, repris par `chargerDeparts`).
   Calcul de l'ecole inchange (memes operations, meme ordre) : a verifier a l'ecran (A-TESTER).
 - Menu : champ `section` d'une entree. Aucune migration.
+
+## 03/11 · Espace famille, lot 7 : deux interrupteurs, console, facturation, faille de la fiche ecole
+
+- Decisions utilisateur (17 a 20) : interrupteur de la console (option facturee) PUIS interrupteur de l'ecole
+  (Parametres · Etablissement, acces reel, coupure temporaire possible), la console ne coupe pas tant que l'ecole est
+  ouverte ; « Inviter les familles » devient « Envoyer les invitations » (il n'ouvre rien) ; facturation sur
+  l'option, mois commence du ; supplement sur la meme base que le tarif de base.
+- Migration `espace-famille-lancement.sql` (jouee), controle 43. FAILLE PREEXISTANTE : `authenticated` ecrivait toutes
+  les colonnes de `etablissements` et la direction pouvait, par une requete directe, prolonger son abonnement,
+  rouvrir son ecole, changer sa limite d'inscrits ou s'activer l'option ; seul `est_demo` etait garde. Garde
+  `fn_guard_etablissement_editeur` (requetes de l'application refusees ; service role et maintenance passent).
+  Controle 24 ajuste (identite residuelle), controles 37 a 42 ouvrent l'espace.
+- Console (encadre, tarif, compteurs, verrou de developpement), facturation (`montantReleve`, tests), encadre de
+  l'ecole, boutons d'envoi grises, RGPD, aide, phase 9 de `MISE_EN_PRODUCTION.md`.

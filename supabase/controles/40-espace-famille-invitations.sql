@@ -102,7 +102,7 @@ BEGIN
   INSERT INTO etablissements (id, slug, nom, is_active) VALUES
     (e1, 'ctl-invit-1-' || sx, 'CONTROLE INVITATION 1', true),
     (e2, 'ctl-invit-2-' || sx, 'CONTROLE INVITATION 2', true);
-  UPDATE etablissements SET option_espace_famille = true WHERE id = e1;
+  UPDATE etablissements SET option_espace_famille = true, espace_famille_ouvert = true WHERE id = e1;
 
   FOR i IN 1 .. 8 LOOP
     INSERT INTO auth.users (id, email, aud, role)

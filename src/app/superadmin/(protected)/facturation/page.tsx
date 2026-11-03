@@ -37,7 +37,7 @@ export default async function FacturationPage({ searchParams }: { searchParams: 
 
       const { data: releves } = await supabase
         .from('releves_facturation')
-        .select('etablissement_id, mois, eleves_actifs, adultes_inscrits, limite, releve_le, prix_inscrit, forfait')
+        .select('etablissement_id, mois, eleves_actifs, adultes_inscrits, limite, releve_le, prix_inscrit, forfait, option_espace_famille, famille_forfait, famille_prix_inscrit')
         .in('mois', [dernier.mois, precedent])
 
       // Une ligne par ecole ayant un releve ce mois-la (la demonstration exclue).
@@ -63,7 +63,7 @@ export default async function FacturationPage({ searchParams }: { searchParams: 
   // ── Une ecole : son detail mois par mois ──
   const { data: releves } = await supabase
     .from('releves_facturation')
-    .select('mois, eleves_actifs, adultes_inscrits, limite, releve_le, prix_inscrit, forfait')
+    .select('mois, eleves_actifs, adultes_inscrits, limite, releve_le, prix_inscrit, forfait, option_espace_famille, famille_forfait, famille_prix_inscrit')
     .eq('etablissement_id', choisie.id)
     .order('mois', { ascending: false })
 

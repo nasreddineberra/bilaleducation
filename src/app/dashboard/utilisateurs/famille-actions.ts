@@ -119,7 +119,7 @@ export async function inviterTuteur(
   return { email: t.email }
 }
 
-// ─── Inviter les familles (envoi en lot : direction, secretaire, resp. pedagogique, 03/11) ──
+// ─── Envoyer les invitations (envoi en lot : direction, secretaire, resp. pedagogique, 03/11) ──
 
 export interface TuteurInvitation {
   nom: string
@@ -139,7 +139,7 @@ export interface FoyerInvitation {
   tuteur2: TuteurInvitation | null
 }
 
-/** Foyers de l'ecole et etat de chaque tuteur, pour la fenetre « Inviter les familles ». */
+/** Foyers de l'ecole et etat de chaque tuteur, pour la fenetre « Envoyer les invitations ». */
 export async function chargerFoyersInvitation(): Promise<{ error?: string; foyers?: FoyerInvitation[] }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }

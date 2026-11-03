@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { EnterButton } from '../../SupportControls'
 import ReinitialiserDemo from './ReinitialiserDemo'
 import EcoleInfoForm from './EcoleInfoForm'
+import EspaceFamilleConsole from './EspaceFamilleConsole'
 import EcoleUsersSection from './EcoleUsersSection'
 import MiseEnService, { type Etape } from './MiseEnService'
 import ConsoleEditeur from './ConsoleEditeur'
@@ -61,7 +62,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
   // Table serveur uniquement (payeur + tarif).
   const { data: facturation } = await supabase
     .from('etablissement_facturation')
-    .select('structure, identifiant, adresse, responsable, email, prix_inscrit, forfait')
+    .select('structure, identifiant, adresse, responsable, email, prix_inscrit, forfait, famille_forfait, famille_prix_inscrit')
     .eq('etablissement_id', id)
     .maybeSingle()
 
@@ -70,6 +71,16 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     .select('*')
     .eq('etablissement_id', id)
     .order('last_name', { ascending: true })
+
+  // Espace famille : comptes parents de l'ecole (invites, configures, desactives).
+  const { data: foyersComptes } = await supabase
+    .from('parents')
+    .select('tutor1_user_id, tutor2_user_id, tutor1_acces_configure_le, tutor2_acces_configure_le')
+    .eq('etablissement_id', id)
+  const comptesTuteurs = (foyersComptes ?? []).flatMap(f => [
+    f.tutor1_user_id ? { id: f.tutor1_user_id, configure: !!f.tutor1_acces_configure_le } : null,
+    f.tutor2_user_id ? { id: f.tutor2_user_id, configure: !!f.tutor2_acces_configure_le } : null,
+  ].filter((c): c is { id: string; configure: boolean } => !!c))
 
   // Les classes se comptent sur l'ANNEE EN COURS : apres un passage d'annee,
   // celles de l'an passe restent en base et doubleraient le chiffre.
@@ -357,6 +368,18 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
         <div className="relative">
           <div className="absolute inset-0 flex flex-col gap-3">
             <MiseEnService installation={installation} demarrage={demarrage} />
+            <EspaceFamilleConsole
+              etablissementId={id}
+              estDemo={Boolean(ecole.est_demo)}
+              option={ecole.option_espace_famille}
+              ouvert={ecole.espace_famille_ouvert}
+              tarif={{ forfait: facturation?.famille_forfait ?? null, prix: facturation?.famille_prix_inscrit ?? null }}
+              comptes={{
+                invites: comptesTuteurs.length,
+                configures: comptesTuteurs.filter(c => c.configure).length,
+                desactives: comptesTuteurs.filter(c => (profiles ?? []).some(pr => pr.id === c.id && !pr.is_active)).length,
+              }}
+            />
             <EcoleUsersSection profiles={personnel} auth={authParCompte} etablissementId={id} etablissementNom={ecole.nom} estDemo={Boolean(ecole.est_demo)} />
           </div>
         </div>

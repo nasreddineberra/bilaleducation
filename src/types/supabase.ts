@@ -1853,6 +1853,7 @@ export type Database = {
           contact: string | null
           created_at: string
           donnees_effacees_le: string | null
+          espace_famille_ouvert: boolean
           est_demo: boolean
           id: string
           is_active: boolean
@@ -1875,6 +1876,7 @@ export type Database = {
           contact?: string | null
           created_at?: string
           donnees_effacees_le?: string | null
+          espace_famille_ouvert?: boolean
           est_demo?: boolean
           id?: string
           is_active?: boolean
@@ -1897,6 +1899,7 @@ export type Database = {
           contact?: string | null
           created_at?: string
           donnees_effacees_le?: string | null
+          espace_famille_ouvert?: boolean
           est_demo?: boolean
           id?: string
           is_active?: boolean

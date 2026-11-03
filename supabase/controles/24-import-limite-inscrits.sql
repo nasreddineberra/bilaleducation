@@ -75,8 +75,12 @@ BEGIN
   IF NOT ok THEN nb_ko := nb_ko + 1; END IF;
 
   -- ── Les adultes comptent : limite 5, base 3 + 1 adulte, import de 2 ──
+  -- Ecriture de mise en place, hors identite de l'application : la limite
+  -- d'inscrits est une colonne de l'editeur (`fn_guard_etablissement_editeur`).
+  PERFORM set_config('request.jwt.claims', NULL, true);
   UPDATE etablissements SET max_students = 5 WHERE id = e;
   UPDATE parents SET tutor1_adult_courses = true WHERE id = par;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', dir, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
   BEGIN
     PERFORM import_foyer(

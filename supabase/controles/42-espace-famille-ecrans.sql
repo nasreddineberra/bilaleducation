@@ -56,7 +56,7 @@ DECLARE
   essais text[][] := '{}';
 BEGIN
   INSERT INTO etablissements (id, slug, nom, is_active) VALUES (e1, 'ctl-ecrans-' || sx, 'CONTROLE ECRANS', true);
-  UPDATE etablissements SET option_espace_famille = true WHERE id = e1;
+  UPDATE etablissements SET option_espace_famille = true, espace_famille_ouvert = true WHERE id = e1;
   INSERT INTO school_years (id, etablissement_id, label, is_current, start_date, end_date)
   VALUES (y1, e1, 'CTL-42', true, '2026-09-01', '2099-06-30');
   INSERT INTO classes (id, etablissement_id, name, level, academic_year) VALUES
