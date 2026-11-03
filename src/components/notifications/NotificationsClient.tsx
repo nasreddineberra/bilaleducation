@@ -10,6 +10,7 @@ import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import PushSubscribeButton from './PushSubscribeButton'
+import { PUSH_ACTIF } from '@/lib/push-actif'
 import { SearchField, FloatSelect } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
@@ -214,7 +215,7 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
           ariaLabel="Rechercher une notification"
           className="max-w-xs"
         />
-        {isParent && <div className="ml-auto"><PushSubscribeButton /></div>}
+        {isParent && PUSH_ACTIF && <div className="ml-auto"><PushSubscribeButton /></div>}
       </div>
 
       {/* Liste */}

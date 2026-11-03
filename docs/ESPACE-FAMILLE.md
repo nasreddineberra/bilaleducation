@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 et 2 terminés, lot 3 codé (03/11)** : migration à jouer après déploiement.
+État : **lots 1 à 4 terminés (03/11)**. Prochain : lot 5.
 
 ---
 
@@ -23,7 +23,8 @@ l'option se vend école par école depuis la console.
 
 1. Un tuteur inscrit à un cours adulte voit aussi son propre cours (EDT, devoirs, bulletin adulte).
 2. Notes : seulement par les bulletins archivés (pas de lecture de `grades` / `evaluations`).
-3. Notification « Bulletin disponible » : oui.
+3. « Bulletin disponible » : TOUJOURS une action manuelle de l'équipe, par Communications > Parents (email +
+   notification dans l'espace famille). Aucune automatisation (révisé le 03/11).
 4. Finances : visibles en lecture (dû, payé, reste, échéances).
 5. Après le départ du dernier enfant : accès fermé, sauf les bulletins archivés, consultables
    jusqu'à la fin de l'année scolaire.
@@ -33,6 +34,8 @@ l'option se vend école par école depuis la console.
 9. Option activée en cours de mois : le mois est dû (proposé, à confirmer au lot 7 ; le relevé du mois en cours
    est alors mis à jour, comme pour un changement de tarif).
 10. Le commentaire d'une absence est visible de la famille ; bulletins : année en cours seulement (03/11).
+11. Pas de notification du navigateur (push) pour les parents : email et notification dans l'espace famille
+    seulement (03/11). Aucun SMS. Le code du push reste en place, en sommeil.
 
 ## Lots
 
@@ -40,8 +43,8 @@ l'option se vend école par école depuis la console.
 |---|---|---|
 | 1 | Fondations en base : lien compte ↔ tuteur, option et tarif, fonctions, règles existantes réécrites, retrait de `parents.user_id` | fait (migrations A et B jouées, contrôle 37 vert) |
 | 2 | Règles de lecture « mon foyer » (fiche, enfants, classes, EDT sans motif, absences, bulletins archivés, finances, cours adultes, décision 5) | fait (migration jouée, contrôle 38 vert) |
-| 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | codé, contrôle 39 vert en essai ; migration après déploiement |
-| 4 | Bulletins : lecture du fichier, notification « Bulletin disponible » | à faire |
+| 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | fait (migration jouée après déploiement, contrôle 39 vert) |
+| 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
 | 5 | Comptes et invitations : email d'invitation, case « Accès en ligne » par tuteur, Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | à faire |
 | 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | à faire |
 | 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
@@ -233,3 +236,57 @@ contrôles rejoués.
   refusée par la base) : seuls les enfants pour qui `devoir_de_mon_enfant()` répond vrai sont listés.
 - Contrôle 37 : le devoir de l'ancienne classe est daté dans le futur, pour que son refus reste celui de la règle
   d'accès et non celui du gel.
+
+---
+
+## Lot 4 · ABANDONNÉ tel quel (décision 3 révisée le 03/11)
+
+Remplacé par la mise en sommeil du push des parents (voir plus bas). Le texte qui suit est conservé pour
+mémoire.
+
+### Ancienne proposition
+
+La LECTURE d'un bulletin (ligne et fichier PDF) est en base depuis le lot 2 ; l'écran qui les liste et les ouvre
+est celui de l'espace famille (lot 6). Ce lot porte la notification « Bulletin disponible » (décision 3).
+
+### Migration `espace-famille-bulletin-disponible.sql` (additive)
+
+1. `notifications.type` accepte `bulletin`.
+2. Déclencheurs sur `bulletin_archives` et `adult_bulletin_archives` :
+   - à l'ARCHIVAGE, si l'option de l'école est active : une notification « Bulletin disponible » pour le foyer
+     (« Le bulletin du T1 de NOM Prénom est disponible. »), avec la référence de l'archive ; pour un cours adulte,
+     le numéro du tuteur concerné ;
+   - au DÉSARCHIVAGE : la notification de cette archive est retirée (un bulletin désarchivé n'est plus lisible,
+     sa notification mènerait à un document absent).
+   La base écrit la notification dans la même transaction que l'archive : ni oubli, ni doublon.
+3. `notifications_select_parent` : une notification adressée à UN tuteur (cours adulte) n'est lue que par lui.
+
+### Code
+
+- Après un archivage réussi, l'écran Bulletins demande l'envoi des notifications sur téléphone (push) aux
+  comptes du foyer, option active seulement (action serveur, sans email : décision 3). Un échec du push ne
+  touche pas l'archivage.
+- Le push sort de `createNotification` dans une fonction partagée (`lib/notifications.ts`), une seule règle
+  « quels comptes d'un foyer reçoivent le push ».
+- Libellé du type `bulletin` dans l'écran Notifications.
+
+### Contrôle 40
+
+Archivage par la direction, école avec option : notification du bon foyer, lisible par ses deux tuteurs, pas par
+un autre foyer ; cours adulte : lisible par le seul tuteur concerné ; école sans option : aucune notification ;
+désarchivage : notification retirée ; ré-archivage : une seule notification. Rouge avant, vert après ; tous les
+contrôles rejoués.
+
+### Lot 4 révisé · push des parents en sommeil (fait le 03/11)
+
+Le push n'existe que pour les parents (bouton « Activer les notifications » de l'écran Notifications, envoi par
+`createNotification`). Décision 11 : en sommeil, réversible par une constante, comme l'était
+`CREATE_PARENT_ACCOUNTS`.
+
+- `lib/push-actif.ts` : `PUSH_ACTIF = false` (constante unique ; module à part de `lib/push.ts`, qui charge
+  `web-push`, pour que l'écran client puisse la lire).
+- `lib/notifications.ts` : aucun envoi push tant qu'elle est fausse (`push_status` = `no_sub`) ; email et
+  notification inchangés.
+- `NotificationsClient` : bouton d'abonnement masqué.
+- `/api/notifications/subscribe` : refuse l'abonnement (aucun abonnement ne peut s'enregistrer par l'adresse).
+- Aucune migration ; la table `push_subscriptions` reste (vide).

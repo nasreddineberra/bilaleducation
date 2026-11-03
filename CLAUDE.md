@@ -80,7 +80,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Espace famille (acces parent) = OPTION PAYANTE par ecole, en developpement** (`docs/ESPACE-FAMILLE.md`) :
   ouverte sur la demonstration seule. Seul juge en base : `foyer_du_compte()` (tuteur 1 ou 2 via
   `tutor1/2_user_id`, option active, ecole valide) ; toute regle parent passe par elle. Cote app :
-  `lib/parents/foyer.ts`. Seances du cahier de texte jamais lues par une famille.
+  `lib/parents/foyer.ts`. Seances du cahier de texte jamais lues par une famille. Familles prevenues par email
+  et notification dans l'espace, jamais d'automatisme pour les bulletins ; push en sommeil (`lib/push-actif.ts`).
 - **Ecran Utilisateurs** = comptes SANS fiche metier (direction, comptable, secretaire, resp. pedago).
   Enseignant -> fiche enseignant (compte + profil + `teachers` atomique) ; parent -> fiche parents.
 - **Enseignant** : ses classes (`teaches_class`, fenetre `effective_from/until`), ses eleves

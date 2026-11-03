@@ -3,8 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/security/rateLimiter'
 import { checkCsrf } from '@/lib/security/csrf'
 import { logger } from '@/lib/logger'
+import { PUSH_ACTIF } from '@/lib/push-actif'
 
 export async function POST(req: NextRequest) {
+  // Push en sommeil (`lib/push-actif.ts`) : aucun abonnement ne s'enregistre,
+  // meme par l'adresse, bouton masque ou non.
+  if (!PUSH_ACTIF) {
+    return NextResponse.json({ error: 'Les notifications du navigateur ne sont pas disponibles.' }, { status: 403 })
+  }
+
   // Protection CSRF
   const csrf = checkCsrf(req)
   if (!csrf.valid) {

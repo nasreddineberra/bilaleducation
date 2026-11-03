@@ -10325,3 +10325,12 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   du meme enfant), erreur affichee (la creation echouait sans un mot) ; seuls les enfants de la classe du devoir.
 - Controle 39 (15 essais) : rouge avant (11 KO), vert avec la migration en transaction annulee ; tous les controles
   rejoues, seul le 37 a bouge (refus par le gel avant la regle d'acces), corrige. Aide : « Donner un devoir » relue.
+
+## 03/11 · Espace famille, lot 4 revise : push des parents en sommeil
+
+- Decision utilisateur : « Bulletin disponible » reste une action MANUELLE de l'equipe (Communications > Parents),
+  aucune automatisation ; le lot 4 prevu (notification posee par la base a l'archivage) est abandonne. Pas de
+  notification du navigateur pour les familles (ni SMS) : email et notification dans l'espace seulement.
+- Le push ne servait qu'aux parents. Interrupteur unique `PUSH_ACTIF = false` (`lib/push-actif.ts`, module a part
+  de `lib/push.ts` qui charge `web-push`) : plus d'envoi depuis `createNotification`, bouton d'abonnement masque,
+  `/api/notifications/subscribe` refuse. Code conserve, aucune migration.

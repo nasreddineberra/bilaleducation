@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { sendNotificationEmail, type EmailAttachment } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push'
+import { PUSH_ACTIF } from '@/lib/push-actif'
 import type { Json } from '@/types/supabase'
 
 interface CreateNotificationParams {
@@ -100,7 +101,8 @@ export async function createNotification(params: CreateNotificationParams): Prom
 
   // 4. Envoyer le push : aux comptes des tuteurs vises par l'email (un seul pour
   // un cours adulte), et seulement si l'option espace famille de l'ecole est active.
-  const comptes = parent.etablissements?.option_espace_famille
+  // En sommeil tant que `PUSH_ACTIF` est faux (decision du 03/11).
+  const comptes = PUSH_ACTIF && parent.etablissements?.option_espace_famille
     ? [
         { compte: parent.tutor1_user_id, email: parent.tutor1_email },
         { compte: parent.tutor2_user_id, email: parent.tutor2_email },
