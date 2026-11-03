@@ -10378,3 +10378,14 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   `presentationParModule`, guide PDF. Procedure « Comptes parents (espace famille) » (direction, secretaire,
   resp. pedagogique), tache d'orientation dans « Utilisateurs », regles dans « Parents ». Test : un ecran ne se
   partage qu'avec une procedure complementaire d'option.
+
+## 03/11 · Espace famille, lot 6a : ecrans du parent
+
+- Migration `espace-famille-ecrans.sql` (jouee) : `famille_enfants()` (le parent ne lit pas `enrollments`, colonne
+  `notes` interne) et `marquer_notification_lue` (le marquage « lu » d'un parent echouait : aucune regle
+  d'ecriture). Controle 42 (10 essais), rouge avant, vert apres ; aucun autre controle n'a bouge.
+- Menu parent propre (Mes enfants, Devoirs, Absences), retire des ecrans du personnel ; middleware : un parent
+  n'atteint que ses ecrans ; `famille/layout.tsx` ferme l'espace au personnel.
+- Tableau de bord parent refait sur les composants des autres tableaux de bord (l'ancien lisait les NOTES, hors
+  decision 2, et des tables fermees au parent). Ecrans `famille/enfants`, `famille/devoirs` (lecture du cahier de
+  texte en role parent, fenetre du devoir du lot 3), `famille/absences`.

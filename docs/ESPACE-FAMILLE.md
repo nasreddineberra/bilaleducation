@@ -4,7 +4,7 @@ Option PAYANTE par établissement. Développée à l'abri : tant qu'elle n'est p
 s'active que sur l'école de démonstration. Le jour où tout est prêt : un commit d'une ligne, puis
 l'option se vend école par école depuis la console.
 
-État : **lots 1 à 5 terminés (03/11)**. Prochain : lot 6 (écrans de l'espace famille).
+État : **lots 1 à 5 terminés, lot 6a fait (03/11)**. Prochain : lot 6b.
 
 ---
 
@@ -46,7 +46,7 @@ l'option se vend école par école depuis la console.
 | 3 | Devoir fait : gel à la date de rendu, interface parent, suivi enseignant | fait (migration jouée après déploiement, contrôle 39 vert) |
 | 4 | ~~Notification « Bulletin disponible »~~ : abandonné (décision 3 révisée) ; push des parents mis en sommeil | fait |
 | 5 | Comptes et invitations : email d'invitation, badge « Accès en ligne », Utilisateurs > Parents, envoi en lot, comptes parents de démonstration | fait (5a, 5b, rôles et aide) |
-| 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | à faire |
+| 6 | Écrans de l'espace famille (téléphone d'abord), notifications lues | 6a fait ; 6b à faire |
 | 7 | Console (option, tarif, relevé, comptes), aide parent, RGPD, recette, jour J | à faire |
 
 ---
@@ -404,3 +404,67 @@ d'une autre école ou non parent = refusé.
 - Aide : condition `option: 'espace_famille'` sur une procédure ou un élément (`lib/aide/types.ts`), lue par la
   languette, le menu Aide, la page d'une procédure et le guide PDF. Procédure « Comptes parents (espace famille) »,
   tâche d'orientation dans « Utilisateurs », deux règles dans « Parents ». Plus de report au lot 7.
+
+---
+
+## Lot 6 · détail (6a fait le 03/11)
+
+### Constats
+
+- Le menu du parent pointe aujourd'hui vers des écrans du PERSONNEL (Saisie des notes, Bulletins, Feuille d'appel,
+  Cahier de texte, Règlements) : sélection de classe, saisie, toute la classe. Décision 2 (pas de notes au fil de
+  l'eau) : « Saisie des notes » ne doit plus lui être proposé.
+- Le tableau de bord parent existant (`DashboardParent`, `lib/dashboard/parent.ts`) lit les NOTES et des tables
+  que la base ne lui ouvre pas : à refaire.
+- Un parent ne peut pas marquer une notification comme lue (aucune règle d'écriture) : l'écran échoue en silence.
+- Le calcul financier d'UN foyer n'existe pas à part : il est noyé dans `family-financials.ts` (toute l'école).
+
+### Menu du parent (tous visibles sur téléphone)
+
+Accueil · Mes enfants · Emploi du temps · Devoirs · Absences · Bulletins · Règlements · Notifications ;
+« Mes cours » pour un tuteur inscrit à un cours adulte. Les écrans du personnel lui sont retirés du menu ET
+fermés par leur page (redirection vers l'espace famille).
+
+### Écrans (`/dashboard/famille/...`, lecture seule sauf « Effectué »)
+
+- **Accueil** (`/dashboard` pour le parent) : bonjour, ses enfants (classe, titulaire), les devoirs à rendre
+  bientôt, les dernières absences, le reste à payer, les notifications non lues. Une page, sans défilement sur
+  ordinateur.
+- **Mes enfants** : pour chaque enfant, identité, classe de l'année, titulaire ; un enfant parti est signalé.
+- **Emploi du temps** : semaine de l'enfant (jour par jour sur téléphone), séances annulées ou assurées par un
+  remplaçant, vacances et jours fériés (même calcul que l'EDT de l'école : `lib/edt/seance.ts`,
+  `lib/school-year/jours-fermes.ts`).
+- **Devoirs** : à rendre / passés, par enfant ; le détail s'ouvre dans la fenêtre du devoir (« Vu »,
+  « Effectué », lot 3).
+- **Absences** : absences et retards de l'année, justifiés ou non, avec leur commentaire.
+- **Bulletins** : par enfant, les périodes archivées de l'année ; « Ouvrir le bulletin » (PDF dans un onglet).
+- **Règlements** : dû, payé, reste, échéances et réductions de l'année ; même calcul que l'écran Règlements de
+  l'école (calcul d'UN foyer extrait de `family-financials.ts`, servi par `famille_finances()`).
+- **Notifications** : l'écran existant, avec le marquage « lu » qui fonctionne.
+- **Mes cours** (tuteur adulte) : son cours, son emploi du temps, ses devoirs, ses absences, son bulletin.
+- Sélecteur d'enfant en tête des écrans quand il y en a plusieurs (mémorisé).
+
+### Base (migration additive)
+
+- `marquer_notifications_lues(ids)` : le parent marque SES notifications (et messages) lus ; rien d'autre.
+
+### Livraison en deux temps
+
+- 6a : menu, fermeture des écrans du personnel, Accueil, Mes enfants, Devoirs, Absences, Notifications (lues).
+- 6b : Emploi du temps, Bulletins, Règlements, Mes cours.
+
+Test sur le site déployé avec `parent1@` et `parent2@demonstration.invalid`.
+
+### Fait au 6a (03/11)
+
+- Migration `espace-famille-ecrans.sql` (jouée) : `famille_enfants()` (enfants, classe de l'année ou dernière
+  retirée, départ) et `marquer_notification_lue(id, source)` (SA ligne seulement). Contrôle 42 (vert).
+- Menu du parent : Tableau de bord, Notifications, Mes enfants, Devoirs, Absences (tous sur téléphone) ; retiré des
+  entrées du personnel (Évaluations, EDT, Feuille d'appel, Cahier de texte, Financements).
+- Middleware : un compte parent n'atteint que `/dashboard`, `/dashboard/famille/*`, Notifications et Mon compte ;
+  `famille/layout.tsx` renvoie le personnel à son tableau de bord.
+- Tableau de bord parent refait (tuiles enfants, devoirs de la semaine, absences, notifications ; plus de notes).
+- Écrans `famille/enfants`, `famille/devoirs` (fenêtre du devoir du lot 3), `famille/absences` ; sélecteur
+  d'enfant mémorisé (`SelecteurEnfant`).
+- Notifications : le parent marque lu par la fonction (l'écriture directe était refusée).
+- Le libellé du menu reste « Tableau de bord » (entrée commune à tous les rôles).

@@ -132,16 +132,23 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
     setReadIds(prev => new Set(prev).add(notif.id))
 
     const supabase = createClient()
-    const table = notif.source === 'auto' ? 'notifications'
-      : notif.recipientType === 'staff' ? 'announcement_staff_recipients'
-      : 'announcement_recipients'
-    const echec = erreurEcriture(
-      await supabase.from(table)
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', notif.id)
-        .select('id'),
-      'Cette notification',
-    )
+    let echec: string | null
+    if (notif.recipientType === 'parent') {
+      // Parent (espace famille) : aucune regle d'ecriture, la base marque SA
+      // ligne par `marquer_notification_lue` (lot 6).
+      const { data, error } = await supabase.rpc('marquer_notification_lue', { p_id: notif.id, p_source: notif.source })
+      echec = error || !data ? 'Cette notification n’a pas pu être marquée comme lue.' : null
+    } else {
+      // Personnel : ses messages d'equipe (les notifications automatiques sont
+      // toutes adressees a un foyer).
+      echec = erreurEcriture(
+        await supabase.from('announcement_staff_recipients')
+          .update({ is_read: true, read_at: new Date().toISOString() })
+          .eq('id', notif.id)
+          .select('id'),
+        'Cette notification',
+      )
+    }
     // L'optimisme se DEFAIT : sans cela la cloche se vidait a l'ecran et se
     // remplissait de nouveau au rechargement, sans que rien ne l'explique.
     if (echec) {

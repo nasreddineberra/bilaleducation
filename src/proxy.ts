@@ -515,6 +515,12 @@ export async function proxy(request: NextRequest) {
   if (user && pathname.startsWith('/dashboard') && user.app_metadata?.role === 'parent' && !optionFamille) {
     return NextResponse.redirect(new URL('/login?reason=famille', request.url))
   }
+  // Un parent n'a que SES ecrans : un ecran du personnel (atteint par son
+  // adresse) le ramene a son accueil. La base ne lui rendrait de toute facon
+  // rien (regles parent), ceci evite un ecran vide ou trompeur.
+  if (user && user.app_metadata?.role === 'parent' && pathname.startsWith('/dashboard/') && !cheminFamille(pathname)) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
 
   // ── 2FA TOTP pour les rôles non-parent ────────────────────────────────────
 
@@ -582,6 +588,12 @@ export async function proxy(request: NextRequest) {
   }
 
   return response
+}
+
+/** Ecrans ouverts a un compte parent (espace famille). */
+function cheminFamille(pathname: string): boolean {
+  return ['/dashboard/famille', '/dashboard/notifications', '/dashboard/mon-compte']
+    .some(p => pathname === p || pathname.startsWith(`${p}/`))
 }
 
 export const config = {

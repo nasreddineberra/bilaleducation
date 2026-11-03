@@ -15,6 +15,8 @@ import {
   LifeBuoy,
   CircleHelp,
   LayoutDashboard,
+  Baby,
+  CalendarX,
   Users,
   Contact,
   GraduationCap,
@@ -200,6 +202,28 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
     mobile: true,
   },
+  // ── Espace famille (parent) : ses ecrans seuls (docs/ESPACE-FAMILLE.md, lot 6).
+  {
+    name:  'Mes enfants',
+    href:  '/dashboard/famille/enfants',
+    icon:  Baby,
+    roles: ['parent'],
+    mobile: true,
+  },
+  {
+    name:  'Devoirs',
+    href:  '/dashboard/famille/devoirs',
+    icon:  BookOpenText,
+    roles: ['parent'],
+    mobile: true,
+  },
+  {
+    name:  'Absences',
+    href:  '/dashboard/famille/absences',
+    icon:  CalendarX,
+    roles: ['parent'],
+    mobile: true,
+  },
   {
     name:  'Temps de présence',
     href:  '/dashboard/temps-presence',
@@ -248,7 +272,7 @@ const navItems: NavItem[] = [
     // 5 août — mais un parent masqué masque ses enfants, donc elle n'atteignait
     // ni l'un ni l'autre. Le droit existait, le lien n'était jamais rendu.
     // (Bulletins l'exclut toujours : décision distincte, page comprise.)
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
     children: [
       {
         name:  'Gabarits',
@@ -260,7 +284,7 @@ const navItems: NavItem[] = [
         name:  'Saisie des notes',
         href:  '/dashboard/grades',
         icon:  FileText,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
       },
       {
         name:  'Bulletins',
@@ -271,7 +295,7 @@ const navItems: NavItem[] = [
         // 25 juillet — un droit qu'aucun ecran n'exerçait. Elle peut etre
         // amenee a faire les actions d'un enseignant (decision utilisateur),
         // d'ou les quatre : consulter, apprecier, archiver, desarchiver.
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
       },
     ],
   },
@@ -279,7 +303,7 @@ const navItems: NavItem[] = [
     name:  'Emploi du temps',
     href:  '/dashboard/emploi-du-temps',
     icon:  CalendarClock,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
     mobile: true,
   },
   {
@@ -292,7 +316,7 @@ const navItems: NavItem[] = [
     // que l'enfant « Adultes » le listait, que les deux PAGES lui donnent le
     // périmètre complet, et que la vue « toutes les classes » du 4 août l'y
     // incluait nommément. Il ne voyait donc aucune feuille d'appel.
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
     // Le parent ET ses deux enfants : sans le drapeau sur les enfants, le rendu
     // retirerait l'entree de lui-meme (`visibleChildren.length === 0`).
     mobile: true,
@@ -301,7 +325,7 @@ const navItems: NavItem[] = [
         name:  'Apprenants',
         href:  '/dashboard/absences',
         icon:  Users,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
         mobile: true,
       },
       {
@@ -326,7 +350,7 @@ const navItems: NavItem[] = [
     name:  'Cahier de texte',
     href:  '/dashboard/cahier-texte',
     icon:  BookOpenText,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
     mobile: true,
   },
   {
@@ -387,13 +411,13 @@ const navItems: NavItem[] = [
   {
     name:  'Financements',
     icon:  DollarSign,
-    roles: ['admin', 'direction', 'comptable', 'parent'],
+    roles: ['admin', 'direction', 'comptable'],
     children: [
       {
         name:  'Règlements',
         href:  '/dashboard/financements/reglements',
         icon:  Wallet,
-        roles: ['admin', 'direction', 'comptable', 'parent'],
+        roles: ['admin', 'direction', 'comptable'],
       },
       {
         name:  'Statistiques',
@@ -510,6 +534,9 @@ const SECTION_OF: Record<string, string> = {
   'Tableau de bord':    'Principal',
   'Notifications':      'Principal',
   'Temps de présence':  'Principal',
+  'Mes enfants':        'Principal',
+  'Devoirs':            'Principal',
+  'Absences':           'Principal',
   'Apprenants':         'Vie scolaire',
   'Parents':            'Vie scolaire',
   'Affectations':       'Vie scolaire',

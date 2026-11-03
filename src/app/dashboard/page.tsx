@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   const role = effectiveRole(profile) ?? 'parent'
 
   // Periode courante et notifications de l'en-tete (`lib/dashboard/commun.ts`).
-  const { periodes, currentPeriod, parentId, unreadNotifs, recentNotifs } =
+  const { periodes, currentPeriod, unreadNotifs, recentNotifs } =
     await chargerEnTete(supabase, userId, currentYear?.id ?? null)
 
   // ── Données communes ────────────────────────────────────────────────
@@ -132,11 +132,11 @@ export default async function DashboardPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  //  PARENT (dormant en V1) ou fallback
+  //  PARENT (espace famille) ou fallback
   // ══════════════════════════════════════════════════════════════════════
-  // Lectures dans `lib/dashboard/parent.ts`. « Aujourd'hui » est celui de PARIS :
-  // le serveur tourne en UTC.
-  const stats = await chargerDonneesParent(supabase, parentId, currentYear?.label ?? null, jourParis(new Date()))
+  // Lectures dans `lib/dashboard/parent.ts` (la base ne rend que son foyer).
+  // « Aujourd'hui » est celui de PARIS : le serveur tourne en UTC.
+  const stats = await chargerDonneesParent(supabase, jourParis(new Date()))
 
   return (
     <DashboardParent

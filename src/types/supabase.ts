@@ -4994,6 +4994,21 @@ export type Database = {
         Returns: boolean
       }
       exporter_etablissement: { Args: { p_id: string | null }; Returns: Json }
+      famille_enfants: {
+        Args: never
+        Returns: {
+          class_id: string
+          classe_nom: string
+          date_depart: string
+          date_of_birth: string
+          first_name: string
+          gender: string
+          id: string
+          inscription_active: boolean
+          is_active: boolean
+          last_name: string
+        }[]
+      }
       famille_enseignants: {
         Args: never
         Returns: {
@@ -5174,6 +5189,10 @@ export type Database = {
       marquer_familles_prevenues: {
         Args: { p_absence_id: string | null; p_seances: Json | null }
         Returns: number
+      }
+      marquer_notification_lue: {
+        Args: { p_id: string | null; p_source: string | null }
+        Returns: boolean
       }
       norm_name: { Args: { txt: string | null }; Returns: string }
       preparer_invitation_tuteur: {

@@ -83,4 +83,9 @@ fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa r
   Parents, ni colonne, ni badge.
 - Email d'un tuteur modifie sur sa fiche : connexion avec la nouvelle adresse ; adresse deja prise = refus, fiche
   inchangee. Foyer supprime : son compte en ligne disparait d'Utilisateurs > Parents.
+- Lot 6a (03/11), connecte en `parent1@demonstration.invalid` (demonstration reinitialisee) : menu reduit a ses
+  ecrans, tableau de bord (enfants, devoirs de la semaine, absences), Mes enfants, Devoirs (fenetre du devoir :
+  « Vu » pose a l'ouverture, « Effectue » avant / apres la date de rendu), Absences (commentaire visible),
+  Notifications (marquer lu) ; une adresse du personnel tapee a la main (`/dashboard/students`) ramene a
+  l'accueil ; sur telephone, menu complet et listes lisibles.
 
