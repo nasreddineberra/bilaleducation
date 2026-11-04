@@ -8,7 +8,7 @@ import { useToast } from '@/lib/toast-context'
 import { reinitialiserEcoleDemo } from '@/app/superadmin/demo-actions'
 import { pluriel } from '@/lib/texte/pluriel'
 
-/** Remise à zéro de l'école de démonstration : données refaites, comptes conservés. */
+/** Remise à zéro de l'école de démonstration : données refaites, comptes de démonstration conservés, comptes ajoutés supprimés. */
 export default function ReinitialiserDemo({ etablissementId }: { etablissementId: string }) {
   const router = useRouter()
   const toast = useToast()
@@ -25,6 +25,8 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
       else toast.success("L'école de démonstration est remise à zéro.")
       // Comptes recrees (apres un depart) : leur double authentification est perdue.
       if (r.recrees) toast.warning(`${pluriel(r.recrees, 'compte recréé', 'comptes recréés')} : ${r.recrees > 1 ? 'leur' : 'sa'} double authentification est à enrôler de nouveau.`)
+      if (r.nonSupprimes) toast.warning(`Comptes ajoutés non supprimés · ${r.nonSupprimes}`)
+      else if (r.supprimes) toast.success(`${pluriel(r.supprimes, 'compte ajouté pendant la démonstration supprimé', 'comptes ajoutés pendant la démonstration supprimés')}.`)
       router.refresh()
     } finally {
       setEnCours(false)
@@ -40,7 +42,7 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
       {aConfirmer && (
         <ConfirmModal
           title="Réinitialiser l'école de démonstration ?"
-          message="Toutes les données de l'école sont effacées puis recréées, datées d'aujourd'hui. Les comptes de connexion et leur double authentification sont conservés."
+          message="Toutes les données de l'école sont effacées puis recréées, datées d'aujourd'hui. Les comptes de démonstration et leur double authentification sont conservés ; les comptes ajoutés pendant la démonstration sont supprimés."
           confirmLabel="Réinitialiser"
           confirmVariant="submit"
           confirmDisabled={enCours}

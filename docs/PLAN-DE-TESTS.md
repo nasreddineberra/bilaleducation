@@ -36,7 +36,9 @@ Ce que couvre la campagne :
 **Remise à zéro**
 
 - [ ] **1.1** Fiche de l'école de démonstration → « Réinitialiser » → confirmer. Attendu : message de réussite ; la
-  liste des comptes contient `parent1@` et `parent2@demonstration.invalid`.
+  liste des comptes contient `parent1@` et `parent2@demonstration.invalid`. Tout compte créé à la main pendant une
+  démonstration (ex. `nberra+7@hotmail.com`, enseignant de test) a disparu, message « 1 compte ajouté pendant la
+  démonstration supprimé » ; la liste des enseignants ne compte que les 3 enseignants fictifs.
 
 **Encadré « Espace famille » (colonne du milieu)**
 

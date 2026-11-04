@@ -10414,3 +10414,15 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   Controle 24 ajuste (identite residuelle), controles 37 a 42 ouvrent l'espace.
 - Console (encadre, tarif, compteurs, verrou de developpement), facturation (`montantReleve`, tests), encadre de
   l'ecole, boutons d'envoi grises, RGPD, aide, phase 9 de `MISE_EN_PRODUCTION.md`.
+
+## 04/11 · Demonstration : comptes crees a la main supprimes a la remise a zero
+
+- Constat (campagne de tests) : un enseignant de test cree a la main (`nberra+7@`) survivait a « Reinitialiser » et ne
+  pouvait plus etre supprime. Cause : `fn_demo_peupler` creait une fiche pour CHAQUE compte enseignant de l'ecole, il
+  etait donc « reembauche » a chaque remise a zero (classe, evaluations fictives = dependances bloquantes).
+- Migration `demo-comptes-a-la-main.sql` (jouee) : fiche enseignant pour les seuls comptes `@demonstration.invalid`
+  (prospects deja retablis avant le peuplement). Correctif par ancrage sur la definition en base ; garde de rejeu sur
+  le texte remplace (`@demonstration.invalid` figurait deja dans la fonction, adresses des tuteurs : premiere garde
+  fausse, vue a l'essai).
+- Console : `supprimerComptesAjoutes` (`demo-actions.ts`) supprime, APRES le vidage, les comptes de l'ecole hors
+  `@demonstration.invalid` et hors `super_admin` (editeur en intervention) ; echec non bloquant, signale et trace.

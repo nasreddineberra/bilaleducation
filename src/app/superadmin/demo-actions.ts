@@ -23,7 +23,8 @@ import { DOMAINE_COMPTES_DEMO } from '@/lib/tenant/demo-comptes'
  * FICHIERS (le Storage n'est pas une table).
  *
  * Les comptes sont crees UNE fois et conserves aux remises a zero : leur 2FA
- * s'enrole une seule fois. Adresses en `.invalid`, domaine garanti sans
+ * s'enrole une seule fois. Les comptes crees A LA MAIN pendant une demonstration
+ * sont, eux, supprimes a la remise a zero (`supprimerComptesAjoutes`). Adresses en `.invalid`, domaine garanti sans
  * messagerie — et l'ecole n'a pas de messagerie configuree : aucun email ne peut
  * partir vers une adresse inventee.
  */
@@ -426,7 +427,34 @@ async function retablirTous(admin: ReturnType<typeof createAdminClient>, etablis
   return echecs
 }
 
-export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{ error?: string; fichiers?: number; logo?: boolean; recrees?: number }> {
+/**
+ * Supprime les comptes CREES A LA MAIN pendant une demonstration (un enseignant,
+ * un parent invite, un membre de l'equipe...) : ceux de l'ecole dont l'adresse
+ * n'est pas `@demonstration.invalid`. Appelee APRES le vidage par la base, qui a
+ * efface toutes les lignes qui les referencaient ; les acces prospects sont deja
+ * retablis sur leur adresse d'origine (`retablirTous`). L'editeur, rattache
+ * pendant une intervention, n'est jamais touche. Le profil part en cascade.
+ * Rend le nombre supprime et les echecs (non bloquants : l'ecole est deja refaite).
+ */
+async function supprimerComptesAjoutes(admin: ReturnType<typeof createAdminClient>, etablissementId: string): Promise<{ supprimes: number; echecs: string[] }> {
+  const { data: profils, error } = await admin.from('profiles').select('id, email, role').eq('etablissement_id', etablissementId)
+  if (error) return { supprimes: 0, echecs: ['lecture des comptes impossible'] }
+  const ajoutes = (profils ?? []).filter(p => p.role !== 'super_admin' && !String(p.email ?? '').endsWith(`@${DOMAINE}`))
+  let supprimes = 0
+  const echecs: string[] = []
+  for (const p of ajoutes) {
+    // `deleteUser` ne leve pas : il renvoie `{ error }`.
+    const { error: e } = await admin.auth.admin.deleteUser(p.id)
+    if (e) { echecs.push(`${p.email} : ${e.message}`); continue }
+    supprimes++
+  }
+  if (echecs.length) console.error('[demo] comptes ajoutes non supprimes :', echecs.join(' · '))
+  return { supprimes, echecs }
+}
+
+export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
+  error?: string; fichiers?: number; logo?: boolean; recrees?: number; supprimes?: number; nonSupprimes?: string
+}> {
   const { error: refus } = await requireEditor()
   if (refus) return { error: refus }
 
@@ -469,7 +497,8 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
     return { error: error?.message ?? 'Remise à zéro impossible.' }
   }
   // Apres la base : sur un echec de la base, rien n'est perdu ; ici un echec ne
-  // laisse que des fichiers orphelins.
+  // laisse que des fichiers orphelins (ou un compte ajoute, signale).
+  const ajoutes = await supprimerComptesAjoutes(admin, etablissementId)
   await relierParentsDemo(admin, etablissementId)
   const fichiers = await effacerFichiers(admin, data.fichiers ?? [])
   const logo = await poserLogoDemo(admin, etablissementId)
@@ -477,9 +506,13 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   await tracerActionEditeur(await createClient(), {
     etablissementId,
     description: `Remise à zéro de l'école de démonstration (année ${data.annee})`
-      + (manquants.length ? ` · ${pluriel(manquants.length, 'compte recréé', 'comptes recréés')}` : ''),
+      + (manquants.length ? ` · ${pluriel(manquants.length, 'compte recréé', 'comptes recréés')}` : '')
+      + (ajoutes.supprimes ? ` · ${pluriel(ajoutes.supprimes, 'compte ajouté supprimé', 'comptes ajoutés supprimés')}` : ''),
   })
   revalidatePath('/superadmin')
   revalidatePath(`/superadmin/ecoles/${etablissementId}`)
-  return { fichiers, logo, recrees: manquants.length }
+  return {
+    fichiers, logo, recrees: manquants.length, supprimes: ajoutes.supprimes,
+    nonSupprimes: ajoutes.echecs.length ? ajoutes.echecs.join(' · ') : undefined,
+  }
 }
