@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { coque, p, pDoux } from '@/lib/email/shell.mjs'
 import { preparerCorps } from '@/lib/email/corps-mail'
 import { messageErreur } from '@/lib/erreur'
+import { estAdresseFictive } from '@/lib/tenant/demo-comptes'
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 // La messagerie est propre a chaque etablissement (l'app est multi-etablissement),
@@ -150,11 +151,17 @@ export async function sendNotificationEmail(params: {
   replyTo?: string
   attachments?: EmailAttachment[]
 }): Promise<{ success: boolean; error?: string }> {
-  const to  = params.to.filter(Boolean)
-  const bcc = (params.bcc ?? []).filter(Boolean)
+  // Adresses fictives de la demonstration : jamais envoyees (`estAdresseFictive`).
+  // Si elles etaient les seules, l'envoi est refuse avec sa raison, que chaque
+  // ecran affiche deja dans ses echecs ; sinon le reste part normalement.
+  const brutes = [...params.to, ...(params.bcc ?? [])].filter(Boolean)
+  const to  = params.to.filter(a => a && !estAdresseFictive(a))
+  const bcc = (params.bcc ?? []).filter(a => a && !estAdresseFictive(a))
 
   if (to.length === 0 && bcc.length === 0) {
-    return { success: false, error: 'Aucun destinataire.' }
+    return brutes.length > 0
+      ? { success: false, error: 'Adresse fictive de démonstration : aucun email envoyé.' }
+      : { success: false, error: 'Aucun destinataire.' }
   }
 
   const resolved = await getTransporter(params.etablissementId)

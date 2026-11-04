@@ -10426,3 +10426,15 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   fausse, vue a l'essai).
 - Console : `supprimerComptesAjoutes` (`demo-actions.ts`) supprime, APRES le vidage, les comptes de l'ecole hors
   `@demonstration.invalid` et hors `super_admin` (editeur en intervention) ; echec non bloquant, signale et trace.
+
+## 04/11 · Plan de tests complet, messagerie de la demonstration
+
+- `docs/PLAN-DE-TESTS.md` reecrit : recette de toute l'application par session de connexion (S1 console a S9
+  interrupteurs), transactions sensibles marquees et regroupees (S10 console, S11 securite transverse), S13
+  messagerie. Donnees de la demonstration decrites (fil rouge foyer CHEN = `parent1`, foyer RUSSO pour l'argent).
+  Releve en le redigeant : aucun refus d'un paiement superieur au reste (S2.44, decision a prendre).
+- Garde-fou d'envoi : `estAdresseFictive` (`lib/tenant/demo-comptes.ts`, teste) ; `sendNotificationEmail` ecarte
+  les adresses `@demonstration.invalid` et refuse avec sa raison si elles etaient seules (chaque ecran l'affiche
+  dans ses echecs). Une demonstration dotee d'une messagerie n'envoie donc jamais vers une adresse inventee.
+- Migration `demo-garder-messagerie.sql` (a jouer par l'utilisateur) : `fn_demo_vider` ne vide plus
+  `etablissement_smtp` ; le depart d'une ecole l'efface toujours.

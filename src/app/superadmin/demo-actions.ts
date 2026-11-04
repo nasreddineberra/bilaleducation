@@ -25,8 +25,9 @@ import { DOMAINE_COMPTES_DEMO } from '@/lib/tenant/demo-comptes'
  * Les comptes sont crees UNE fois et conserves aux remises a zero : leur 2FA
  * s'enrole une seule fois. Les comptes crees A LA MAIN pendant une demonstration
  * sont, eux, supprimes a la remise a zero (`supprimerComptesAjoutes`). Adresses en `.invalid`, domaine garanti sans
- * messagerie — et l'ecole n'a pas de messagerie configuree : aucun email ne peut
- * partir vers une adresse inventee.
+ * messagerie, que l'envoi ecarte (`estAdresseFictive`) : la demonstration peut
+ * avoir une messagerie (conservee a la remise a zero) sans qu'aucun email parte
+ * vers une adresse inventee.
  */
 
 const SLUG_DEMO = 'demonstration'
