@@ -410,8 +410,9 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
 ## S13 · Messagerie (avec le compte de messagerie de démonstration)
 
 Les adresses `@demonstration.invalid` ne reçoivent JAMAIS rien : l'envoi les écarte. Les essais passent donc par
-des adresses à VOUS, avec un `+` (ex. `nberra+tuteur1@hotmail.com`), toutes différentes entre elles. La messagerie
-est conservée par « Réinitialiser » (migration `demo-garder-messagerie.sql`).
+des adresses à VOUS, avec un `+` (ex. `nberra+tuteur1@hotmail.com`), toutes différentes entre elles.
+« Réinitialiser » EFFACE la messagerie : la configurer APRÈS la remise à zéro du début de campagne (S1.1), et la
+ressaisir après toute nouvelle remise à zéro.
 
 **Préparation**
 
@@ -455,7 +456,7 @@ est conservée par « Réinitialiser » (migration `demo-garder-messagerie.sql`)
 **Remise en état**
 
 - [ ] **13.14** Console : « Rétablir » le compte `direction@`. Le foyer TEST et ses comptes partiront à la prochaine
-  remise à zéro ; la messagerie reste.
+  remise à zéro, la messagerie aussi.
 
 ## Hors de portée de la démonstration
 
@@ -465,7 +466,8 @@ est conservée par « Réinitialiser » (migration `demo-garder-messagerie.sql`)
 ## Fin de campagne
 
 - [ ] Console : « Réinitialiser » la démonstration. Attendu : « TEST Comptable » et tout compte ajouté supprimés,
-  foyers et paiements de test effacés, 9 comptes de démonstration intacts (2FA comprise).
+  foyers et paiements de test effacés, messagerie effacée (Paramètres · Établissement · Messagerie vide), 9 comptes
+  de démonstration intacts (2FA comprise).
 
 ---
 

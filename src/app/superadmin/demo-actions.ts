@@ -26,7 +26,7 @@ import { DOMAINE_COMPTES_DEMO } from '@/lib/tenant/demo-comptes'
  * s'enrole une seule fois. Les comptes crees A LA MAIN pendant une demonstration
  * sont, eux, supprimes a la remise a zero (`supprimerComptesAjoutes`). Adresses en `.invalid`, domaine garanti sans
  * messagerie, que l'envoi ecarte (`estAdresseFictive`) : la demonstration peut
- * avoir une messagerie (conservee a la remise a zero) sans qu'aucun email parte
+ * avoir une messagerie (effacee a la remise a zero) sans qu'aucun email parte
  * vers une adresse inventee.
  */
 

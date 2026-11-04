@@ -10438,3 +10438,6 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
   dans ses echecs). Une demonstration dotee d'une messagerie n'envoie donc jamais vers une adresse inventee.
 - Migration `demo-garder-messagerie.sql` (a jouer par l'utilisateur) : `fn_demo_vider` ne vide plus
   `etablissement_smtp` ; le depart d'une ecole l'efface toujours.
+- Decision utilisateur (meme jour) : la messagerie de la demonstration NE survit PAS a « Reinitialiser ». Migration
+  `demo-garder-messagerie.sql` retiree du depot sans avoir ete jouee (registre intact) ; le plan (S13, fin de
+  campagne) dit de la ressaisir apres chaque remise a zero. Le garde-fou des adresses fictives reste.
