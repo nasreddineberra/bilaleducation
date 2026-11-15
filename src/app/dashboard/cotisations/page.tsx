@@ -1,10 +1,21 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import CotisationsClient from '@/components/cotisations/CotisationsClient'
 import { REGLE_PAR_DEFAUT, type RegleAjustement } from '@/lib/financements/compute'
 import { chargerApercuDeparts } from '@/lib/financements/departs'
+import { isFinanceRole } from '@/lib/financements/roles'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function CotisationsPage() {
   const supabase = await createClient()
+
+  // Garde de page (15/11) : l'ecran s'ouvrait a tout le personnel par son
+  // adresse (montants lisibles, ecritures refusees par la RLS). Meme regle que
+  // le menu : admin, direction, comptable.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
+  if (!isFinanceRole(effectiveRole(me))) redirect('/dashboard')
 
   const { data: currentYear } = await supabase
     .from('school_years')

@@ -10460,3 +10460,5 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Releve, NON traite (hors perimetre) : `/dashboard/cotisations` n'a aucune garde de page ; tout role du personnel
   qui tape l'adresse lit les cotisations (ecritures refusees par la RLS).
 - Plan de tests : S3 reecrite ; S2.44 corrigee (le trop-percu est prevu par la base : statut `overpaid`).
+- Decision utilisateur (meme jour) : `/dashboard/cotisations` reserve a admin, direction, comptable (garde de page
+  `isFinanceRole`, comme les autres ecrans financiers) ; un autre role qui tape l'adresse revient au tableau de bord.

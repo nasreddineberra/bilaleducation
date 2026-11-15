@@ -293,7 +293,7 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
 **Ce qui lui reste fermé** 🔒
 
 - [ ] **3.13** Taper à la main `/dashboard/financements`, `/dashboard/financements/vue-globale`,
-  `/dashboard/financements/bilans`, `/dashboard/passage-annee`, `/dashboard/logs` → renvoi au tableau de bord,
+  `/dashboard/financements/bilans`, `/dashboard/cotisations`, `/dashboard/passage-annee`, `/dashboard/logs` → renvoi au tableau de bord,
   jamais de chiffres.
 
 ## S4 · Responsable pédagogique (`pedagogie@demonstration.invalid`)
@@ -303,7 +303,7 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
 - [ ] **4.2** Utilisateurs : seul l'onglet « Parents » (comme S3.3).
 - [ ] **4.3** Il est le remplaçant de S2.19 : EDT de samedi prochain, la séance du CE1 est à son nom ; Absences
   enseignants : il peut déclarer et décider.
-- [ ] **4.4** 🔒 `/dashboard/financements` et `/dashboard/financements/reglements` tapés à la main → renvoi.
+- [ ] **4.4** 🔒 `/dashboard/financements`, `/dashboard/financements/reglements` et `/dashboard/cotisations` tapés à la main → renvoi.
 
 ## S5 · Enseignant (`enseignant1@demonstration.invalid`, LEFEBVRE, CE1)
 
