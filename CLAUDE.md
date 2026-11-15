@@ -417,9 +417,10 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 Tous les modules sont faits et audites (accessibilite, charte, theme sombre, mobile, RLS role + tenant,
 ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console. Historique : journal.
 
-1. **Campagne de tests a partir du 04/11** : `docs/PLAN-DE-TESTS.md` (modifications du 30/10 au 03/11, par
-   session de connexion, demonstration REINITIALISEE d'abord ; anomalies en bas du fichier). Recettes
-   unitaires : `docs/A-TESTER.md` (un point verifie s'en retire).
+1. **Campagne de tests en cours** : `docs/PLAN-DE-TESTS.md` (plan COMPLET de la V1, S1 a S13, par session de
+   connexion, transactions sensibles marquees, demonstration REINITIALISEE d'abord puis messagerie de demonstration
+   ressaisie pour S13 ; anomalies en bas du fichier). Recettes unitaires : `docs/A-TESTER.md` (un point verifie
+   s'en retire).
 2. **Espace famille** : lots 1 a 7 livres (`docs/ESPACE-FAMILLE.md`), demonstration seule ; apres la campagne,
    lancement selon `MISE_EN_PRODUCTION.md` phase 9 (verrou `ESPACE_FAMILLE_DISPONIBLE`). Non testable dans la
    demonstration : email d'invitation reel, ligne « dont espace famille » de la facturation.
