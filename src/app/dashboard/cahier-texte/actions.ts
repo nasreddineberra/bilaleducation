@@ -11,7 +11,7 @@ import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { formatJourLongFr } from '@/lib/dates'
 import { sanitize } from '@/lib/security/sanitize'
 import { nomCompletEnseignant } from '@/lib/teachers/nom'
-import type { TypeDevoir } from '@/components/cahier-texte/commun'
+import { ENCADREMENT_CAHIER, type TypeDevoir } from '@/components/cahier-texte/commun'
 
 /**
  * Suppression d'un devoir et d'une séance du cahier de texte.
@@ -41,7 +41,7 @@ import type { TypeDevoir } from '@/components/cahier-texte/commun'
  *     pour tout le monde — elle se pose à l'écran.
  */
 
-const ENCADREMENT = ['admin', 'direction', 'responsable_pedagogique']
+const ENCADREMENT = ENCADREMENT_CAHIER
 
 /** Jours entre deux dates `AAAA-MM-JJ`, en arithmétique de nombres —
  *  aucun objet `Date`, donc aucun fuseau (piège payé plusieurs fois). */

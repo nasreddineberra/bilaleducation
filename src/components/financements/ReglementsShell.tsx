@@ -10,7 +10,7 @@ import type { DonneesReglements } from '@/lib/financements/reglements'
 type Props = DonneesReglements & {
   currentYear: { id: string; label: string; start_date?: string | null; end_date?: string | null }
   initialParentId?: string
-  /** Suppression du journal comptable : admin/direction seuls. */
+  /** Suppression du journal comptable : roles de Reglements (`isReglementsRole`). */
   canDeleteComms?: boolean
 }
 

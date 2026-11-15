@@ -6,7 +6,7 @@ import { sendNotificationEmail, hasSmtpConfig } from '@/lib/email'
 import { sanitize } from '@/lib/security/sanitize'
 import { escapeHtml } from '@/lib/security/escape-html'
 import { coque, POLICE, C } from '@/lib/email/shell.mjs'
-import { FINANCE_ROLES } from '@/lib/financements/roles'
+import { FINANCE_ROLES, REGLEMENTS_ROLES } from '@/lib/financements/roles'
 import { logAudit } from '@/lib/audit'
 import { phraseRefus } from '@/lib/financements/depart-refus'
 
@@ -34,7 +34,7 @@ export interface SendRelanceResult {
 }
 
 export async function sendRelance(payload: SendRelancePayload): Promise<SendRelanceResult> {
-  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  const { error: roleError } = await requireRoleServer(REGLEMENTS_ROLES)
   if (roleError) return { error: roleError }
 
   const subject = payload.subject?.trim() ?? ''
@@ -145,7 +145,7 @@ export interface LogAttestationPayload {
 }
 
 export async function logAttestation(payload: LogAttestationPayload): Promise<SendRelanceResult> {
-  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  const { error: roleError } = await requireRoleServer(REGLEMENTS_ROLES)
   if (roleError) return { error: roleError }
 
   const supabase = await createClient()
@@ -181,7 +181,7 @@ export async function logAttestation(payload: LogAttestationPayload): Promise<Se
 
 /** Supprime une ligne du journal des communications comptables.
  *
- *  Ouverte aux ROLES FINANCE (policy `fin_comm_delete`), comme la lecture et
+ *  Ouverte aux roles de REGLEMENTS (policy `fin_comm_delete`), comme la lecture et
  *  l'ecriture. La suppression est elle-meme TRACEE dans audit_logs avec le
  *  contenu supprime : c'est la trace d'audit, et non l'immuabilite de la table,
  *  qui porte la valeur probante.
@@ -190,7 +190,7 @@ export async function logAttestation(payload: LogAttestationPayload): Promise<Se
  *  l'acteur serait perdu.
  */
 export async function deleteFinancementCommunication(id: string): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  const { error: roleError } = await requireRoleServer(REGLEMENTS_ROLES)
   if (roleError) return { error: roleError }
 
   const supabase = await createClient()
@@ -239,7 +239,7 @@ export async function deciderMouvement(
   mouvementId: string,
   decision: 'sans_ajustement' | 'due' | 'prorata',
 ): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  const { error: roleError } = await requireRoleServer(REGLEMENTS_ROLES)
   if (roleError) return { error: roleError }
   const supabase = await createClient()
   const { error } = await supabase.rpc('decider_mouvement', { p_id: mouvementId, p_decision: decision })

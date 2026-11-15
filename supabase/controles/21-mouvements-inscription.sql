@@ -12,7 +12,7 @@
 --   effacement d'ecole en cours       -> rien
 --   annee close                       -> rien
 --   auteur                            -> la secretaire, nom compris
--- Puis les droits : la comptable lit la trace, la secretaire ne la lit pas,
+-- Puis les droits : la comptable et la secretaire (Reglements, 15/11) lisent la trace,
 -- personne ne l'ecrit directement.
 --
 -- Migration : supabase/migrations/add-mouvements-inscription.sql.
@@ -158,9 +158,9 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', sec, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO n FROM mouvements_inscription WHERE etablissement_id = e;
   RESET ROLE;
-  rapport := rapport || E'\n[' || CASE WHEN n = 0 THEN 'OK' ELSE 'KO' END
-    || '] secretaire ne lit pas      ' || n;
-  IF n <> 0 THEN nb_ko := nb_ko + 1; END IF;
+  rapport := rapport || E'\n[' || CASE WHEN n = vu AND n > 0 THEN 'OK' ELSE 'KO' END
+    || '] secretaire lit             ' || n || '/' || vu;
+  IF NOT (n = vu AND n > 0) THEN nb_ko := nb_ko + 1; END IF;
 
   BEGIN
     SET LOCAL ROLE authenticated;

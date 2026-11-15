@@ -14,3 +14,14 @@ export const FINANCE_ROLES: UserRole[] = ['admin', 'direction', 'comptable']
 export function isFinanceRole(role: string | null | undefined): boolean {
   return !!role && (FINANCE_ROLES as string[]).includes(role)
 }
+
+// Ecran Reglements SEUL : la secretaire y a les droits du comptable (15/11 :
+// paiements, reductions, relances, decisions de depart). Le reste du module
+// (Statistiques, Situation financiere, Bilans, Cotisations et regle de depart)
+// reste a `FINANCE_ROLES`. Meme liste que la RLS (`family_fees`,
+// `fee_installments`, `fee_adjustments`, `financement_communications`).
+export const REGLEMENTS_ROLES: UserRole[] = [...FINANCE_ROLES, 'secretaire']
+
+export function isReglementsRole(role: string | null | undefined): boolean {
+  return !!role && (REGLEMENTS_ROLES as string[]).includes(role)
+}

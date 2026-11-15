@@ -13,7 +13,7 @@ import DevoirForm from './DevoirForm'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import { Puce } from '@/components/dashboard/tdb'
-import { typeDevoir, dateLocale, rendPasse } from './commun'
+import { typeDevoir, dateLocale, rendPasse, ENCADREMENT_CAHIER } from './commun'
 import { useToast } from '@/lib/toast-context'
 import { useRouter } from 'next/navigation'
 import { supprimerDevoir } from '@/app/dashboard/cahier-texte/actions'
@@ -24,7 +24,7 @@ import { foyerDuCompte, tuteurDuCompte } from '@/lib/parents/foyer'
 import type { DevoirCahier } from '@/lib/cahier-texte/donnees'
 import { libelleMatiere, type CreneauMatiere } from '@/lib/cahier-texte/matiere'
 
-const STAFF = ['admin', 'direction', 'responsable_pedagogique']
+const STAFF = ENCADREMENT_CAHIER
 
 // Civilité NOM Prénom et infos de classe : sources uniques (`lib/teachers/nom`, `classInfo`).
 const teacherLabelOf = nomCompletEnseignant

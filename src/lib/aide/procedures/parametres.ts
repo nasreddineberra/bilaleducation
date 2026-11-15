@@ -296,7 +296,7 @@ export const referentielCours: Procedure = {
   titre: 'Référentiel des cours',
   module: 'Paramètres',
   ecrans: ['/dashboard/cours'],
-  roles: ['direction', 'responsable_pedagogique'],
+  roles: ['direction', 'responsable_pedagogique', 'secretaire'],
   acces: 'Paramètres · Pédagogie · Référentiel cours',
   resume:
     "Ce qui s'enseigne, en trois niveaux : unités d'enseignement (les matières), modules, et cours. "

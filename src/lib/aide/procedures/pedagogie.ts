@@ -77,7 +77,7 @@ export const cahierTexte: Procedure = {
   titre: 'Cahier de texte',
   module: 'Pédagogie',
   ecrans: ['/dashboard/cahier-texte'],
-  roles: [...ENCADREMENT, 'enseignant'],
+  roles: [...ENCADREMENT, 'secretaire', 'enseignant'],
   acces: 'Pédagogie · Cahier de texte',
   resume:
     "Le journal des séances de chaque classe (ce qui a été fait) et les devoirs donnés, envoyés par email aux familles.",
@@ -151,7 +151,7 @@ export const emploiDuTemps: Procedure = {
   titre: 'Emploi du temps',
   module: 'Pédagogie',
   ecrans: ['/dashboard/emploi-du-temps'],
-  roles: [...ENCADREMENT, 'enseignant'],
+  roles: [...ENCADREMENT, 'secretaire', 'enseignant'],
   acces: 'Pédagogie · Emploi du temps',
   resume:
     "Le planning des séances de la semaine, du jour ou du mois. On y valide les séances assurées, et l'encadrement y gère les séances ponctuelles, les annulations et les salles.",
@@ -182,7 +182,7 @@ export const emploiDuTemps: Procedure = {
       ],
     },
     {
-      roles: ENCADREMENT,
+      roles: [...ENCADREMENT, 'secretaire'],
       titre: 'Agir sur une séance (annuler, changer la salle, réactiver)',
       etapes: [
         'Cliquez sur les trois points « Actions du créneau » de la séance.',
@@ -197,7 +197,7 @@ export const emploiDuTemps: Procedure = {
       ],
     },
     {
-      roles: ENCADREMENT,
+      roles: [...ENCADREMENT, 'secretaire'],
       titre: 'Ajouter une séance ponctuelle',
       etapes: [
         'Cliquez sur « Ajouter ».',

@@ -10441,3 +10441,22 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Decision utilisateur (meme jour) : la messagerie de la demonstration NE survit PAS a « Reinitialiser ». Migration
   `demo-garder-messagerie.sql` retiree du depot sans avoir ete jouee (registre intact) ; le plan (S13, fin de
   campagne) dit de la ressaisir apres chaque remise a zero. Le garde-fou des adresses fictives reste.
+
+## 15/11 · Secretaire : emploi du temps, cahier de texte, Reglements complet, referentiel des cours
+
+- Decision utilisateur : la secretaire recoit ces 4 ecrans ; Reglements COMPLET (paiements, suppressions,
+  reductions, relances, attestations, « Decider » un depart), cahier de texte comme l'encadrement, referentiel en
+  ecriture. Restent fermes : Statistiques, Situation financiere, Bilans, Cotisations et la regle de depart.
+- Emploi du temps : page et RLS l'autorisaient deja (creneaux, exceptions, validations), seul le menu manquait.
+- Migration `secretaire-ecrans.sql` (a jouer par l'utilisateur, additive donc AVANT le push) : policies de
+  `family_fees`, `fee_installments`, `fee_adjustments`, `financement_communications` (lecture + ecriture),
+  `family_year_finance`, `mouvements_inscription` (lecture), `class_journal`, `homework`, suivi des devoirs, et
+  referentiel ; gardes `fin_garde_dossier` et `decider_mouvement` par ancrage. Controle 44 (20 essais, vu ROUGE
+  avant : 14 KO, puis vert) ; controles 21 et 22 alignes (la secretaire lit les mouvements et decide ; le refus
+  de decision porte desormais sur l'enseignant) ; 06, 16, 25 verts avec la migration.
+- Code : `REGLEMENTS_ROLES` / `isReglementsRole` (`lib/financements/roles.ts`) pour la page et 4 actions,
+  `definirRegleAjustement` reste a `FINANCE_ROLES` ; `ENCADREMENT_CAHIER` (`components/cahier-texte/commun.ts`)
+  remplace 5 copies de la liste de l'encadrement. Aide : 4 procedures ouvertes, test de l'aide aligne.
+- Releve, NON traite (hors perimetre) : `/dashboard/cotisations` n'a aucune garde de page ; tout role du personnel
+  qui tape l'adresse lit les cotisations (ecritures refusees par la RLS).
+- Plan de tests : S3 reecrite ; S2.44 corrigee (le trop-percu est prevu par la base : statut `overpaid`).

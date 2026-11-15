@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { horodatageParis } from '@/lib/dates'
 import { classesDuCompte } from '@/lib/parents/foyer'
+import { ENCADREMENT_CAHIER } from '@/components/cahier-texte/commun'
 
 export type DonneesCahierTexte = Awaited<ReturnType<typeof chargerCahierTexte>>
 export type ClasseCahier = DonneesCahierTexte['classes'][number]
@@ -19,7 +20,7 @@ const CLASSE = 'id, name, level, day_of_week, start_time, end_time, class_teache
 const SEANCE = '*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))' as const
 const DEVOIR = '*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))' as const
 
-const ENCADREMENT = ['admin', 'direction', 'responsable_pedagogique']
+const ENCADREMENT = ENCADREMENT_CAHIER
 
 /** Jour de Paris decale de `jours` (chaine AAAA-MM-JJ, jamais `toISOString`). */
 function jourParisDecale(jours: number): string {

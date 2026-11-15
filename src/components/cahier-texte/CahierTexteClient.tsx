@@ -7,7 +7,7 @@ import DevoirDetailModal from './DevoirDetailModal'
 import { clsx } from 'clsx'
 import { FloatSelect, FloatInput, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import { Puce } from '@/components/dashboard/tdb'
-import { typeDevoir, dateLocale, rendPasse } from './commun'
+import { typeDevoir, dateLocale, rendPasse, ENCADREMENT_CAHIER } from './commun'
 import Tooltip from '@/components/ui/Tooltip'
 import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import SeanceForm from './SeanceForm'
@@ -82,8 +82,8 @@ export default function CahierTexteClient({
   const [detail, setDetail] = useState<{ type: 'seance'; entry: SeanceCahier } | { type: 'devoir'; entry: DevoirCahier } | null>(null)
 
   const selectedClass = classes.find(c => c.id === filterClass) ?? null
-  const canCreate = ['admin', 'enseignant', 'direction', 'responsable_pedagogique'].includes(role)
-  const isStaff = ['admin', 'direction', 'responsable_pedagogique'].includes(role)
+  const isStaff = ENCADREMENT_CAHIER.includes(role)
+  const canCreate = isStaff || role === 'enseignant'
   const isAllClasses = filterClass === ALL_CLASSES
 
   // Ligne de bas de carte : « Enseignant · Cotisation · Jour HH:MM-HH:MM »

@@ -7,7 +7,7 @@ export const reglements: Procedure = {
   titre: 'Règlements',
   module: 'Gestion',
   ecrans: ['/dashboard/financements/reglements'],
-  roles: ['direction', 'comptable'],
+  roles: ['direction', 'comptable', 'secretaire'],
   acces: 'Gestion · Financements · Règlements',
   resume:
     "Suivre le règlement des cotisations de chaque famille pour l'année en cours : ce qu'elle doit, ce qu'elle a payé, ce qui reste. "

@@ -99,7 +99,10 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Comptable** : Financements + Parametres -> Cotisations ; pas de notes/absences.
 - **Resp. pedagogique** : pedagogie complete, enseignants dans Temps de presence (sans couts).
 - **Secretaire** : eleves, parents, enseignants (sans suppression), classes, gabarits, notes,
-  bulletins, affectations, feuille d'appel.
+  bulletins, affectations, feuille d'appel, emploi du temps, cahier de texte (comme l'encadrement,
+  `ENCADREMENT_CAHIER`), referentiel des cours (ecriture). **Reglements complet** (15/11) : paiements,
+  reductions, relances, attestations, « Decider » d'un depart (`REGLEMENTS_ROLES`) ; JAMAIS Statistiques,
+  Situation financiere, Bilans, Cotisations ni la regle de depart (`FINANCE_ROLES`). Controle 44.
 - **`super_admin`** (editeur) : console `/superadmin`, `etablissement_id` NULL. **Acces support** :
   il se RATTACHE a une ecole (« Intervenir », expiration 1 h) et `get_user_role()` repond alors
   `admin`. Rattachement exclusif, trace, theme non modifiable pendant l'intervention.

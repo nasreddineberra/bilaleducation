@@ -226,8 +226,8 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
   reste diminué de 100 ; reçu / attestation PDF dans un nouvel onglet.
 - [ ] **2.43** Double clic rapide sur « Enregistrer » d'un paiement de 50 € → UN SEUL paiement créé.
 - [ ] **2.44** Montant négatif ou nul → « Le montant doit être positif. », aucune écriture. Montant SUPÉRIEUR au
-  reste : aucune règle ne le refuse aujourd'hui ; noter ce qui s'affiche (reste négatif ? statut ?) dans Anomalies,
-  décision à prendre.
+  reste : accepté (prévu par la base) → la case du bas affiche « Trop perçu » en rouge, la famille passe dans le
+  filtre « trop perçu » ; supprimer ce paiement pour revenir à l'état précédent.
 - [ ] **2.45** Ajouter une réduction de 30 € (motif) → dû diminué ; la supprimer → dû rétabli.
 - [ ] **2.46** Supprimer le paiement de 50 € → reste remonté de 50. Ouvrir Règlements dans DEUX onglets, supprimer
   le paiement de 100 € dans le premier, puis tenter la même suppression dans le second → message d'erreur, aucun
@@ -253,14 +253,48 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
 
 ## S3 · Secrétaire (`secretariat@demonstration.invalid`)
 
-- [ ] **3.1** Menus : élèves, parents, enseignants, classes, notes, bulletins, affectations, feuille d'appel ; pas
-  de Financements ni de Passage d'année.
+- [ ] **3.1** Menus : élèves, parents, enseignants, classes, notes, bulletins, affectations, feuille d'appel,
+  **Emploi du temps**, **Cahier de texte**, **Référentiel cours**, et **Financements avec le seul sous-menu
+  Règlements** ; pas de Passage d'année, de Cotisations, de Journal d'activité. Sur téléphone : Emploi du temps et
+  Cahier de texte dans le tiroir.
 - [ ] **3.2** Enseignants : créer, modifier ; **aucun** bouton de suppression.
 - [ ] **3.3** Utilisateurs : SEUL l'onglet « Parents » ; « Envoyer les invitations » utilisable ; « Désactiver » /
   « Réactiver » grisés (« réservé à la direction »).
 - [ ] **3.4** Absences enseignants : peut déclarer ; Feuille d'appel : saisie possible.
-- [ ] **3.5** 🔒 Taper à la main `/dashboard/financements/reglements`, `/dashboard/passage-annee`, `/dashboard/logs`
-  → renvoi (jamais l'écran).
+
+**Emploi du temps (15/11)**
+
+- [ ] **3.5** Vue globale (« Par classe » / « Par enseignant ») ; créer une séance ponctuelle pour le CM1 puis la
+  supprimer (« SUPPRESSION ») ; annuler une séance (« ANNULATION ») puis la réactiver ; valider la séance CP d'un
+  samedi passé → heures au nom de BENSAID ; retirer la validation.
+
+**Cahier de texte (15/11)**
+
+- [ ] **3.6** « Toutes les classes » disponible ; sur le CM1 : ajouter une séance (enseignant OKAFOR proposé),
+  ajouter un devoir, modifier puis supprimer chacun ; ouvrir le devoir « Apprendre la table de 7 » → « Suivi » des
+  familles visible.
+
+**Règlements (15/11)** 🔒 (foyer YILMAZ : rien payé)
+
+- [ ] **3.7** Règlements : liste des familles, filtres, dossier de YILMAZ ; montants identiques à ceux que voit la
+  direction.
+- [ ] **3.8** Enregistrer un paiement de 40 € (espèces) → reste diminué ; le modifier (50 €) puis le supprimer.
+- [ ] **3.9** Ajouter une réduction de 15 € puis la supprimer ; « Relancer » (sans messagerie : échec noté dans
+  « Communication comptable ») ; supprimer cette ligne de communication.
+- [ ] **3.10** Si la direction a laissé la règle « Au cas par cas » (S2.47) : « Décider » sur un départ ; sinon le
+  bouton n'apparaît pas.
+- [ ] **3.11** Journal d'activité (en direction, plus tard) : ces opérations au nom de NGUYEN Linh.
+
+**Référentiel des cours (15/11)**
+
+- [ ] **3.12** Ajouter une unité « TEST Sec », un module et un cours dedans, changer l'ordre, puis tout supprimer.
+  Une unité utilisée par un créneau (Français) ne se supprime pas.
+
+**Ce qui lui reste fermé** 🔒
+
+- [ ] **3.13** Taper à la main `/dashboard/financements`, `/dashboard/financements/vue-globale`,
+  `/dashboard/financements/bilans`, `/dashboard/passage-annee`, `/dashboard/logs` → renvoi au tableau de bord,
+  jamais de chiffres.
 
 ## S4 · Responsable pédagogique (`pedagogie@demonstration.invalid`)
 
@@ -269,7 +303,7 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
 - [ ] **4.2** Utilisateurs : seul l'onglet « Parents » (comme S3.3).
 - [ ] **4.3** Il est le remplaçant de S2.19 : EDT de samedi prochain, la séance du CE1 est à son nom ; Absences
   enseignants : il peut déclarer et décider.
-- [ ] **4.4** 🔒 `/dashboard/financements` et `/dashboard/cotisations` tapés à la main → renvoi.
+- [ ] **4.4** 🔒 `/dashboard/financements` et `/dashboard/financements/reglements` tapés à la main → renvoi.
 
 ## S5 · Enseignant (`enseignant1@demonstration.invalid`, LEFEBVRE, CE1)
 
@@ -381,7 +415,7 @@ rouge des sessions S2, S5 et S7. Le foyer **RUSSO** (rien payé) sert aux essais
   → refus. (Rien d'autre sur l'école réelle.)
 - [ ] **11.7** Connecté en direction de la démonstration, ouvrir `/superadmin` → refus (console réservée à
   l'éditeur).
-- [ ] **11.8** Rôles : chaque adresse tapée à la main en S3.5, S4.4, S5.7, S6.5, S7.11 renvoie hors de l'écran.
+- [ ] **11.8** Rôles : chaque adresse tapée à la main en S3.13, S4.4, S5.7, S6.5, S7.11 renvoie hors de l'écran.
 
 **Fichiers**
 

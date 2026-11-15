@@ -14,8 +14,9 @@
 --   depart par un enseignant                 -> refuse
 --   depart d'un adulte avec une note         -> accepte, mouvement « depart »
 --   reglage par la comptable / la secretaire -> accepte / refuse
---   decision au cas par cas                  -> comptable accepte, secretaire
---                                               refusee, hors cas par cas refusee
+--   decision au cas par cas                  -> comptable accepte, enseignant
+--                                               refuse, hors cas par cas refusee
+--                                               (secretaire acceptee : controle 44)
 --
 -- Migration : supabase/migrations/add-depart-en-cours-annee.sql.
 -- LECTURE SEULE : exception volontaire finale, tout est annule.
@@ -191,14 +192,16 @@ BEGIN
   RESET ROLE;
   SELECT id INTO mvt FROM mouvements_inscription WHERE student_id = s3 AND motif = 'depart';
 
+  -- La secretaire decide depuis le 15/11 (Reglements) : l'enseignant reste refuse.
   SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', ens, 'role', 'authenticated')::text, true);
   BEGIN
     PERFORM decider_mouvement(mvt, 'due');
     msg := 'acceptee';
   EXCEPTION WHEN raise_exception THEN msg := SQLERRM; END;
   RESET ROLE;
   ok := msg = 'DECISION_REFUSEE';
-  rapport := rapport || E'\n[' || CASE WHEN ok THEN 'OK' ELSE 'KO' END || '] decision par la secretaire ' || msg;
+  rapport := rapport || E'\n[' || CASE WHEN ok THEN 'OK' ELSE 'KO' END || '] decision par l''enseignant ' || msg;
   IF NOT ok THEN nb_ko := nb_ko + 1; END IF;
 
   SET LOCAL ROLE authenticated;

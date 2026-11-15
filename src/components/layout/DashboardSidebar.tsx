@@ -327,10 +327,12 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    // `secretaire` ajoutee le 15/11 : la page et la RLS lui ouvraient deja la
+    // modification (creneaux, exceptions, validations), seul le lien manquait.
     name:  'Emploi du temps',
     href:  '/dashboard/emploi-du-temps',
     icon:  CalendarClock,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
     mobile: true,
   },
   {
@@ -374,10 +376,11 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction'],
   },
   {
+    // `secretaire` ajoutee le 15/11 : encadrement du cahier (`ENCADREMENT_CAHIER`).
     name:  'Cahier de texte',
     href:  '/dashboard/cahier-texte',
     icon:  BookOpenText,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
     mobile: true,
   },
   {
@@ -438,13 +441,14 @@ const navItems: NavItem[] = [
   {
     name:  'Financements',
     icon:  DollarSign,
-    roles: ['admin', 'direction', 'comptable'],
+    // La secretaire n'y voit que Reglements (15/11, `REGLEMENTS_ROLES`).
+    roles: ['admin', 'direction', 'comptable', 'secretaire'],
     children: [
       {
         name:  'Règlements',
         href:  '/dashboard/financements/reglements',
         icon:  Wallet,
-        roles: ['admin', 'direction', 'comptable'],
+        roles: ['admin', 'direction', 'comptable', 'secretaire'],
       },
       {
         name:  'Statistiques',
@@ -493,17 +497,19 @@ const navItems: NavItem[] = [
     children: [
       {
         // Le responsable pédagogique gère les classes (décision du 5 août,
-        // cf. RLS classes). Le référentiel des cours reste à admin/direction.
+        // cf. RLS classes).
         name:  'Param. classes',
         href:  '/dashboard/classes',
         icon:  BookOpen,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
       {
+        // `secretaire` ajoutee le 15/11, en ecriture (RLS `ue_write`,
+        // `cours_modules_write`, `cours_write`).
         name:  'Référentiel cours',
         href:  '/dashboard/cours',
         icon:  BookOpen,
-        roles: ['admin', 'direction', 'responsable_pedagogique'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
     ],
   },

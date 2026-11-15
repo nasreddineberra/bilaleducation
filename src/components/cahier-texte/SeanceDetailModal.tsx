@@ -7,7 +7,7 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import SeanceForm from './SeanceForm'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
-import { dateLocale } from './commun'
+import { dateLocale, ENCADREMENT_CAHIER } from './commun'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { useRouter } from 'next/navigation'
@@ -17,7 +17,7 @@ import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import type { SeanceCahier } from '@/lib/cahier-texte/donnees'
 import { libelleMatiere, type CreneauMatiere } from '@/lib/cahier-texte/matiere'
 
-const STAFF = ['admin', 'direction', 'responsable_pedagogique']
+const STAFF = ENCADREMENT_CAHIER
 
 // Civilité NOM Prénom et infos de classe : sources uniques (`lib/teachers/nom`, `classInfo`).
 const teacherLabelOf = nomCompletEnseignant

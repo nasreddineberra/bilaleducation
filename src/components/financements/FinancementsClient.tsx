@@ -101,7 +101,7 @@ interface Props {
   communications: DonneesReglements['communications']
   /** Mouvements d'inscription de l'annee, tous foyers (`mouvements_inscription`). */
   mouvements?: Mouvement[]
-  /** Suppression du journal comptable : admin/direction seuls (policy fin_comm_delete). */
+  /** Suppression du journal comptable : roles de Reglements (policy fin_comm_delete). */
   canDeleteComms?: boolean
   /** Emplacement des cartes de montants, a droite des onglets (`ReglementsShell`). */
   emplacementMontants?: HTMLElement | null
@@ -689,7 +689,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   }
 
   // ── Relance d'impayes ─────────────────────────────────────────────────────
-  /** Supprime une ligne du journal comptable (admin/direction). L'action serveur
+  /** Supprime une ligne du journal comptable (roles de Reglements). L'action serveur
    *  trace la suppression dans audit_logs avant d'effacer : on ne remplace pas
    *  une trace par un trou. */
   const handleDeleteComm = async (id: string) => {

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ReglementsShell from '@/components/financements/ReglementsShell'
-import { isFinanceRole } from '@/lib/financements/roles'
+import { isReglementsRole } from '@/lib/financements/roles'
 import { AlertTriangle } from 'lucide-react'
 import { effectiveRole } from '@/lib/auth/effective-role'
 import { chargerReglements } from '@/lib/financements/reglements'
@@ -13,7 +13,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
-  if (!isFinanceRole(effectiveRole(me))) redirect('/dashboard')
+  if (!isReglementsRole(effectiveRole(me))) redirect('/dashboard')
 
   // Année en cours
   const { data: currentYear } = await supabase
@@ -40,7 +40,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         currentYear={currentYear}
         {...donnees}
         initialParentId={initialParentId}
-        canDeleteComms={isFinanceRole(effectiveRole(me))}
+        canDeleteComms={isReglementsRole(effectiveRole(me))}
       />
     </div>
   )

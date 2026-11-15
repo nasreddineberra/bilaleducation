@@ -1,6 +1,14 @@
 import type { Ton } from '@/components/dashboard/tdb'
 import type { Tables } from '@/types/supabase'
 
+/**
+ * Encadrement du cahier de texte : toutes les classes, seances et devoirs de
+ * n'importe quel enseignant, sans fenetre de modification. Source unique pour
+ * l'ecran, les modales, les lectures et les actions ; meme liste que la RLS
+ * (`journal_staff_crud`, `homework_staff_crud`). Secretaire ajoutee le 15/11.
+ */
+export const ENCADREMENT_CAHIER: readonly string[] = ['admin', 'direction', 'responsable_pedagogique', 'secretaire']
+
 /** Valeurs permises par la base (CHECK de `homework.homework_type`). */
 export type TypeDevoir = Tables<'homework'>['homework_type']
 

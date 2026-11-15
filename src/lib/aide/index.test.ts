@@ -28,7 +28,9 @@ test('procedure de la page selon le role', () => {
   assert.equal(procedureDeLaPage('/dashboard/financements/reglements', 'comptable')?.slug, 'reglements')
   assert.equal(procedureDeLaPage('/dashboard/financements/reglements', 'admin')?.slug, 'reglements')
   assert.equal(procedureDeLaPage('/dashboard/financements/reglements', 'enseignant'), null)
-  assert.equal(procedureParSlug('reglements', 'secretaire'), null)
+  // Reglements ouvert a la secretaire le 15/11 ; Cotisations lui reste fermee.
+  assert.equal(procedureParSlug('reglements', 'secretaire')?.slug, 'reglements')
+  assert.equal(procedureParSlug('cotisations', 'secretaire'), null)
   assert.equal(procedureDeLaPage('/dashboard/inconnu', 'direction'), null)
   // Fiche d'une absence (prefixe) et taches de gestion retirees en lecture seule.
   assert.equal(procedureDeLaPage('/dashboard/absences-enseignants/abc', 'enseignant')?.slug, 'absences-enseignants')
