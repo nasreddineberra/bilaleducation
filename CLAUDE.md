@@ -108,6 +108,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `admin`. Rattachement exclusif, trace, theme non modifiable pendant l'intervention.
   `effectiveRole()` cote app ; `requireEditor()` (colonne brute) pour les actions de la console.
 - **2FA (TOTP)** obligatoire pour tout le staff (`app_metadata.role` dans le jeton), et pour la console.
+  Enrolement (`auth/enroll-totp`) : QR code + CLE de configuration en dessous (groupes de 4, copiee sans espaces),
+  car un telephone ne scanne pas son propre ecran. Pas de lien `otpauth://` (decision du 23/11).
 - Matrices RLS detaillees : `pg_policies` fait foi (jamais un fichier du depot).
 
 ## 4. Modules (regles metier qui ne se lisent pas d'un coup d'oeil dans le code)

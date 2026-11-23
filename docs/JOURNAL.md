@@ -10462,3 +10462,13 @@ comptable). « go » sans reponse aux deux questions suivantes = preconisations 
 - Plan de tests : S3 reecrite ; S2.44 corrigee (le trop-percu est prevu par la base : statut `overpaid`).
 - Decision utilisateur (meme jour) : `/dashboard/cotisations` reserve a admin, direction, comptable (garde de page
   `isFinanceRole`, comme les autres ecrans financiers) ; un autre role qui tape l'adresse revient au tableau de bord.
+
+## 23/11 · 2FA : cle de configuration sous le QR code
+
+- Signalement utilisateur : a la premiere connexion depuis un TELEPHONE, l'ecran d'enrolement ne montrait que le QR
+  code ; l'application d'authentification du meme telephone ne peut pas le scanner. La console affichait deja la
+  cle, pas l'ecole.
+- Propose : lien `otpauth://` (ouvre l'application) + cle + textes selon l'appareil. Decision utilisateur : garder
+  le bouton « Generer le QR code » et afficher SEULEMENT la cle sous le QR code, sur tous les appareils, sans lien.
+- `auth/enroll-totp/page.tsx` : cle en groupes de 4 (blocs sans espace reel : la selection copie la cle d'un seul
+  tenant), `select-all`. Recette dans `docs/A-TESTER.md` (section Connexion). Commit `a128988`.
