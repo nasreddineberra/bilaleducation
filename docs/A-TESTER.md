@@ -3,6 +3,12 @@
 Essais sur le site deploye, ecole de demonstration (jamais ECOLE BILAL). Un point verifie se RETIRE de ce
 fichier (le journal garde l'historique). Un nouveau chantier livre y ajoute sa recette.
 
+## Connexion
+
+- 2FA depuis un telephone (23/11) : premiere connexion d'un compte de la demonstration, « Generer le QR code »,
+  la cle s'affiche sous le QR code en groupes de 4 ; la copier d'un appui (sans espaces), la saisir dans Google
+  Authenticator (« Saisir une cle de configuration », basee sur l'heure), le code a 6 chiffres est accepte.
+
 ## EDT, classes, titulaires
 
 - **Fiche classe · Planning EDT avec des seances DEJA VALIDEES** : ajouter, modifier, supprimer un creneau (et

@@ -366,6 +366,21 @@ export default function EnrollTotpPage() {
                   <p className="text-xs text-warm-700 text-center">
                     Scannez avec <span className="font-semibold">Google Authenticator</span>, <span className="font-semibold">Authy</span> ou une application compatible.
                   </p>
+                  {/* Clé à saisir à la main : depuis un téléphone, l'application
+                      d'authentification ne peut pas scanner l'écran sur lequel
+                      elle tourne. Groupes de 4 en blocs SANS espace réel : la
+                      sélection copie la clé d'un seul tenant. */}
+                  {secret && (
+                    <div className="w-full pt-3 border-t border-warm-100 text-center space-y-1.5">
+                      <p className="text-xs text-warm-700">Ou saisissez cette clé dans l&apos;application :</p>
+                      <p
+                        className="flex flex-wrap justify-center gap-x-2 gap-y-1 font-mono text-sm font-semibold tracking-wider text-secondary-800 select-all"
+                        aria-label="Clé de configuration"
+                      >
+                        {secret.match(/.{1,4}/g)?.map((groupe, i) => <span key={i}>{groupe}</span>)}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Saisie OTP — validation auto au 6e chiffre */}
